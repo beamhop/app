@@ -66,3 +66,5 @@ Transport/storage = public Nostr relays + Blossom. Source of UX: "Beamhop Deskto
 3. Companion extension (ChatGPT, Copilot, Gemini) — starts with 1-day spike.
 4. Bridge (fx CLI, ACP, MCP stdio).
 5. DMs, Blossom files, device pairing, polish, e2e suite.
+- Landing: text labels for supported agents (no third-party logos).
+- URL: https://beamhop.github.io/app/ (GitHub Pages, no custom domain).
