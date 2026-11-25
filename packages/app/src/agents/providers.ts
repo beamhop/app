@@ -59,18 +59,22 @@ export async function getCreds<T = any>(id: ProviderId): Promise<T | undefined> 
   if (v) credCache.set(id, v)
   return v
 }
-export async function setCreds(id: ProviderId, v: any) {
+/**
+ * Save credentials. `refresh` marks a routine token refresh by the provider: the same account,
+ * so nothing that uses it needs rebuilding.
+ */
+export async function setCreds(id: ProviderId, v: any, o: { refresh?: boolean } = {}) {
   credCache.set(id, v)
   await kv.set('creds:' + id, v)
-  credListeners.forEach((f) => f())
+  if (!o.refresh) credListeners.forEach((f) => f(id))
 }
 export async function clearCreds(id: ProviderId) {
   credCache.delete(id)
   await kv.del('creds:' + id)
-  credListeners.forEach((f) => f())
+  credListeners.forEach((f) => f(id))
 }
-const credListeners = new Set<() => void>()
-export const onCredsChange = (f: () => void) => {
+const credListeners = new Set<(id: ProviderId) => void>()
+export const onCredsChange = (f: (id: ProviderId) => void) => {
   credListeners.add(f)
   return () => {
     credListeners.delete(f)
@@ -140,14 +144,14 @@ export async function fxProviderOptions(id: ProviderId, model: string): Promise<
         provider: 'codex',
         model,
         credentials: async () => (await getCreds('chatgpt')) as any,
-        onCredentials: (n: any) => setCreds('chatgpt', n),
+        onCredentials: (n: any) => setCreds('chatgpt', n, { refresh: true }),
         fetch: extFetch,
       }
     case 'copilot': {
       const getC = async () => {
         const cur = (await getCreds<CopilotCreds>('copilot'))!
         const next = await refreshCopilot(cur)
-        if (next !== cur) await setCreds('copilot', next)
+        if (next !== cur) await setCreds('copilot', next, { refresh: true })
         return next
       }
       return {
@@ -161,7 +165,7 @@ export async function fxProviderOptions(id: ProviderId, model: string): Promise<
       const getC = async () => {
         const cur = (await getCreds<GeminiCreds>('gemini'))!
         const next = await refreshGemini(cur)
-        if (next !== cur) await setCreds('gemini', next)
+        if (next !== cur) await setCreds('gemini', next, { refresh: true })
         return next
       }
       return {

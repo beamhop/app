@@ -31,8 +31,10 @@ self.onmessage = async (e) => {
 const PY_WORKER = `
 let py = null
 const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/'
-self.onmessage = async (e) => {
-  const { code, files, id } = e.data
+// Runs one job at a time: every job resets /work, so overlapping jobs would clobber each other.
+let queue = Promise.resolve()
+self.onmessage = (e) => { queue = queue.then(() => run(e.data)) }
+const run = async ({ code, files, id }) => {
   try {
     if (!py) {
       const mod = await import(PYODIDE + 'pyodide.mjs')
@@ -64,9 +66,11 @@ self.onmessage = async (e) => {
     }
     const before = {}
     for (const [p, d] of Object.entries(files)) { mkdirs(p); FS.writeFile('/work/' + p, d); before[p] = d }
+    // forget modules imported from another workspace's /work
+    py.runPython("import sys, importlib\\nfor _k, _m in list(sys.modules.items()):\\n    if (getattr(_m, '__file__', None) or '').startswith('/work/'):\\n        del sys.modules[_k]\\nimportlib.invalidate_caches()")
     try { await py.loadPackagesFromImports(code) } catch {}
     let result
-    const globals = py.toPy({})
+    const globals = py.toPy({ __name__: '__main__' })
     try {
       result = await py.runPythonAsync(code, { globals })
     } catch (err) {
@@ -80,9 +84,18 @@ self.onmessage = async (e) => {
         if (n === '.' || n === '..') continue
         const p = dir + '/' + n
         const r = rel ? rel + '/' + n : n
-        if (FS.isDir(FS.stat(p).mode)) { walk(p, r); continue }
+        if (FS.isDir(FS.stat(p).mode)) {
+          if (n === '__pycache__' || n.startsWith('.')) continue // caches, hidden folders
+          walk(p, r)
+          continue
+        }
+        // only text files come back; binary files (images, .pyc) would be corrupted as text
         let d
-        try { d = FS.readFile(p, { encoding: 'utf8' }) } catch { continue }
+        try {
+          const bytes = FS.readFile(p)
+          if (bytes.length > 2 * 1024 * 1024) continue
+          d = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+        } catch { continue }
         if (before[r] !== d) changed[r] = d
       }
     }

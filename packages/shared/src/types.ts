@@ -117,6 +117,7 @@ export type Control =
   | { t: 'key'; roomId: string; epoch: number; key: Hex; snapshot: RoomState; relays: string[] }
   | { t: 'agent-join'; roomId: string; secret: Hex; name: string; agentPubkey: Hex; agentKind: 'bridge' | 'browser'; model?: string }
   | { t: 'agent-revoked'; roomId: string }
+  | { t: 'dm-claim'; dm: string; device: string }
 
 export interface HumanInvite {
   v: 1

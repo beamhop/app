@@ -130,7 +130,8 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
           if (!cur) continue
           // keep the room's name for the agent unique among the room's other people and agents
           const others = { ...st!, agents: Object.fromEntries(Object.entries(st!.agents).filter(([pk]) => pk !== existing.pk)) }
-          const name = patch.name === cur.name ? undefined : uniqueName(others, patch.name)
+          // only when the user actually renamed it; a room may have given it a numbered name
+          const name = patch.name === existing.name ? undefined : uniqueName(others, patch.name)
           await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: patch.model, ...(name ? { name } : {}) }).catch(() => {})
         }
         s.toast('Saved')

@@ -30,7 +30,7 @@ export function DMScreen({ identity, peer }: { identity: string; peer: string })
     if (!t) return
     setText('')
     try {
-      await c.sendDM(me, other, t)
+      await c.sendDM(me, other, t, agent ? { canRunHere: s.runner.canRunHere(agent) } : undefined)
     } catch (e: any) {
       s.toast(e.message, 'error')
     }

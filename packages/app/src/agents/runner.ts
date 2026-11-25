@@ -23,6 +23,7 @@ export class AgentRunner {
   private lastIncluded = new Map<string, number>()
   private runnable = new Set<string>() // agent ids runnable on this device
   private busy = new Set<string>() // trigger ids in progress
+  private dmClaims = new Map<string, Set<string>>() // dm id -> devices that claimed answering it
   status = new Map<string, string>() // agent pk -> status line for UI
   constructor(private store: Store) {}
 
@@ -35,6 +36,11 @@ export class AgentRunner {
       if (live) this.onDM(identity, peer, item)
     })
     c.on('key-received', () => this.refreshCapabilities())
+    c.on('dm-claim', ({ dm, device }) => {
+      const set = this.dmClaims.get(dm) ?? new Set<string>()
+      set.add(device)
+      this.dmClaims.set(dm, set)
+    })
     this.refreshCapabilities()
     setInterval(() => this.refreshCapabilities(), 20_000)
     setTimeout(() => this.catchUp().catch((e) => console.warn('catch-up', e)), 12_000)
@@ -61,12 +67,13 @@ export class AgentRunner {
     return this.runnable.has(def.id)
   }
 
-  /** Credentials changed: drop every cached fx agent so the next turn reads the new ones. */
-  invalidateAll() {
-    for (const id of [...this.fx.keys()]) {
-      this.fx.get(id)?.agent.close?.().catch?.(() => {})
-      this.fx.delete(id)
-    }
+  /**
+   * The user changed a provider's sign-in or key: the next turn of each agent on that provider
+   * builds a fresh fx agent that reads the new credentials. Agents on other providers keep their
+   * conversations, and a turn already running finishes on the handle it started with.
+   */
+  invalidateProvider(provider: string) {
+    for (const def of this.store.agents) if (def.provider === provider) this.fx.delete(def.id)
   }
 
   invalidate(id: string) {
@@ -224,30 +231,24 @@ export class AgentRunner {
     }
   }
 
-  private async onDM(identity: string, peer: string, item: { from: string; text: string; id: string; ms: number; device?: string }) {
+  private async onDM(identity: string, peer: string, item: { from: string; text: string; id: string; ms: number; device?: string; senderRuns?: boolean }) {
     const def = this.store.liveAgents().find((a) => a.pk === identity)
     if (!def || item.from !== this.store.pk || peer !== this.store.pk) return // owner-only
     if (!this.runnable.has(def.id)) return
-    // Exactly one of my devices answers. The device the message was typed on answers when it
-    // can run the agent; otherwise the lowest other device seen running it in a room.
+    // Exactly one of my devices answers. The device the DM was typed on answers when it said it
+    // can run the agent. Otherwise every device that can run it claims the DM, and the claimant
+    // with the lowest device id answers. Claims are settled before any model call, so a slow
+    // answer can't make a second device step in.
     const sentHere = item.device === this.store.deviceId
-    if (!sentHere) {
-      const devices = new Set<string>()
-      for (const roomId of this.store.client.rooms.keys())
-        this.store.client.agentRunnerDevices(roomId, def.pk, this.store.pk).forEach((d) => devices.add(d))
-      // the sending device announced it can run this agent: it answers
-      if (item.device && devices.has(item.device)) return
-      devices.delete(item.device ?? '')
-      const first = [...devices].sort()[0]
-      if (first !== undefined && first !== this.store.deviceId) return
-      if (first === undefined) {
-        // Nothing tells us which device answers: give the sending device time to reply, then
-        // answer only if nobody has (devices stagger by id so two don't both step in).
-        const jitter = parseInt(this.store.deviceId.slice(0, 4), 16) % 4000
-        await new Promise((r) => setTimeout(r, 8000 + jitter))
-        const replied = this.store.client.dmMessages(this.store.pk, def.pk).some((m) => m.from === def.pk && m.ms > item.ms)
-        if (replied) return
-      }
+    if (!sentHere || item.senderRuns === false) {
+      if (item.device && item.senderRuns) return // the sending device answers
+      const claims = this.dmClaims.get(item.id) ?? new Set<string>()
+      this.dmClaims.set(item.id, claims)
+      await this.store.client.claimDM(item.id).catch(() => {})
+      await new Promise((r) => setTimeout(r, 2500))
+      const winner = [...claims].sort()[0]
+      this.dmClaims.delete(item.id)
+      if (winner !== this.store.deviceId) return
     }
     this.enqueue(def, async () => {
       this.setStatus(def.pk, 'Thinking…')

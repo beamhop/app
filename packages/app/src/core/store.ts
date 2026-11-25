@@ -73,8 +73,8 @@ export class Store {
     await this.client.start()
     this.runner = new AgentRunner(this)
     this.runner.start()
-    onCredsChange(() => {
-      this.runner.invalidateAll()
+    onCredsChange((provider) => {
+      this.runner.invalidateProvider(provider)
       this.runner.refreshCapabilities()
       this.bump()
     })

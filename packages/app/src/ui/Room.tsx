@@ -820,8 +820,7 @@ function Composer({
     } catch (e: any) {
       // If the message was kept locally as "Not sent · Retry", clear the composer so pressing
       // Send again doesn't post a duplicate. Otherwise (e.g. not in the room) keep the text.
-      const kept = !editing && c.messages(roomId).some((m) => m.failed && m.pubkey === s.pk && (m.payload as any).text === t)
-      if (kept) {
+      if (!editing && e?.keptLocally) {
         setText('')
         setFiles([])
         localStorage.removeItem(draftKey)

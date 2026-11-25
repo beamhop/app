@@ -101,6 +101,8 @@ export interface DMItem {
   id: string
   /** The sender's device, so exactly one of the owner's devices answers a DM to their agent. */
   device?: string
+  /** Whether the sending device said it can run the agent (DMs to one's own agent only). */
+  senderRuns?: boolean
   from: Hex
   to: Hex
   text: string
@@ -119,6 +121,7 @@ export interface ClientEvents {
   dm: { identity: Hex; peer: Hex; item: DMItem; live: boolean }
   'agent-joined': { roomId: string; agentPk: Hex; name: string }
   'key-received': { roomId: string; epoch: number }
+  'dm-claim': { dm: string; device: string }
   error: string
 }
 
@@ -494,6 +497,9 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     }
     if (c.t === 'key') this.onKey(recipient, rumor, c)
     else if (c.t === 'agent-join') this.onAgentJoin(recipient, rumor, c)
+    // one of my devices claims answering a DM to my agent (only trusted from myself)
+    else if (c.t === 'dm-claim' && rumor.pubkey === this.pk && recipient === this.pk && typeof c.dm === 'string' && typeof c.device === 'string')
+      this.emit('dm-claim', { dm: c.dm, device: c.device })
   }
 
   private onKey(recipient: Hex, rumor: Rumor, c: Extract<Control, { t: 'key' }>) {
@@ -587,6 +593,8 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     if (msTag) item.ms = Number(msTag) || item.ms
     const device = rumor.tags.find((t) => t[0] === 'device')?.[1]
     if (device) item.device = device
+    const runs = rumor.tags.find((t) => t[0] === 'runs')?.[1]
+    if (runs) item.senderRuns = runs === '1'
     list.push(item)
     list.sort((a, b) => a.ms - b.ms)
     this.dms.set(key, list.slice(-1000))
@@ -706,8 +714,12 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     }
     try {
       await this.publish(r.relays, outer)
-    } catch (e) {
-      if (!opts.ephemeral) this.markFailed(roomId, inner.id, outer)
+    } catch (e: any) {
+      if (!opts.ephemeral) {
+        this.markFailed(roomId, inner.id, outer)
+        // the message stays in the room as "Not sent · Retry"; callers can tell from this flag
+        throw Object.assign(e instanceof Error ? e : new Error(String(e)), { keptLocally: true, eventId: inner.id })
+      }
       throw e
     }
     return inner.id
@@ -755,6 +767,7 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     // Long texts go out as several messages so each one fits in an encrypted event.
     const parts = splitText(text)
     let id = ''
+    let failure: any = null
     for (let i = 0; i < parts.length; i++) {
       const first = i === 0
       const last = i === parts.length - 1
@@ -764,8 +777,15 @@ export class BeamhopClient extends Emitter<ClientEvents> {
       if (o.trigger) payload.trigger = o.trigger
       if (o.hop !== undefined) payload.hop = o.hop
       if (o.sid && first) payload.sid = o.sid
-      id = await this.send(roomId, payload, { as: o.as })
+      try {
+        id = await this.send(roomId, payload, { as: o.as })
+      } catch (e: any) {
+        // keep going so every part is in the room (as "Not sent · Retry" if it failed)
+        if (!e?.keptLocally) throw e
+        failure ??= e
+      }
     }
+    if (failure) throw failure
     return id
   }
 
@@ -989,13 +1009,14 @@ export class BeamhopClient extends Emitter<ClientEvents> {
       // State ops (admits, removals, renames, our own leave) stay: members who were offline need them.
       (e) => this.identities.has(e.pubkey) && e.outerId && e.payload.t !== 'state' && (!ids || ids.includes(e.id)),
     )
-    const dels = evs.slice(-200).map((e) =>
+    evs.sort((a, b) => a.created_at - b.created_at)
+    const dels = evs.map((e) =>
       finalizeEvent(
         { kind: KIND.DELETE, created_at: nowSec(), tags: [['e', e.outerId!], ['k', String(KIND.ROOM)]], content: '' },
         outerKeyFor(this.identities.get(e.pubkey)!, e.id),
       ),
     )
-    await Promise.allSettled(dels.map((d) => this.publish(r.relays, d)))
+    for (let i = 0; i < dels.length; i += 50) await Promise.allSettled(dels.slice(i, i + 50).map((d) => this.publish(r.relays, d)))
   }
 
   markRead(roomId: string) {
@@ -1025,12 +1046,27 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   }
 
   // ---------------------------------------------------------------- DMs (NIP-17)
-  async sendDM(from: Hex, to: Hex, text: string) {
+  /**
+   * Send a NIP-17 DM. `ownAgent` is set when messaging one of my own agents: the rumor then names this
+   * device and whether it can run the agent, so my devices agree on which one answers. Those tags are
+   * never added to DMs to other people.
+   */
+  async sendDM(from: Hex, to: Hex, text: string, ownAgent?: { canRunHere: boolean }) {
     const sk = this.signerFor(from)
-    const rumor = makeRumor(sk, KIND.DM, text, [['p', to], ['ms', String(Date.now())], ['device', this.deviceId]])
+    const tags = [['p', to], ['ms', String(Date.now())]]
+    if (ownAgent && this.identities.has(to)) tags.push(['device', this.deviceId], ['runs', ownAgent.canRunHere ? '1' : '0'])
+    const rumor = makeRumor(sk, KIND.DM, text, tags)
     this.onDM(from, rumor)
     const relays = this.allRelays()
     await Promise.all([this.publish(relays, giftWrap(rumor, sk, to)), this.publish(relays, giftWrap(rumor, sk, from))])
+  }
+
+  /** Tell my other devices this device will answer DM `dm` if it has the lowest id among claimants. */
+  async claimDM(dm: string) {
+    const c: Control = { t: 'dm-claim', dm, device: this.deviceId }
+    const rumor = makeRumor(this.sk, KIND.CONTROL, JSON.stringify(c))
+    this.emit('dm-claim', { dm, device: this.deviceId })
+    await this.publish(this.allRelays(), giftWrap(rumor, this.sk, this.pk))
   }
 
   dmThreads(identity?: Hex) {
@@ -1090,7 +1126,9 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   }
 }
 
-export function uniqueName(st: RoomState, name: string) {
+export function uniqueName(st: RoomState, rawName: string) {
+  // names are capped at 60 characters; leave room for a " 99" suffix so the result stays unique
+  const name = rawName.slice(0, 56).trim() || 'Agent'
   const taken = new Set([...Object.values(st.members).map((m) => m.name.toLowerCase()), ...Object.values(st.agents).map((a) => a.name.toLowerCase())])
   if (!taken.has(name.toLowerCase())) return name
   for (let i = 2; i < 100; i++) if (!taken.has(`${name} ${i}`.toLowerCase())) return `${name} ${i}`

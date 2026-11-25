@@ -101,7 +101,7 @@ describe('security fixes', () => {
     await a.start()
     const roomId = await a.createRoom('A').catch(() => '')
     const rid = roomId || [...a.rooms.keys()][0]
-    await expect(a.sendMessage(rid, 'lost')).rejects.toThrow()
+    await expect(a.sendMessage(rid, 'lost')).rejects.toMatchObject({ keptLocally: true })
     const m = a.messages(rid).find((x) => (x.payload as any).text === 'lost')!
     expect(m.failed).toBe(true)
     a.rooms.get(rid)!.relays = [RELAY]
@@ -123,6 +123,28 @@ describe('security fixes', () => {
     await alice.stop()
     await bob.stop()
   }, 30000)
+})
+
+describe('more fixes', () => {
+  it('leaving deletes all of my messages, not just 200', async () => {
+    const { alice, bob, roomId } = await roomWithBob()
+    for (let i = 0; i < 230; i++) await bob.sendMessage(roomId, 'm' + i)
+    const outerIds = new Set([...(bob as any).events.get(roomId).values()].filter((e: any) => e.payload.t === 'msg').map((e: any) => e.outerId))
+    expect(outerIds.size).toBe(230)
+    await bob.leave(roomId)
+    const deleted = new Set(relay.events.filter((e: any) => e.kind === 5).flatMap((e: any) => e.tags.filter((t: any) => t[0] === 'e').map((t: any) => t[1])))
+    expect([...outerIds].every((id) => deleted.has(id))).toBe(true)
+    await alice.stop()
+    await bob.stop()
+  }, 60000)
+
+  it('unique names stay within the 60-character limit', async () => {
+    const { uniqueName } = await import('../src/index.js')
+    let s = initialState('r', 'a'.repeat(64), 'x'.repeat(60), 'f'.repeat(64), 1)
+    const n = uniqueName(s, 'x'.repeat(60))
+    expect(n.length).toBeLessThanOrEqual(60)
+    expect(n.toLowerCase()).not.toBe('x'.repeat(60))
+  })
 })
 
 describe('state and mentions', () => {

@@ -121,3 +121,76 @@ test('python sandbox: subfolders work and workspaces stay separate', async ({ pa
   expect(r.r2.stdout).toBe('[]\nFalse\n')
   expect(r.bFiles).toEqual([])
 })
+
+test('python sandbox: __main__, overlapping runs, per-workspace modules, text-only files', async ({ page }) => {
+  await open(page)
+  const r = await page.evaluate(async () => {
+    const { sandboxFor } = await import(/* @vite-ignore */ '/src/agents/sandbox.ts' as any)
+    const t = Date.now()
+    const x = sandboxFor('mx-' + t)
+    const y = sandboxFor('my-' + t)
+    await x.write('helper.py', "WHO = 'x'")
+    await y.write('helper.py', "WHO = 'y'")
+    const main = await x.runPython("if __name__ == '__main__':\n    print('main ran')")
+    // overlapping runs from two workspaces
+    const [rx, ry] = await Promise.all([
+      x.runPython("import helper, time\ntime.sleep(0.2)\nprint(helper.WHO, sorted(__import__('os').listdir('.')))"),
+      y.runPython("import helper\nprint(helper.WHO, sorted(__import__('os').listdir('.')))"),
+    ])
+    const bin = await x.runPython("open('img.png','wb').write(bytes([0x89,0x50,0x4e,0x47,0xff,0xfe,0x00]))\nopen('note.txt','w').write('hi')\nimport helper")
+    return { main: main.stdout, rx: rx.stdout, ry: ry.stdout, binChanged: Object.keys(bin.changed).sort() }
+  })
+  expect(r.main).toBe('main ran\n')
+  expect(r.rx).toBe("x ['helper.py']\n")
+  expect(r.ry).toBe("y ['helper.py']\n")
+  expect(r.binChanged).toEqual(['note.txt'])
+})
+
+test('two devices: a DM to my agent gets exactly one reply', async ({ browser }) => {
+  const a = await (await browser.newContext()).newPage()
+  const b = await (await browser.newContext()).newPage()
+  await open(a)
+  await open(b)
+  const setCustom = (p: Page) =>
+    p.evaluate(async () => {
+      const { setCreds } = await import(/* @vite-ignore */ '/src/agents/providers.ts' as any)
+      await setCreds('custom', { baseUrl: 'http://localhost:7790/v1' })
+    })
+  await a.waitForFunction(() => (window as any).__beamhop?.ready)
+  await setCustom(a)
+  const { sk, agentPk } = await a.evaluate(async () => {
+    const s = (window as any).__beamhop
+    await s.setName('Pat')
+    const def = await s.createAgent({ name: 'Solo', provider: 'custom', model: 'mock-model' })
+    await s.pushRemote()
+    return { sk: s.exportNsec(), agentPk: def.pk }
+  })
+  // device B becomes the same account
+  await b.waitForFunction(() => (window as any).__beamhop?.ready)
+  await Promise.all([b.waitForNavigation(), b.evaluate((k) => (window as any).__beamhop.replaceIdentity(k), sk)])
+  await b.waitForFunction(() => (window as any).__beamhop?.ready)
+  await b.waitForFunction(() => (window as any).__beamhop.liveAgents().length === 1, null, { timeout: 20000 })
+  await setCustom(b)
+  await b.waitForFunction(() => { const s = (window as any).__beamhop; return s.runner.canRunHere(s.liveAgents()[0]) }, null, { timeout: 20000 })
+  await a.waitForFunction(() => { const s = (window as any).__beamhop; return s.runner.canRunHere(s.liveAgents()[0]) }, null, { timeout: 20000 })
+
+  const replies = () => a.evaluate((pk) => { const s = (window as any).__beamhop; return s.client.dmMessages(s.pk, pk).filter((m: any) => m.from === pk).length }, agentPk)
+  const send = (text: string, canRunHere: boolean) => a.evaluate(([pk, t, run]) => { const s = (window as any).__beamhop; return s.client.sendDM(s.pk, pk, t, { canRunHere: run }) }, [agentPk, text, canRunHere] as const)
+
+  // 1) the sending device can run the agent: only it answers
+  await send('first question', true)
+  await expect.poll(replies, { timeout: 20000 }).toBe(1)
+  await a.waitForTimeout(5000)
+  expect(await replies()).toBe(1)
+
+  // 2) the sending device can't run it: the other device claims it and answers once
+  await a.evaluate(async () => {
+    const { clearCreds } = await import(/* @vite-ignore */ '/src/agents/providers.ts' as any)
+    await clearCreds('custom')
+  })
+  await a.waitForFunction(() => { const s = (window as any).__beamhop; return !s.runner.canRunHere(s.liveAgents()[0]) })
+  await send('second question', false)
+  await expect.poll(replies, { timeout: 20000 }).toBe(2)
+  await a.waitForTimeout(5000)
+  expect(await replies()).toBe(2)
+})
