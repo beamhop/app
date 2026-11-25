@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Beamhop bridge: brings an agent on this computer into a Beamhop room.
 //
-//   npx github:beamhop/app#dist "<agent link>" --agent fx|claude|gemini|codex
+//   npx github:beamhop/app#dist "<agent link>" --agent fx|claude|codex|gemini|opencode
 //   npx github:beamhop/app#dist "<agent link>" --cmd "my-agent --stdin"
 //   npx github:beamhop/app#dist mcp "<agent link>"      (MCP stdio server for Claude Code, Cursor…)
 import { parseArgs } from 'node:util'
@@ -22,12 +22,12 @@ import { runMcp } from './mcp.js'
 const HELP = `Beamhop bridge: brings an agent on this computer into a Beamhop room.
 
 Usage:
-  beamhop-agent "<agent link>" [--agent fx|claude|gemini|codex] [options]
+  beamhop-agent "<agent link>" [--agent fx|claude|codex|gemini|opencode] [options]
   beamhop-agent "<agent link>" --cmd "<command>"     prompt on stdin, reply on stdout
   beamhop-agent mcp "<agent link>" [--name <name>]   MCP server (stdio) for Claude Code, Cursor…
 
 Options:
-  --agent <id>       fx (default), claude, gemini, codex
+  --agent <id>       fx (default), claude, codex, gemini, opencode
   --acp "<command>"  any other ACP agent command
   --name <name>      name shown in the room (default: the agent's name)
   --cwd <dir>        working directory for the agent (default: current directory)
@@ -79,7 +79,7 @@ async function main() {
     defaultName = cmd
   } else {
     const p = PRESETS[values.agent!]
-    if (!p) throw new Error(`Unknown --agent ${values.agent}. Use fx, claude, gemini or codex, or --acp "<command>".`)
+    if (!p) throw new Error(`Unknown --agent ${values.agent}. Use fx, claude, codex, gemini or opencode, or --acp "<command>".`)
     backend = new AcpBackend(p.label, p.cmd, p.args, cwd, p.install)
     defaultName = p.label
   }

@@ -2,6 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { Readable, Writable } from 'node:stream'
 import { client as acpClient, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
+import { HARNESSES, HARNESS_ORDER } from '@beamhop/shared'
 
 export interface TurnInput {
   prompt: string
@@ -19,12 +20,14 @@ export interface Backend {
   close(): Promise<void>
 }
 
-export const PRESETS: Record<string, { cmd: string; args: string[]; label: string; install: string }> = {
-  fx: { cmd: 'fx', args: ['acp'], label: 'fx', install: 'curl -fsSL https://fx.sh/setup.sh | bash, then fx login' },
-  claude: { cmd: 'npx', args: ['-y', '@zed-industries/claude-code-acp'], label: 'Claude Code', install: 'npm i -g @anthropic-ai/claude-code, then run claude once to sign in' },
-  gemini: { cmd: 'gemini', args: ['--experimental-acp'], label: 'Gemini CLI', install: 'npm i -g @google/gemini-cli, then run gemini once to sign in' },
-  codex: { cmd: 'npx', args: ['-y', '@zed-industries/codex-acp'], label: 'Codex', install: 'npm i -g @openai/codex, then codex login' },
-}
+/** Harnesses the bridge can start by name (`--agent <id>`), from the shared list. */
+export const PRESETS: Record<string, { cmd: string; args: string[]; label: string; install: string }> = Object.fromEntries(
+  HARNESS_ORDER.filter((id) => id !== 'custom').map((id) => {
+    const h = HARNESSES[id]
+    const { cmd, args } = h.bridgeAcp ?? h.acp
+    return [id, { cmd, args, label: h.label, install: h.bridgeInstall }]
+  }),
+)
 
 /** An ACP agent subprocess with one long-lived session per room. */
 export class AcpBackend implements Backend {

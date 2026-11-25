@@ -1,4 +1,4 @@
-import type { AgentCaps, AgentMode, Instructors } from '@beamhop/shared'
+import type { AgentCaps, AgentMode, HarnessId, Instructors } from '@beamhop/shared'
 import type { ProviderId } from '../agents/providers'
 
 export interface AgentDef {
@@ -7,6 +7,15 @@ export interface AgentDef {
   pk: string
   name: string
   emoji: string
+  /**
+   * Where the agent runs. 'tab' (the default): fx compiled to WebAssembly, calling `provider`
+   * directly. 'machine': a coding-agent harness in the Linux machine in the tab (unkernel).
+   */
+  runtime?: 'tab' | 'machine'
+  /** The harness, for runtime 'machine'. */
+  harness?: HarnessId
+  /** For harness 'custom': the shell command that starts an ACP agent. */
+  customCommand?: string
   provider: ProviderId
   model: string
   instructions: string

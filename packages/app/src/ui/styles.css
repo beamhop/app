@@ -342,3 +342,11 @@ textarea.input { resize: vertical; min-height: 90px; }
 .install-banner { margin: 12px 0; display: flex; align-items: center; gap: 12px; }
 @media (min-width: 900px) { .mobile-only { display: none !important; } }
 @media (max-width: 899px) { .desktop-only { display: none !important; } }
+
+/* Linux machine (ui/Machine.tsx) */
+.warn-card { background: color-mix(in srgb, var(--warn, #d97706) 12%, transparent); border-radius: 10px; padding: 10px 12px; }
+.setup-log { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto; }
+.setup-log.error { color: var(--danger, #dc2626); }
+.terminal-sheet { max-width: 900px; }
+.terminal { height: min(60vh, 460px); border-radius: 10px; overflow: hidden; background: #111318; padding: 6px; }
+.runtime-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-bottom: 10px; }
