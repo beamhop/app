@@ -1,0 +1,21 @@
+[package]
+name = "beamhop-tls-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-webpki = { version = "0.103", default-features = false, features = ["ring", "std"] }
+getrandom = { version = "0.2", features = ["custom"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -71,7 +71,12 @@ export function startRelay(port = 7777) {
     })
     ws.on('close', () => subs.delete(ws))
   })
-  return { wss, events, close: () => new Promise((r) => wss.close(r)) }
+  // wss.close() only resolves once every client has disconnected, so drop the ones still connected first.
+  const close = () => new Promise((r) => {
+    for (const c of wss.clients) c.terminate()
+    wss.close(r)
+  })
+  return { wss, events, close }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
