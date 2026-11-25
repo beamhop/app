@@ -119,4 +119,10 @@ A.benchBridge = async () => {
   return out;
 };
 
+A.kernelReady = new Promise((resolve) => {
+  window.addEventListener('message', (e) => { if (e.origin === B && e.data && e.data.type === 'kernel-ready') resolve(true); });
+});
+// ask the kernel frame to attempt a navigation-style egress; no user activation is transferred
+A.sendNav = (kind, tag) => A.frame.contentWindow.postMessage({ type: 'nav-action', kind, tag }, B);
+
 if (!q.has('manual')) A.ready = A.mountKernel();

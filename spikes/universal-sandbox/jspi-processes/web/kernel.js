@@ -19,6 +19,9 @@ export class ProcExit extends Error {
     this.code = code;
   }
 }
+// Thrown INTO a suspended process (by rejecting the promise it is suspended on) to kill it.
+// The JS exception unwinds the wasm stack up to the promising() wrapper.
+export class ProcKilled extends Error {}
 
 // ---------------------------------------------------------------- files
 
@@ -68,12 +71,13 @@ function wake(q) {
   q.length = 0;
 }
 function waitOn(q, proc) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     q.push(resolve);
-    // kill support: forget the waiter so nothing references the suspended stack any more
-    proc.cancelWait = () => {
+    // kill support: forget the waiter, then either reject (unwind the stack) or just drop it
+    proc.cancelWait = (err) => {
       const i = q.indexOf(resolve);
       if (i >= 0) q.splice(i, 1);
+      if (err) reject(err);
     };
   });
 }
@@ -265,11 +269,18 @@ export class Kernel {
     proc.waiters.length = 0;
   }
 
-  kill(pid) {
+  // mode 'unwind' (default): reject the promise the process is suspended on with ProcKilled,
+  //   so the exception unwinds its wasm stack and the promising(_start) promise rejects.
+  // mode 'drop': only forget the promise and every kernel reference (the original idea).
+  //   Observed in Chromium 158: the suspended stack then keeps instance + memory alive
+  //   forever (never garbage collected) - see RESULTS.md.
+  kill(pid, mode = 'unwind') {
     const proc = this.procs.get(pid);
     if (!proc) return false;
-    if (proc.cancelWait) { proc.cancelWait(); proc.cancelWait = null; }
-    if (proc.timer) { clearTimeout(proc.timer); proc.timer = 0; }
+    proc.killMode = mode;
+    const err = mode === 'unwind' ? new ProcKilled('killed') : null;
+    if (proc.cancelWait) { proc.cancelWait(err); proc.cancelWait = null; }
+    if (proc.timer) { clearTimeout(proc.timer); proc.timer = 0; if (err) proc.timerReject(err); }
     this._finish(proc, 137, 'killed');
     return true;
   }
@@ -303,7 +314,8 @@ export class Kernel {
     start().then(
       () => this._finish(proc, 0, 'exited'),
       (e) => {
-        if (e instanceof ProcExit) this._finish(proc, e.code, 'exited');
+        if (e instanceof ProcKilled) proc.unwound = true; // already finished by kill()
+        else if (e instanceof ProcExit) this._finish(proc, e.code, 'exited');
         else this._finish(proc, 134, 'trapped', `${e && e.constructor && e.constructor.name}: ${e && e.message}`);
       },
     );
@@ -343,6 +355,8 @@ export class Kernel {
       if (k.lastPid !== proc.pid) { k.lastPid = proc.pid; stats.switches++; }
     };
 
+    const dead = () => (proc.killMode === 'drop' ? NEVER : Promise.reject(new ProcKilled('killed')));
+
     // Slow path of fd_read / fd_write: suspend until the file is ready, then retry.
     async function ioSlow(isWrite, f, p, l, pn) {
       for (;;) {
@@ -350,11 +364,11 @@ export class Kernel {
         proc.suspends++;
         await f.wait(proc);
         proc.cancelWait = null;
-        if (proc.dead) await NEVER; // killed between wake-up and resume: never return to wasm
+        if (proc.dead) await dead(); // killed between wake-up and resume: never return to wasm
         if (k.sliceMs && performance.now() - k.lastYield > k.sliceMs) {
           k.macrotaskYields++;
           await k.macrotask();
-          if (proc.dead) await NEVER;
+          if (proc.dead) await dead();
         }
         resumed();
         if (u8.byteLength === 0) refresh();
@@ -461,7 +475,8 @@ export class Kernel {
         if (ms <= 0) return done();
         stats.suspends++;
         proc.suspends++;
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+          proc.timerReject = reject;
           proc.timer = setTimeout(() => {
             proc.timer = 0;
             k.lastYield = performance.now();
@@ -496,7 +511,15 @@ export class Kernel {
         if (!child) return -1;
         stats.suspends++;
         proc.suspends++;
-        return child.exited.then((code) => { resumed(); return code; });
+        return new Promise((resolve, reject) => {
+          proc.cancelWait = (err) => err && reject(err);
+          child.exited.then((code) => {
+            proc.cancelWait = null;
+            if (proc.dead) return;
+            resumed();
+            resolve(code);
+          });
+        });
       },
     };
     const impl = { wasi_snapshot_preview1: wasi, spike };

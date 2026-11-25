@@ -65,6 +65,27 @@ async function newPage(query = '') {
     kill: (id) => page.evaluate((id) => self.H.kill(id), id),
     close: () => context.close(),
   };
+  // Worker heap via CDP (performance.memory does not exist in dedicated workers):
+  // auto-attach to worker targets, then HeapProfiler.collectGarbage + Runtime.getHeapUsage.
+  const cdp = await context.newCDPSession(page);
+  const workerSessions = [];
+  const pending = new Map();
+  let seq = 0;
+  cdp.on('Target.attachedToTarget', (e) => { if (e.targetInfo.type === 'worker') workerSessions.push(e.sessionId); });
+  cdp.on('Target.detachedFromTarget', (e) => { const i = workerSessions.indexOf(e.sessionId); if (i >= 0) workerSessions.splice(i, 1); });
+  cdp.on('Target.receivedMessageFromTarget', (e) => { const m = JSON.parse(e.message); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result); } });
+  await cdp.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: false });
+  const toWorker = (method, params = {}) => new Promise((resolve, reject) => {
+    const sessionId = workerSessions[workerSessions.length - 1];
+    if (!sessionId) { reject(new Error('no worker target attached')); return; }
+    const id = ++seq; pending.set(id, { resolve, reject });
+    cdp.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({ id, method, params }) }).catch(reject);
+  });
+  H.workerHeapBytes = async () => {
+    await toWorker('HeapProfiler.collectGarbage');
+    await toWorker('HeapProfiler.collectGarbage');
+    return (await toWorker('Runtime.getHeapUsage')).usedSize;
+  };
   return H;
 }
 async function worker(H, opts, image = '/dist/image.json') {
@@ -300,22 +321,23 @@ try {
 
   // ------------------------------------------------------------------ memory
   if (want('memory')) {
-    results.memory = { note: 'usedJSHeapSize of the worker isolate via performance.memory inside the worker, after gc() x2 (--expose-gc, --enable-precise-memory-info)', series: {} };
-    const mb = (b) => (b === null ? null : r2(b / 2 ** 20));
+    results.memory = { note: 'JS heap of the worker isolate: CDP HeapProfiler.collectGarbage x2 then Runtime.getHeapUsage().usedSize on the worker target. The fake-fs image strings are part of this heap.', series: {} };
+    const mb = (b) => r2(b / 2 ** 20);
     Object.assign(results.memory, await unit('memory base', async () => {
       const H = await newPage();
       const out = {};
       const s = await H.spawn(q({ mode: 'plain' }));
       const m0 = await H.call(s.id, 'mem', {});
-      out.gcAvailable = m0.gc; out.performanceMemoryInWorker = m0.usedJSHeapSize !== null;
-      out.plainWorkerNoImageMb = mb(m0.usedJSHeapSize);
+      out.performanceMemoryInWorker = m0.usedJSHeapSize !== null;
+      out.plainWorkerNoImageMb = mb(await H.workerHeapBytes());
       await H.call(s.id, 'loadImage', { url: '/dist/image-small.json' });
-      out.plainAfterSmallImageMb = mb((await H.call(s.id, 'mem', {})).usedJSHeapSize);
+      out.plainAfterSmallImageMb = mb(await H.workerHeapBytes());
       await H.kill(s.id);
+      await new Promise((r) => setTimeout(r, 100));
       const s2 = await H.spawn(q({ mode: 'ses', lockdown: LOCKDOWN }));
-      out.sesAfterLockdownNoImageMb = mb((await H.call(s2.id, 'mem', {})).usedJSHeapSize);
+      out.sesAfterLockdownNoImageMb = mb(await H.workerHeapBytes());
       await H.call(s2.id, 'loadImage', { url: '/dist/image-small.json' });
-      out.sesAfterSmallImageMb = mb((await H.call(s2.id, 'mem', {})).usedJSHeapSize);
+      out.sesAfterSmallImageMb = mb(await H.workerHeapBytes());
       out.lockdownCostMb = r2(out.sesAfterLockdownNoImageMb - out.plainWorkerNoImageMb);
       await H.close();
       return out;
@@ -324,11 +346,11 @@ try {
       results.memory.series[spec || '(empty compartment, one evaluate)'] = await unit('memory ' + spec, async () => {
         const H = await newPage();
         const w = await worker(H, { mode: 'ses', lockdown: LOCKDOWN }, '/dist/image-small.json');
-        const series = [{ n: 0, mb: mb((await H.call(w.id, 'mem', {})).usedJSHeapSize) }];
+        const series = [{ n: 0, mb: mb(await H.workerHeapBytes()) }];
         let have = 0;
         for (const n of [1, 10, 50]) {
           await H.call(w.id, 'makeCompartments', { n: n - have, spec }); have = n;
-          series.push({ n, mb: mb((await H.call(w.id, 'mem', {})).usedJSHeapSize) });
+          series.push({ n, mb: mb(await H.workerHeapBytes()) });
         }
         await H.close();
         return { series, firstCompartmentKb: r2((series[1].mb - series[0].mb) * 1024), perAdditionalCompartmentKb: r2(((series[3].mb - series[1].mb) * 1024) / 49) };

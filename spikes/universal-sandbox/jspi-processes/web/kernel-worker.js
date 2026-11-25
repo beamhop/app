@@ -263,7 +263,7 @@ const cmds = {
         pipeReadersAfter: p.readers, waitersOnPipeAfter: p.rq.length,
         writeToPipeAfterKill: wr === -2 ? 'EPIPE' : wr,
         guestOutputAfterKill: out.text(), stillInProcTable: k.procs.has(proc.pid),
-        instanceRefDropped: proc.instance === null,
+        instanceRefDropped: proc.instance === null, stackUnwoundByRejection: proc.unwound === true,
       };
       release(w);
     }
@@ -277,7 +277,7 @@ const cmds = {
       k.kill(proc.pid);
       release(w);
       await new Promise((res) => setTimeout(res, 20));
-      r.wokenButNotResumed = { state: proc.state, guestOutputAfterKill: out.text(), note: 'empty output = guest never ran again' };
+      r.wokenButNotResumed = { state: proc.state, stackUnwoundByRejection: proc.unwound === true, guestOutputAfterKill: out.text(), note: 'empty output = guest never ran again' };
     }
     // 3. kill a process suspended in a sleep (poll_oneoff)
     {
@@ -287,7 +287,8 @@ const cmds = {
       const t0 = now();
       k.kill(proc.pid);
       const code = await proc.exited;
-      r.suspendedInSleep = { exitCode: code, state: proc.state, outputBeforeKill: out.text().trim(), waitMs: +(now() - t0).toFixed(1) };
+      await new Promise((res) => setTimeout(res, 0));
+      r.suspendedInSleep = { exitCode: code, state: proc.state, stackUnwoundByRejection: proc.unwound === true, outputBeforeKill: out.text().trim(), waitMs: +(now() - t0).toFixed(1) };
     }
     // 4. kill the middle of a running pipeline; neighbours must see EPIPE / EOF
     {
@@ -306,6 +307,7 @@ const cmds = {
       r.middleOfPipeline = {
         exitCodes: { producer: codes[0], upper: codes[1], count: codes[2] },
         states: { producer: a.state, upper: b.state, count: c.state },
+        upperStackUnwoundByRejection: b.unwound === true,
         producerError: a.error,
         producerStderr: errA.text().trim().slice(0, 200),
         countOutput: out.text().trim(),
@@ -326,10 +328,18 @@ const cmds = {
     }
     return { spawned: n, allSuspended: self.hogs.every((h) => h.ok), liveProcs: k.procs.size };
   },
-  hogKill() {
-    for (const h of self.hogs) { k.kill(h.pid); release(h.w); }
+  hogKill({ mode = 'unwind' } = {}) {
+    for (const h of self.hogs) { k.kill(h.pid, mode); release(h.w); }
     self.hogs = null;
     return { liveProcs: k.procs.size };
+  },
+  async hogEof() {
+    // let them finish normally instead: EOF on stdin -> resume -> exit(0)
+    const ps = self.hogs.map((h) => k.procs.get(h.pid).exited);
+    for (const h of self.hogs) release(h.w);
+    self.hogs = null;
+    const codes = await Promise.all(ps);
+    return { allExitedZero: codes.every((c) => c === 0), liveProcs: k.procs.size };
   },
   async gc() {
     if (typeof gc !== 'function') return { gcExposed: false, finalized: { ...finalized } };
@@ -338,6 +348,37 @@ const cmds = {
   },
   finalized() {
     return { ...finalized };
+  },
+  // Minimal engine-level repro, independent of the kernel: N instances of a 248-byte module,
+  // each suspended in promising(export) on a promise that is then (a) dropped, (b) rejected,
+  // (c) resolved. Counts how many instances the GC finalizes afterwards.
+  async stackLeakRepro({ n = 50 } = {}) {
+    const out = {};
+    for (const how of ['dropped', 'rejected', 'resolved']) {
+      let done = 0;
+      const reg = new FinalizationRegistry(() => done++);
+      (() => {
+        for (let i = 0; i < n; i++) {
+          let settle;
+          const inst = new WebAssembly.Instance(k.modules.reentrant, {
+            env: {
+              block: new WebAssembly.Suspending(() => new Promise((res, rej) => (settle = { res, rej }))),
+              js_call: () => 0,
+              js_call_susp: () => 0,
+            },
+          });
+          reg.register(inst, 0);
+          WebAssembly.promising(inst.exports.outer_direct)(1).catch(() => {});
+          if (how === 'rejected') settle.rej(new Error('kill'));
+          if (how === 'resolved') settle.res(1);
+        }
+      })();
+      await new Promise((r) => setTimeout(r, 20));
+      if (typeof gc === 'function') for (let i = 0; i < 3; i++) { gc(); await new Promise((r) => setTimeout(r, 50)); }
+      out[how] = { instances: n, finalizedAfterGc: done };
+    }
+    out.gcExposed = typeof gc === 'function';
+    return out;
   },
 
   // ---------------------------------------------------------------- traps

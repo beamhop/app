@@ -88,6 +88,15 @@ const tests = {
     ok(marked.parse('| a |\n|---|\n| 1 |').includes('<table>'), 'gfm table');
     return 'parse ok';
   },
+  'marked:html-comment input': () => {
+    // Behavioural check for SES's source "evasion": does the library still recognise an HTML
+    // comment in its INPUT after its own source text was rewritten? (input built by concatenation
+    // so this test file itself is not affected)
+    const { marked } = require('marked');
+    const open = '<' + '!--', close = '--' + '>';
+    eq(marked.parse(open + ' note ' + close + '\n\nhi'), open + ' note ' + close + '\n<p>hi</p>\n');
+    return 'html comment passed through';
+  },
   'markdown-it': () => {
     const MarkdownIt = dflt(require('markdown-it'));
     eq(new MarkdownIt().render('*x* `y`'), '<p><em>x</em> <code>y</code></p>\n');
@@ -174,6 +183,13 @@ const tests = {
     const ast = acorn.parse('const a = 1; export default async function* f() { yield a ?? 2; }', { ecmaVersion: 2022, sourceType: 'module' });
     eq(ast.body.map((n) => n.type), ['VariableDeclaration', 'ExportDefaultDeclaration']);
     return acorn.version;
+  },
+  'acorn:html-comment token': () => {
+    const acorn = require('acorn');
+    // Annex B: in sloppy scripts an HTML-open-comment sequence starts a line comment
+    const ast = acorn.parse('x\n<' + '!-- y\nz', { ecmaVersion: 2022, sourceType: 'script' });
+    eq(ast.body.length, 2);
+    return 'annex-B html comment tokenised';
   },
   prettier: async () => {
     const prettier = require('prettier/standalone');

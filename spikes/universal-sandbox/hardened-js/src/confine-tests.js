@@ -177,10 +177,10 @@
   add('scope', 'delete/replace eval then direct eval', `
     const out = [];
     try { globalThis.eval = (s) => 'guest-eval'; out.push('replace: eval("typeof fetch") -> ' + eval('typeof fetch')); } catch (e) { out.push('replace threw ' + e.name); }
-    try { delete globalThis.eval; out.push('after delete: ' + eval('typeof fetch')); } catch (e) { out.push('after delete: ' + e.name + ' ' + e.message.slice(0, 50)); }
+    try { delete globalThis.eval; const r = eval('typeof fetch'); if (r !== 'undefined') return REACHED('after deleting eval, direct eval saw typeof fetch=' + r); out.push('after delete: ' + r); } catch (e) { out.push('after delete: ' + e.name + ' ' + e.message.slice(0, 50)); }
     let t; try { t = Function('return typeof fetch + "/" + typeof self')(); } catch (e) { t = e.name; }
-    if (/function|object/.test(out.join()) || /function|object/.test(String(t))) return REACHED(out.join('; ') + '; ' + t);
-    return OK(out.join('; ') + '; Function still confined: ' + t);`);
+    if (t !== 'undefined/undefined') return REACHED(out.join('; ') + '; ' + t);
+    return OK(out.join('; ') + '; Function() still confined afterwards: typeof fetch/self = ' + t);`);
   add('scope', 'undeclared assignment / var leakage', `
     let r; try { Function('leakedGlobal = 1; return typeof leakedGlobal')(); r = 'accepted'; } catch (e) { r = e.name + ': ' + e.message.slice(0, 60); }
     (0, eval)('var guestVar = 42');
@@ -262,7 +262,7 @@
     try { setTimeout('globalThis.__pwned_timer_wrapped = 1', 0); } catch (e) { return OK('wrapper threw ' + e.name + ': ' + e.message); }
     await sleep(20);
     return CHECK('__pwned_timer_wrapped', 'wrapper accepted a string');`);
-  add('endowments', 'RAW native setTimeout endowed (what-if)', `
+  add('endowments', 'RAW native setTimeout.bind(self) endowed (what-if)', `
     rawSetTimeout('self.__pwned_timer_raw = typeof fetch', 0);
     await sleep(30);
     return CHECK('__pwned_timer_raw', 'string passed to the native setTimeout is compiled and run in the real worker global');`, { extra: 'rawSetTimeout', whatIf: true });

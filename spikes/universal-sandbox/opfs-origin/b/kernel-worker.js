@@ -27,6 +27,8 @@ cmds.env = async () => {
     typeofAtomicsWaitAsync: typeof Atomics.waitAsync,
     hasCreateSyncAccessHandle: 'createSyncAccessHandle' in FileSystemFileHandle.prototype,
     typeofWebAssemblySuspending: typeof WebAssembly.Suspending,
+    typeofRTCPeerConnection: typeof RTCPeerConnection,
+    typeofWebTransport: typeof WebTransport,
     hardwareConcurrency: navigator.hardwareConcurrency,
     deviceMemory: navigator.deviceMemory,
     userAgent: navigator.userAgent,
@@ -113,7 +115,10 @@ cmds.holdHandle = async () => {
 // ---------------- 3. SQLite (opfs-sahpool) ----------------
 let sqlite3 = null;
 let pool = null;
-cmds.sqliteInit = async ({ poolName = 'kernel-pool', force = false } = {}) => {
+// NOTE: by default a failed installOpfsSAHPoolVfs() calls removeVfs(), which recursively DELETES the
+// pool directory (sqlite-wasm 3.54.1 dist/index.mjs; it only spares files another tab holds locked).
+// `preserve: true` maps to the preserveOnInitFailure option, which just unregisters the VFS instead.
+cmds.sqliteInit = async ({ poolName = 'kernel-pool', force = false, preserve = true } = {}) => {
   const out = {};
   let t = performance.now();
   const t00 = t;
@@ -126,7 +131,7 @@ cmds.sqliteInit = async ({ poolName = 'kernel-pool', force = false } = {}) => {
   }
   t = performance.now();
   try {
-    pool = await sqlite3.installOpfsSAHPoolVfs({ name: poolName, directory: '/' + poolName, initialCapacity: 12, clearOnInit: false, forceReinitIfPreviouslyFailed: force });
+    pool = await sqlite3.installOpfsSAHPoolVfs({ name: poolName, directory: '/' + poolName, initialCapacity: 12, clearOnInit: false, forceReinitIfPreviouslyFailed: force, preserveOnInitFailure: preserve });
   } catch (e) {
     out.poolError = `${e.name}: ${e.message}`;
     out.poolFailedAfterMs = r1(performance.now() - t);

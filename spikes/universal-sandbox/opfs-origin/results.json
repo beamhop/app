@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-11-25T10:28:25.710Z",
+    "date": "2026-11-25T10:29:50.460Z",
     "chromium": "158.0.8127.36",
     "node": "v22.23.5",
     "host": {
@@ -27,367 +27,527 @@
     "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
     "--disable-popup-blocking"
   ],
-  "7_egress": {
-    "worker_scriptServedWithCsp": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-csp/importscripts' failed to load",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-csp/import",
-        "sendBeacon": "navigator.sendBeacon is not available in workers",
-        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-csp/worker.js' cannot be accessed from origin 'http://127.0.0.1:",
-        "eval-works": "eval -> 2"
-      }
-    },
-    "worker_scriptServedWithoutCsp": {
-      "reachedAttacker": [
-        "fetch",
-        "fetch-nocors",
-        "xhr",
-        "websocket",
-        "sse",
-        "importscripts",
-        "import"
-      ],
-      "tcpConnectionsToAttacker": 4,
-      "clientSideOutcome": {
-        "fetch": "ok status 200",
-        "fetch-nocors": "ok (opaque)",
-        "xhr": "ok status 200",
-        "websocket": "open",
-        "eventsource": "message",
-        "importScripts": "imported, ran=1",
-        "dynamic-import": "imported",
-        "sendBeacon": "navigator.sendBeacon is not available in workers",
-        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-nocsp/worker.js' cannot be accessed from origin 'http://127.0.0.",
-        "eval-works": "eval -> 2"
-      }
-    },
-    "worker_blobUrl": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-blob/importscripts' failed to loa",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-blob/import",
-        "sendBeacon": "navigator.sendBeacon is not available in workers",
-        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-blob/worker.js' cannot be accessed from origin 'http://127.0.0.1",
-        "eval-works": "eval -> 2"
-      }
-    },
-    "serviceWorker": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "websocket": "error event",
-        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/sw/importscripts' failed to load."
-      }
-    },
-    "kernelDocument": {
-      "reachedAttacker": [
-        "udp(stun)"
-      ],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc/import",
-        "script-tag": "error event",
-        "image": "error event",
-        "css-background": "inserted",
-        "stylesheet-link": "error event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "error event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
-      }
-    },
-    "kernelDocument_preconnect": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": "inserted"
-    },
-    "previewPage_swAddsCsp": {
-      "reachedAttacker": [
-        "udp(stun)"
-      ],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/preview-mc-csp-eg/import",
-        "script-tag": "error event",
-        "image": "error event",
-        "css-background": "inserted",
-        "stylesheet-link": "error event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "error event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
-      }
-    },
-    "previewPage_swOmitsCsp": {
-      "reachedAttacker": [
-        "fetch",
-        "fetch-nocors",
-        "xhr",
-        "websocket",
-        "sse",
-        "import",
-        "script",
-        "image",
-        "css-bg",
-        "css",
-        "beacon",
-        "iframe",
-        "object",
-        "video",
-        "prefetch",
-        "preload",
-        "form",
-        "udp(stun)"
-      ],
-      "tcpConnectionsToAttacker": 7,
-      "clientSideOutcome": {
-        "fetch": "ok status 200",
-        "fetch-nocors": "ok (opaque)",
-        "xhr": "ok status 200",
-        "websocket": "open",
-        "eventsource": "message",
-        "dynamic-import": "imported",
-        "script-tag": "load event",
-        "image": "load event",
-        "css-background": "inserted",
-        "stylesheet-link": "load event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "load event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
-      }
-    },
-    "kernelDocument_policyWithoutWebrtcDirective": {
-      "reachedAttacker": [
-        "udp(stun)"
-      ],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc-nowebrtcdir/import",
-        "script-tag": "error event",
-        "image": "error event",
-        "css-background": "inserted",
-        "stylesheet-link": "error event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "error event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
+  "7b_navigation_egress": {
+    "plain": {
+      "kernelStillWorks": {
+        "opfsSahPool": true,
+        "syncAccessHandle": true,
+        "serviceWorker": {
+          "ms": 11.1,
+          "scope": "http://127.0.0.1:8102/preview/",
+          "state": "activated"
+        },
+        "previewServedBySw": true,
+        "previewMedianMs": 1.4,
+        "origin": "http://127.0.0.1:8102"
       },
-      "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'"
-    },
-    "kernelDocument_policyPlusWebrtcBlock": {
-      "reachedAttacker": [
+      "kernelDocumentEgressReached": [
         "udp(stun)"
       ],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc-webrtcblock/import",
-        "script-tag": "error event",
-        "image": "error event",
-        "css-background": "inserted",
-        "stylesheet-link": "error event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "error event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
+      "self-nav (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://localhost:8103/hit/nav-plain-self-nav/self-nav?d=secret",
+        "popupsOpened": 0
       },
-      "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'; webrtc 'block'"
-    },
-    "BASELINE_documentWithoutCsp": {
-      "reachedAttacker": [
-        "fetch",
-        "fetch-nocors",
-        "xhr",
-        "websocket",
-        "sse",
-        "import",
-        "script",
-        "image",
-        "css-bg",
-        "css",
-        "beacon",
-        "iframe",
-        "object",
-        "video",
-        "prefetch",
-        "preload",
-        "form",
-        "udp(stun)"
-      ],
-      "tcpConnectionsToAttacker": 7,
-      "clientSideOutcome": {
-        "fetch": "ok status 200",
-        "fetch-nocors": "ok (opaque)",
-        "xhr": "ok status 200",
-        "websocket": "open",
-        "eventsource": "message",
-        "dynamic-import": "imported",
-        "script-tag": "load event",
-        "image": "load event",
-        "css-background": "inserted",
-        "stylesheet-link": "load event",
-        "sendBeacon": "returned true",
-        "iframe-embed": "load event",
-        "object": "load event",
-        "video": "error event",
-        "link-prefetch": "inserted",
-        "link-preload": "inserted",
-        "form-submit": "submitted",
-        "webrtc-stun": "ice candidates: [host]"
+      "top-nav (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "assigned",
+        "topPageUrlAfter": "http://localhost:8103/hit/nav-plain-top-nav/top-nav",
+        "kernelFrameUrlAfter": null,
+        "popupsOpened": 0
+      },
+      "top-nav (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "frame gone",
+        "topPageUrlAfter": "http://localhost:8103/hit/nav-plain-top-nav-act/top-nav",
+        "kernelFrameUrlAfter": null,
+        "popupsOpened": 0
+      },
+      "window-open (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
+      },
+      "window-open (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
+      },
+      "anchor-blank (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "clicked",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
       }
     },
-    "BASELINE_preconnect": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": "inserted"
+    "A_iframeSandboxAttr": {
+      "kernelStillWorks": {
+        "opfsSahPool": true,
+        "syncAccessHandle": true,
+        "serviceWorker": {
+          "ms": 1,
+          "scope": "http://127.0.0.1:8102/preview/",
+          "state": "activated"
+        },
+        "previewServedBySw": true,
+        "previewMedianMs": 1.8,
+        "origin": "http://127.0.0.1:8102"
+      },
+      "kernelDocumentEgressReached": [
+        "udp(stun)"
+      ],
+      "self-nav (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://localhost:8103/hit/nav-A_iframeSandboxAttr-self-nav/self-nav?d=secret",
+        "popupsOpened": 0
+      },
+      "top-nav (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-A_iframeSandboxAttr-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "top-nav (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-A_iframeSandboxAttr-top-nav-act/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "anchor-blank (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "clicked",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      }
     },
-    "worker_cspScript_startedByNoCspDocument": {
-      "reachedAttacker": [],
-      "tcpConnectionsToAttacker": 0,
-      "clientSideOutcome": {
-        "fetch": "throws TypeError: Failed to fetch",
-        "fetch-nocors": "throws TypeError: Failed to fetch",
-        "xhr": "error event",
-        "websocket": "error event",
-        "eventsource": "error event",
-        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-csp-nocspdoc/importscripts' faile",
-        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-csp-nocspdoc/import",
-        "sendBeacon": "navigator.sendBeacon is not available in workers",
-        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-csp-nocspdoc/worker.js' cannot be accessed from origin 'http://1",
-        "eval-works": "eval -> 2"
+    "A_cspFrameSrc": {
+      "kernelStillWorks": {
+        "opfsSahPool": true,
+        "syncAccessHandle": true,
+        "serviceWorker": {
+          "ms": 1,
+          "scope": "http://127.0.0.1:8102/preview/",
+          "state": "activated"
+        },
+        "previewServedBySw": true,
+        "previewMedianMs": 1.9,
+        "origin": "http://127.0.0.1:8102"
+      },
+      "kernelDocumentEgressReached": [
+        "udp(stun)"
+      ],
+      "self-nav (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1",
+        "kernelFrameUrlAfter": "chrome-error://chromewebdata/",
+        "popupsOpened": 0
+      },
+      "top-nav (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "assigned",
+        "topPageUrlAfter": "http://localhost:8103/hit/nav-A_cspFrameSrc-top-nav/top-nav",
+        "kernelFrameUrlAfter": null,
+        "popupsOpened": 0
+      },
+      "top-nav (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "frame gone",
+        "topPageUrlAfter": "http://localhost:8103/hit/nav-A_cspFrameSrc-top-nav-act/top-nav",
+        "kernelFrameUrlAfter": null,
+        "popupsOpened": 0
+      },
+      "window-open (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
+      },
+      "window-open (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
+      },
+      "anchor-blank (user click)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "clicked",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 1
+      }
+    },
+    "B_cspSandboxDirective": {
+      "kernelStillWorks": {
+        "opfsSahPool": true,
+        "syncAccessHandle": true,
+        "serviceWorker": {
+          "ms": 0.9,
+          "scope": "http://127.0.0.1:8102/preview/",
+          "state": "activated"
+        },
+        "previewServedBySw": true,
+        "previewMedianMs": 1.6,
+        "origin": "http://127.0.0.1:8102"
+      },
+      "kernelDocumentEgressReached": [
+        "udp(stun)"
+      ],
+      "self-nav (no user activation)": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://localhost:8103/hit/nav-B_cspSandboxDirective-self-nav/self-nav?d=secret",
+        "popupsOpened": 0
+      },
+      "top-nav (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-B_cspSandboxDirective-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "top-nav (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-B_cspSandboxDirective-top-nav-act/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "anchor-blank (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "clicked",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      }
+    },
+    "A_sandboxAttr_plus_A_cspFrameSrc": {
+      "kernelStillWorks": {
+        "opfsSahPool": true,
+        "syncAccessHandle": true,
+        "serviceWorker": {
+          "ms": 1,
+          "scope": "http://127.0.0.1:8102/preview/",
+          "state": "activated"
+        },
+        "previewServedBySw": true,
+        "previewMedianMs": 1.8,
+        "origin": "http://127.0.0.1:8102"
+      },
+      "kernelDocumentEgressReached": [
+        "udp(stun)"
+      ],
+      "self-nav (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "chrome-error://chromewebdata/",
+        "popupsOpened": 0
+      },
+      "top-nav (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-A_sandboxAttr_plus_A_cspFrameSrc-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "top-nav (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/nav-A_sandboxAttr_plus_A_cspFrameSrc-top-nav-act/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (no user activation)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "window-open (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      },
+      "anchor-blank (user click)": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "clicked",
+        "topPageUrlAfter": "http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin",
+        "kernelFrameUrlAfter": "http://127.0.0.1:8102/kernel.html",
+        "popupsOpened": 0
+      }
+    },
+    "previewFrame": {
+      "plain / preview sw-adds-csp / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview sw-adds-csp / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-nav-p-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview sw-adds-csp / window-open": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 1
+      },
+      "plain / preview nocsp / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview nocsp / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-nocsp-nav-p-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview nocsp / window-open": {
+        "reachedAttacker": true,
+        "clientSideOutcome": "opened",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 1
+      },
+      "plain / preview cspsandbox / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview cspsandbox / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-cspsandbox-nav-p-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "plain / preview cspsandbox / window-open": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview sw-adds-csp / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview sw-adds-csp / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-nav-s-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview sw-adds-csp / window-open": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview nocsp / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview nocsp / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-nocsp-nav-s-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview nocsp / window-open": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview cspsandbox / self-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "scheduled",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview cspsandbox / top-nav": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "throws SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://localhost:8103/hit/preview-mc-cspsandbox-nav-s-top-nav/top-nav'.",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
+      },
+      "A_iframeSandboxAttr / preview cspsandbox / window-open": {
+        "reachedAttacker": false,
+        "clientSideOutcome": "returned null",
+        "topPageUrlAfter": "http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin",
+        "popupsOpened": 0
       }
     }
   },
   "consoleNotes": [
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'ws://localhost:8103/hit/kernel-doc/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set, so 's",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set, so 's",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the stylesheet 'http://localhost:8103/hit/kernel-doc/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a f",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-plain/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-plain/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/fn-plain/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-plain/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set, so 'scr",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-plain/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set, so 'scr",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-plain/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-plain/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/fn-plain/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fal",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
     "[error] Framing 'http://localhost:8103/' violates the following Content Security Policy directive: \"frame-src 'self' blob:\". The request has been blocked.\n",
-    "[error] Loading plugin data from 'http://localhost:8103/hit/kernel-doc/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a fallback. Th",
-    "[error] Loading media from  'http://localhost:8103/hit/kernel-doc/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. The actio",
-    "[error] Fetching content from 'http://localhost:8103/hit/kernel-doc/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Sending form data to 'http://localhost:8103/hit/kernel-doc/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/preview-mc-csp-eg/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/preview-mc-csp-eg/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'ws://localhost:8103/hit/preview-mc-csp-eg/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading the script 'http://localhost:8103/hit/preview-mc-csp-eg/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set",
-    "[error] Loading the script 'http://localhost:8103/hit/preview-mc-csp-eg/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set",
-    "[error] Loading the image 'http://localhost:8103/hit/preview-mc-csp-eg/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the image 'http://localhost:8103/hit/preview-mc-csp-eg/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the stylesheet 'http://localhost:8103/hit/preview-mc-csp-eg/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading plugin data from 'http://localhost:8103/hit/preview-mc-csp-eg/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a fallb",
-    "[error] Loading media from  'http://localhost:8103/hit/preview-mc-csp-eg/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. Th",
-    "[error] Fetching content from 'http://localhost:8103/hit/preview-mc-csp-eg/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Sending form data to 'http://localhost:8103/hit/preview-mc-csp-eg/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'ws://localhost:8103/hit/kernel-doc-nowebrtcdir/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the stylesheet 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading plugin data from 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a ",
-    "[error] Loading media from  'http://localhost:8103/hit/kernel-doc-nowebrtcdir/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallbac",
-    "[error] Fetching content from 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Sending form data to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
-    "[error] Unrecognized Content-Security-Policy directive 'webrtc'.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-webrtcblock/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-webrtcblock/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'ws://localhost:8103/hit/kernel-doc-webrtcblock/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-webrtcblock/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
-    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-webrtcblock/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-webrtcblock/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-webrtcblock/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
-    "[error] Loading the stylesheet 'http://localhost:8103/hit/kernel-doc-webrtcblock/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Loading plugin data from 'http://localhost:8103/hit/kernel-doc-webrtcblock/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a ",
-    "[error] Loading media from  'http://localhost:8103/hit/kernel-doc-webrtcblock/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallbac",
-    "[error] Fetching content from 'http://localhost:8103/hit/kernel-doc-webrtcblock/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
-    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Sending form data to 'http://localhost:8103/hit/kernel-doc-webrtcblock/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
-    "[warning] The resource http://localhost:8103/hit/baseline-doc/preload was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally"
+    "[error] Loading plugin data from 'http://localhost:8103/hit/fn-plain/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a fallback. The ",
+    "[error] Loading media from  'http://localhost:8103/hit/fn-plain/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. The action ",
+    "[error] Fetching content from 'http://localhost:8103/hit/fn-plain/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-plain/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Sending form data to 'http://localhost:8103/hit/fn-plain/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_iframeSandboxAttr/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_iframeSandboxAttr/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/fn-A_iframeSandboxAttr/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a ",
+    "[error] Loading media from  'http://localhost:8103/hit/fn-A_iframeSandboxAttr/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallbac",
+    "[error] Fetching content from 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Blocked form submission to 'http://localhost:8103/hit/fn-A_iframeSandboxAttr/form' because the form's frame is sandboxed and the 'allow-forms' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin' from frame with URL 'http://127.0.0.1:8102/kernel.html'. The frame attempting navigation of the top-level ",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_iframeSandboxAttr-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_iframeSandboxAttr-window-open-act/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_iframeSandboxAttr-anchor-blank-act/anchor-blank' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_cspFrameSrc/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_cspFrameSrc/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/fn-A_cspFrameSrc/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_cspFrameSrc/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set,",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_cspFrameSrc/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitly set,",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_cspFrameSrc/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_cspFrameSrc/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/fn-A_cspFrameSrc/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used ",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/fn-A_cspFrameSrc/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a fallba",
+    "[error] Loading media from  'http://localhost:8103/hit/fn-A_cspFrameSrc/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. The",
+    "[error] Fetching content from 'http://localhost:8103/hit/fn-A_cspFrameSrc/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_cspFrameSrc/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Sending form data to 'http://localhost:8103/hit/fn-A_cspFrameSrc/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
+    "[error] Framing 'http://localhost:8103/' violates the following Content Security Policy directive: \"frame-src http://127.0.0.1:8102\". The request has been blocked.\n",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-B_cspSandboxDirective/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-B_cspSandboxDirective/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/fn-B_cspSandboxDirective/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-B_cspSandboxDirective/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explici",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-B_cspSandboxDirective/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explici",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-B_cspSandboxDirective/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-B_cspSandboxDirective/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/fn-B_cspSandboxDirective/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' ",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/fn-B_cspSandboxDirective/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as ",
+    "[error] Loading media from  'http://localhost:8103/hit/fn-B_cspSandboxDirective/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallb",
+    "[error] Fetching content from 'http://localhost:8103/hit/fn-B_cspSandboxDirective/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Blocked form submission to 'http://localhost:8103/hit/fn-B_cspSandboxDirective/form' because the form's frame is sandboxed and the 'allow-forms' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html' from frame with URL 'http://127.0.0.1:8102/kernel.html'. The frame attempting navigation of the top-level window is sandboxed, but the flag of 'allo",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-B_cspSandboxDirective-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-B_cspSandboxDirective-window-open-act/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-B_cspSandboxDirective-anchor-blank-act/anchor-blank' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was ",
+    "[error] Loading the script 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was ",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so '",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' ",
+    "[error] Loading media from  'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used",
+    "[error] Fetching content from 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Blocked form submission to 'http://localhost:8103/hit/fn-A_sandboxAttr_plus_A_cspFrameSrc/form' because the form's frame is sandboxed and the 'allow-forms' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html?acsp=1&sandbox=allow-scripts%20allow-same-origin' from frame with URL 'http://127.0.0.1:8102/kernel.html'. The frame attempting navigation of the top",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_sandboxAttr_plus_A_cspFrameSrc-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_sandboxAttr_plus_A_cspFrameSrc-window-open-act/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Blocked opening 'http://localhost:8103/hit/nav-A_sandboxAttr_plus_A_cspFrameSrc-anchor-blank-act/anchor-blank' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html' from frame with URL 'http://127.0.0.1:8102/preview/mc-nav-p-top-nav/nav.html?kind=top-nav'. The frame attempting navigation is targeting its top-lev",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html' from frame with URL 'http://127.0.0.1:8102/preview/mc-nocsp-nav-p-top-nav/nav.html?kind=top-nav'. The frame attempting navigation is targeting its t",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html' from frame with URL 'http://127.0.0.1:8102/preview/mc-cspsandbox-nav-p-top-nav/nav.html?kind=top-nav'. The frame attempting navigation of the top-le",
+    "[error] Blocked opening 'http://localhost:8103/hit/preview-mc-cspsandbox-nav-p-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin' from frame with URL 'http://127.0.0.1:8102/preview/mc-nav-s-top-nav/nav.html?kind=top-nav'. The frame atte",
+    "[error] Blocked opening 'http://localhost:8103/hit/preview-mc-nav-s-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin' from frame with URL 'http://127.0.0.1:8102/preview/mc-nocsp-nav-s-top-nav/nav.html?kind=top-nav'. The fram",
+    "[error] Blocked opening 'http://localhost:8103/hit/preview-mc-nocsp-nav-s-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set.",
+    "[error] Unsafe attempt to initiate navigation for frame with URL 'http://localhost:8101/index.html?sandbox=allow-scripts%20allow-same-origin' from frame with URL 'http://127.0.0.1:8102/preview/mc-cspsandbox-nav-s-top-nav/nav.html?kind=top-nav'. The",
+    "[error] Blocked opening 'http://localhost:8103/hit/preview-mc-cspsandbox-nav-s-window-open/window-open' in a new window because the request was made in a sandboxed frame whose 'allow-popups' permission is not set."
   ]
 }

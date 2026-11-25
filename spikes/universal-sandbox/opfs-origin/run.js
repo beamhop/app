@@ -291,12 +291,14 @@ function medianOf(objs) {
     await run('kernelDocument_preconnect', 'kernel-doc-preconnect', () => f.evaluate(() => runPreconnect()));
     await run('previewPage_swAddsCsp', 'preview-mc-csp-eg', () => f.evaluate(() => window.spike.openPreview('mc-csp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
     await run('previewPage_swOmitsCsp', 'preview-mc-nocsp-eg', () => f.evaluate(() => window.spike.openPreview('mc-nocsp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
-    // WebRTC is not governed by connect-src. Compare the policy with and without the "webrtc 'block'" directive.
-    for (const [label, tag, csp] of [['kernelDocument_policyWithoutWebrtcDirective', 'kernel-doc-nowebrtcdir', DEFAULT_B_CSP.replace("; webrtc 'block'", '')], ['kernelDocument_policyPlusWebrtcBlock', 'kernel-doc-webrtcblock', DEFAULT_B_CSP.replace("; webrtc 'block'", '') + "; webrtc 'block'"]]) {
+    // WebRTC is not governed by connect-src. Try the CSP3 "webrtc 'block'" directive.
+    {
+      const csp = DEFAULT_B_CSP + "; webrtc 'block'";
       srv.setBCsp(csp);
       const w = await openA();
-      await run(label, tag, () => w.frame.evaluate((t) => window.spike.docEgress(t), tag));
-      out[label].policy = csp;
+      await run('kernelDocument_policyPlusWebrtcBlock', 'kernel-doc-webrtcblock', () => w.frame.evaluate(() => window.spike.docEgress('kernel-doc-webrtcblock')));
+      out.kernelDocument_policyPlusWebrtcBlock.policy = csp;
+      out.kernelDocument_policyPlusWebrtcBlock.browserSaysDirectiveUnrecognized = consoleNotes.some((n) => n.includes("Unrecognized Content-Security-Policy directive 'webrtc'"));
       await w.page.close();
       srv.setBCsp(null);
     }
@@ -358,7 +360,13 @@ function medianOf(objs) {
     const tab2 = await openA();
     out.tab2_elect = await tab2.frame.evaluate(() => window.spike.elect());
     out.tab2_locksQuery = await tab2.frame.evaluate(() => window.spike.locksQuery());
-    out.tab2_secondOpenOfSahPool = await call(tab2.frame, 'sqliteInit');
+    // library default (preserveOnInitFailure unset): the failure path tries to delete the pool directory
+    const nBefore = consoleNotes.length;
+    out.tab2_secondOpenOfSahPool_libraryDefaults = await call(tab2.frame, 'sqliteInit', { preserve: false });
+    await sleep(200);
+    out.tab2_secondOpenOfSahPool_libraryDefaults.consoleErrors = consoleNotes.slice(nBefore).filter((n) => n.includes('kernel-pool'));
+    out.tab2_secondOpenOfSahPool_preserveOnInitFailure = await call(tab2.frame, 'sqliteInit', { force: true });
+    out.tab1_dataStillThereAfterTab2Failures = (await call(tab1.frame, 'persistRead')).kv;
     out.tab2_secondRawSyncHandle = await call(tab2.frame, 'holdHandle');
     out.tab2_broadcastChannelToTab1 = await tab2.frame.evaluate(() => window.spike.bcPing());
     out.toplevelB_sawBroadcasts = await top.evaluate(() => window.T.bcSeen.length);
@@ -408,19 +416,29 @@ function medianOf(objs) {
         let prev = null;
         if (!sw.error) { await fn.frame.evaluate(() => window.spike.connectPreview({ useSqlite: false })); prev = await fn.frame.evaluate(() => window.spike.openPreview('mc-fn', 'index.html', { timeout: 8000 })); }
         o.kernelStillWorks = { opfsSahPool: !init.poolError, poolError: init.poolError, syncAccessHandle: env.hasCreateSyncAccessHandle, serviceWorker: sw, previewServedBySw: !!(prev && prev.first), previewMedianMs: prev && prev.latencyMs && prev.latencyMs.median, origin: await fn.frame.evaluate(() => self.origin) };
+        clearLog();
+        await fn.frame.evaluate(([t]) => window.spike.docEgress(t), ['fn-' + vname]);
+        o.kernelDocumentEgressReached = (await hits('fn-' + vname)).reached;
         await fn.page.close();
       } catch (e) { alive(e); o.kernelStillWorks = { error: String(e).slice(0, 300) }; }
       for (const [kind, activated] of kinds) {
         const label = kind + (activated ? ' (user click)' : ' (no user activation)');
         const tag = `nav-${vname}-${kind}${activated ? '-act' : ''}`;
         clearLog();
-        const t = await openA(v.query);
+        // The B frame must not be evaluated before the attempt: Playwright evaluates with userGesture=true,
+        // which would hand the frame a user activation. Readiness and the trigger go through A instead.
+        const t = await openA(v.query, { expectKernel: false });
+        await t.page.evaluate(() => window.A.kernelReady);
         const pagesBefore = new Set(ctx.pages());
         let client;
         try {
-          if (activated) { await t.frame.evaluate(([k, tg]) => window.spike.arm(k, tg), [kind, tag]); await t.frame.click('#act'); await sleep(100); try { client = await t.frame.evaluate(() => window.spike.armedResult); } catch (e) { alive(e); client = 'frame gone'; } }
-          else client = await t.frame.evaluate(([k, tg]) => window.spike.navAction(k, tg), [kind, tag]);
-        } catch (e) { alive(e); client = 'evaluate failed: ' + String(e).slice(0, 120); }
+          if (activated) {
+            await t.page.evaluate(([k, tg]) => window.A.frame.contentWindow.postMessage({ type: 'nav-action', kind: 'arm:' + k, tag: tg }, '*'), [kind, tag]);
+            await t.frame.click('#act');
+          } else await t.page.evaluate(([k, tg]) => window.A.sendNav(k, tg), [kind, tag]);
+          await sleep(250);
+          try { client = await t.frame.evaluate(() => window.spike.armedResult || window.spike.navResult); } catch (e) { alive(e); client = 'frame navigated away'; }
+        } catch (e) { alive(e); client = 'failed: ' + String(e).slice(0, 120); }
         const h = await hits(tag, 800);
         const popups = ctx.pages().filter((p) => !pagesBefore.has(p));
         let frameUrl = null; try { frameUrl = t.page.frames().find((fr) => fr !== t.page.mainFrame()).url(); } catch (e) { alive(e); }
@@ -428,7 +446,8 @@ function medianOf(objs) {
         for (const p of popups) await p.close().catch(() => {});
         await t.page.close().catch(() => {});
       }
-      note(`   ${vname}: ` + Object.entries(o).filter(([k]) => k !== 'kernelStillWorks').map(([k, x]) => `${k}=${x.reachedAttacker ? 'REACHED' : 'blocked'}`).join('; '));
+      note(`   ${vname}: ` + Object.entries(o).filter(([k]) => !k.startsWith('kernel')).map(([k, x]) => `${k}=${x.reachedAttacker ? 'REACHED' : 'blocked'}`).join('; '));
+      if (!ctxAlive) throw new Error('browser has been closed');
     }
     srv.setBCsp(null);
 

@@ -1,0 +1,864 @@
+{
+  "meta": {
+    "date": "2026-11-25T10:31:01.309Z",
+    "caveat": "headless Chromium in a cloud container (not a phone, not Safari, not Firefox); numbers are indicative only",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+    "cores": 4,
+    "memGB": 15.7,
+    "node": "v22.23.5",
+    "repsPerMeasurement": 3,
+    "quick": true,
+    "chromium": "158.0.8127.36"
+  },
+  "served": {
+    "cross-origin-opener-policy": null,
+    "cross-origin-embedder-policy": null
+  },
+  "env": {
+    "page": {
+      "crossOriginIsolated": false,
+      "typeofSharedArrayBuffer": "undefined"
+    },
+    "worker": {
+      "crossOriginIsolated": false,
+      "typeofSharedArrayBuffer": "undefined",
+      "typeofAtomicsWait": "function",
+      "typeofSuspending": "function",
+      "typeofPromising": "function",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36",
+      "hardwareConcurrency": 4,
+      "performanceNowGranularityMs": 0.09999999962747097,
+      "nestedWorkerAvailable": "function",
+      "gcExposed": "undefined"
+    }
+  },
+  "programs": {
+    "producer": {
+      "bytes": 69251,
+      "compileMs": 0.8,
+      "fetchMs": 2.1
+    },
+    "upper": {
+      "bytes": 63366,
+      "compileMs": 0.4,
+      "fetchMs": 2
+    },
+    "count": {
+      "bytes": 55560,
+      "compileMs": 0.3,
+      "fetchMs": 1.9
+    },
+    "spin": {
+      "bytes": 55940,
+      "compileMs": 0.3,
+      "fetchMs": 2.1
+    },
+    "pingpong": {
+      "bytes": 42895,
+      "compileMs": 0.3,
+      "fetchMs": 1.4
+    },
+    "hog": {
+      "bytes": 53807,
+      "compileMs": 0.3,
+      "fetchMs": 2.3
+    },
+    "crash": {
+      "bytes": 61248,
+      "compileMs": 0.3,
+      "fetchMs": 1.5
+    },
+    "parent": {
+      "bytes": 54202,
+      "compileMs": 0.5,
+      "fetchMs": 1.5
+    },
+    "reentrant": {
+      "bytes": 248,
+      "compileMs": 0.1,
+      "fetchMs": 1.5
+    },
+    "spinImports": [
+      "wasi_snapshot_preview1.args_sizes_get",
+      "wasi_snapshot_preview1.args_get",
+      "wasi_snapshot_preview1.clock_time_get",
+      "wasi_snapshot_preview1.fd_write",
+      "spike.nop",
+      "spike.nop_susp",
+      "spike.nop_async",
+      "wasi_snapshot_preview1.environ_get",
+      "wasi_snapshot_preview1.environ_sizes_get",
+      "wasi_snapshot_preview1.proc_exit"
+    ],
+    "producerImports": [
+      "wasi_snapshot_preview1.args_sizes_get",
+      "wasi_snapshot_preview1.args_get",
+      "wasi_snapshot_preview1.environ_get",
+      "wasi_snapshot_preview1.environ_sizes_get",
+      "wasi_snapshot_preview1.fd_write",
+      "wasi_snapshot_preview1.poll_oneoff",
+      "wasi_snapshot_preview1.proc_exit"
+    ]
+  },
+  "correctness": {
+    "pipeline_200k_lines_with_sleeps": {
+      "placement": "a",
+      "lines": 200000,
+      "pipeCap": 4096,
+      "buf": false,
+      "sliceMs": 0,
+      "sleepEvery": 20000,
+      "stages": 3,
+      "shim": true,
+      "ok": true,
+      "output": "lines=200000 bytes=11400000 fnv=c5d488f5",
+      "expected": "lines=200000 bytes=11400000 fnv=c5d488f5",
+      "exitCodes": [
+        0,
+        0,
+        0
+      ],
+      "stderr": "",
+      "ms": 131,
+      "bytesPerStage": 11400000,
+      "throughputMBps": 87,
+      "syscalls": 413592,
+      "kernelBlocks": 8370,
+      "jspiSuspendingCalls": 8370,
+      "processSwitches": 8370,
+      "blocksPerProc": {
+        "producer": 2790,
+        "upper": 2790,
+        "count": 2790
+      },
+      "macrotaskYields": 0,
+      "countReadWhenProducerExited": 11400000,
+      "maxBufferedBetweenStages": 0
+    },
+    "pipeline_2stage_exact_output_1000_lines": {
+      "placement": "a",
+      "lines": 1000,
+      "pipeCap": 4096,
+      "buf": false,
+      "sliceMs": 0,
+      "sleepEvery": 100,
+      "stages": 2,
+      "shim": true,
+      "ok": true,
+      "output": "57000 chars captured",
+      "expected": "exact text match",
+      "exitCodes": [
+        0,
+        0
+      ],
+      "stderr": "",
+      "ms": 24.1,
+      "bytesPerStage": 57000,
+      "throughputMBps": 2.4,
+      "syscalls": 2051,
+      "kernelBlocks": 40,
+      "jspiSuspendingCalls": 40,
+      "processSwitches": 40,
+      "blocksPerProc": {
+        "producer": 20,
+        "upper": 20
+      },
+      "macrotaskYields": 0,
+      "countReadWhenProducerExited": 0,
+      "maxBufferedBetweenStages": 57000
+    },
+    "pipeline_200k_lines_no_shim": {
+      "placement": "a",
+      "lines": 200000,
+      "pipeCap": 4096,
+      "buf": false,
+      "sliceMs": 0,
+      "sleepEvery": 0,
+      "stages": 3,
+      "shim": false,
+      "ok": true,
+      "output": "lines=200000 bytes=11400000 fnv=c5d488f5",
+      "expected": "lines=200000 bytes=11400000 fnv=c5d488f5",
+      "exitCodes": [
+        0,
+        0,
+        0
+      ],
+      "stderr": "",
+      "ms": 166.3,
+      "bytesPerStage": 11400000,
+      "throughputMBps": 68.6,
+      "syscalls": 604217,
+      "kernelBlocks": 4214,
+      "jspiSuspendingCalls": 604217,
+      "processSwitches": 2761,
+      "blocksPerProc": {
+        "producer": 1380,
+        "upper": 0,
+        "count": 2834
+      },
+      "macrotaskYields": 0,
+      "countReadWhenProducerExited": 11395953,
+      "maxBufferedBetweenStages": 4047
+    },
+    "waitchild": {
+      "exitCode": 0,
+      "parentSuspends": 1,
+      "output": "line 0000000 the quick brown fox jumps over the lazy dog\nline 0000001 the quick brown fox jumps over the lazy dog\nline 0000002 the quick brown fox jumps over the lazy dog\nparent: spawned pid 10\nparent: child exited with 0\n"
+    }
+  },
+  "measurements": {
+    "a_syscall_ns": {
+      "calc_no_syscall_baseline": {
+        "median": 2.5,
+        "samples": [
+          2.8,
+          2.5,
+          2.5
+        ]
+      },
+      "nop_plain_import": {
+        "median": 18.3,
+        "samples": [
+          18.3,
+          18.5,
+          17.9
+        ]
+      },
+      "nop_Suspending_import_returning_number": {
+        "median": 97.7,
+        "samples": [
+          97.7,
+          98.5,
+          96.7
+        ]
+      },
+      "nop_Suspending_import_returning_resolved_promise": {
+        "median": 99.7,
+        "samples": [
+          110.1,
+          99.7,
+          96.7
+        ]
+      },
+      "clock_time_get_plain_import": {
+        "median": 155.9,
+        "samples": [
+          153.3,
+          176.8,
+          155.9
+        ]
+      },
+      "fd_write_1byte_null_via_shim": {
+        "median": 29.7,
+        "samples": [
+          29.7,
+          27.8,
+          38.6
+        ]
+      },
+      "fd_write_1byte_null_direct_Suspending": {
+        "median": 101.8,
+        "samples": [
+          109.3,
+          101.8,
+          99.2
+        ]
+      }
+    },
+    "a_context_switch_ns": {
+      "pingpong_shim": {
+        "median": 428,
+        "samples": [
+          428,
+          485,
+          408
+        ],
+        "lastRun": {
+          "kernelBlocks": 400001,
+          "processSwitches": 400001,
+          "syscalls": 800001,
+          "ms": 163.3
+        }
+      },
+      "pingpong_no_shim": {
+        "median": 448,
+        "samples": [
+          455,
+          448,
+          426
+        ],
+        "lastRun": {
+          "kernelBlocks": 400001,
+          "processSwitches": 400001,
+          "syscalls": 800001,
+          "ms": 170.5
+        }
+      }
+    },
+    "a_pipeline_MBps": {
+      "pipe4k_line_buffered_shim": {
+        "median": 158.1,
+        "samples": [
+          166.9,
+          158.1,
+          156.4
+        ],
+        "lastRun": {
+          "ok": true,
+          "ms": 72.9,
+          "syscalls": 413567,
+          "kernelBlocks": 8346,
+          "jspiSuspendingCalls": 8346,
+          "processSwitches": 8346,
+          "blocksPerProc": {
+            "producer": 2782,
+            "upper": 2782,
+            "count": 2782
+          },
+          "maxBufferedBetweenStages": 2508,
+          "bytesPerStage": 11400000
+        }
+      },
+      "pipe4k_line_buffered_no_shim": {
+        "median": 63.7,
+        "samples": [
+          63.7,
+          68.8,
+          60
+        ],
+        "lastRun": {
+          "ok": true,
+          "ms": 189.9,
+          "syscalls": 604217,
+          "kernelBlocks": 4214,
+          "jspiSuspendingCalls": 604217,
+          "processSwitches": 2761,
+          "blocksPerProc": {
+            "producer": 1380,
+            "upper": 0,
+            "count": 2834
+          },
+          "maxBufferedBetweenStages": 4047,
+          "bytesPerStage": 11400000
+        }
+      },
+      "pipe4k_64k_guest_buffers_shim": {
+        "median": 244.1,
+        "samples": [
+          233.6,
+          244.1,
+          275.4
+        ],
+        "lastRun": {
+          "ok": true,
+          "ms": 41.4,
+          "syscalls": 18431,
+          "kernelBlocks": 8920,
+          "jspiSuspendingCalls": 8920,
+          "processSwitches": 8920,
+          "blocksPerProc": {
+            "producer": 2284,
+            "upper": 4286,
+            "count": 2350
+          },
+          "maxBufferedBetweenStages": 65151,
+          "bytesPerStage": 11400000
+        }
+      },
+      "pipe64k_line_buffered_shim": {
+        "median": 143,
+        "samples": [
+          107,
+          143,
+          166.4
+        ],
+        "lastRun": {
+          "ok": true,
+          "ms": 68.5,
+          "syscalls": 402053,
+          "kernelBlocks": 519,
+          "jspiSuspendingCalls": 519,
+          "processSwitches": 519,
+          "blocksPerProc": {
+            "producer": 173,
+            "upper": 173,
+            "count": 173
+          },
+          "maxBufferedBetweenStages": 61845,
+          "bytesPerStage": 11400000
+        }
+      },
+      "pipe4k_line_buffered_shim_timeslice8ms": {
+        "median": 145.8,
+        "samples": [
+          144.1,
+          148.1,
+          145.8
+        ],
+        "lastRun": {
+          "ok": true,
+          "ms": 78.2,
+          "syscalls": 413567,
+          "kernelBlocks": 8346,
+          "jspiSuspendingCalls": 8346,
+          "processSwitches": 8346,
+          "blocksPerProc": {
+            "producer": 2782,
+            "upper": 2782,
+            "count": 2782
+          },
+          "maxBufferedBetweenStages": 2508,
+          "bytesPerStage": 11400000
+        }
+      }
+    },
+    "b_syscall_us": {
+      "raw_js_MessageChannel_round_trip_baseline": {
+        "median": 57.62,
+        "samples": [
+          57.62,
+          64.48,
+          56
+        ]
+      },
+      "nop": {
+        "median": 64.12,
+        "samples": [
+          56.44,
+          64.12,
+          65.74
+        ]
+      },
+      "clock_time_get": {
+        "median": 60.08,
+        "samples": [
+          70.36,
+          60.08,
+          55.54
+        ]
+      },
+      "fd_write_1byte_null": {
+        "median": 58.72,
+        "samples": [
+          56.56,
+          58.72,
+          60.2
+        ]
+      }
+    },
+    "b_pipeline_MBps": {
+      "median": 0.5,
+      "samples": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "lastRun": {
+        "ok": true,
+        "ms": 538.4,
+        "syscalls": 15013,
+        "lines": 5000
+      }
+    },
+    "spawn": {
+      "a_instantiateOnlyUs": {
+        "median": 160.5,
+        "samples": [
+          247,
+          144.5,
+          160.5
+        ]
+      },
+      "a_spawnRunExitUs": {
+        "median": 185.5,
+        "samples": [
+          185.5,
+          141.5,
+          218
+        ]
+      },
+      "rawInstantiateTinyModuleUs": {
+        "median": 47,
+        "samples": [
+          52,
+          42,
+          47
+        ]
+      },
+      "b_coldWorkerInstantiatedMs": {
+        "median": 7,
+        "samples": [
+          7,
+          7.4,
+          6.6
+        ]
+      },
+      "b_coldWorkerSpawnRunExitMs": {
+        "median": 7.6,
+        "samples": [
+          7.6,
+          8.2,
+          7.3
+        ]
+      },
+      "b_warmWorkerInstantiatedMs": {
+        "median": 0.1,
+        "samples": [
+          0.2,
+          0.1,
+          0.1
+        ]
+      },
+      "b_warmWorkerSpawnRunExitMs": {
+        "median": 0.4,
+        "samples": [
+          0.5,
+          0.4,
+          0.4
+        ]
+      },
+      "note": "a_* in microseconds per process (batch of 200), b_* in milliseconds; all from an already compiled WebAssembly.Module"
+    }
+  },
+  "responsiveness": {
+    "pipeline_1M_lines_no_timeslice": {
+      "pipelineOk": true,
+      "pipelineMs": 340.2,
+      "throughputMBps": 167.5,
+      "macrotaskYields": 0,
+      "pingsSent": 68,
+      "pongsReceivedDuringOrAfter": 68,
+      "maxPongLatencyMs": 336.5
+    },
+    "pipeline_1M_lines_timeslice_8ms": {
+      "pipelineOk": true,
+      "pipelineMs": 444.7,
+      "throughputMBps": 128.2,
+      "macrotaskYields": 89,
+      "pingsSent": 88,
+      "pongsReceivedDuringOrAfter": 88,
+      "maxPongLatencyMs": 8.5
+    },
+    "placement_b_burner_killed_by_kernel": {
+      "result": {
+        "exitCode": 137,
+        "state": "killed",
+        "kernelTimerLateByMs": 0.2,
+        "pipelineAfterOk": true,
+        "liveProcs": 0
+      },
+      "pings": 62,
+      "pongsReceived": 62,
+      "maxPongLatencyMs": 1.9,
+      "commandMs": 311.9
+    }
+  },
+  "kill": {
+    "suspendedInRead": {
+      "before": {
+        "state": "running",
+        "suspends": 1,
+        "pipeReaders": 1,
+        "waitersOnPipe": 1
+      },
+      "killed": true,
+      "state": "killed",
+      "exitCode": 137,
+      "pipeReadersAfter": 0,
+      "waitersOnPipeAfter": 0,
+      "writeToPipeAfterKill": "EPIPE",
+      "guestOutputAfterKill": "",
+      "stillInProcTable": false,
+      "instanceRefDropped": true,
+      "stackUnwoundByRejection": true
+    },
+    "wokenButNotResumed": {
+      "state": "killed",
+      "stackUnwoundByRejection": true,
+      "guestOutputAfterKill": "",
+      "note": "empty output = guest never ran again"
+    },
+    "suspendedInSleep": {
+      "exitCode": 137,
+      "state": "killed",
+      "stackUnwoundByRejection": true,
+      "outputBeforeKill": "line 0000000 the quick brown fox jumps over the lazy dog",
+      "waitMs": 0.1
+    },
+    "middleOfPipeline": {
+      "exitCodes": {
+        "producer": 134,
+        "upper": 137,
+        "count": 0
+      },
+      "states": {
+        "producer": "trapped",
+        "upper": "killed",
+        "count": "exited"
+      },
+      "upperStackUnwoundByRejection": true,
+      "producerError": "RuntimeError: unreachable",
+      "producerStderr": "thread 'main' (1) panicked at src/bin/producer.rs:18:84:\ncalled `Result::unwrap()` on an `Err` value: Os { code: 64, kind: BrokenPipe, message: \"Broken pipe\" }\nnote: run with `RUST_BACKTRACE=1` enviro",
+      "countOutput": "lines=9000 bytes=513000 fnv=78a8c5f9",
+      "liveProcsAfter": 0
+    }
+  },
+  "trap": {
+    "trap": {
+      "suspendedBeforeCrash": true,
+      "exitCode": 134,
+      "state": "trapped",
+      "error": "RuntimeError: unreachable",
+      "stderr": "crash: read 5 bytes, now trap",
+      "fdsClosed": true,
+      "ms": 0.2
+    },
+    "panic": {
+      "suspendedBeforeCrash": true,
+      "exitCode": 134,
+      "state": "trapped",
+      "error": "RuntimeError: unreachable",
+      "stderr": "crash: read 5 bytes, now panic\n\nthread 'main' (1) panicked at src/bin/crash.rs:21:20:\ndeliberate panic\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+      "fdsClosed": true,
+      "ms": 0.3
+    },
+    "overflow": {
+      "suspendedBeforeCrash": true,
+      "exitCode": 134,
+      "state": "trapped",
+      "error": "RangeError: Maximum call stack size exceeded",
+      "stderr": "crash: read 5 bytes, now overflow",
+      "fdsClosed": true,
+      "ms": 0.8
+    },
+    "bystander": {
+      "exitCode": 0,
+      "output": "lines=2 bytes=4 fnv=7a256dee"
+    },
+    "pipelineAfterTrapsOk": true
+  },
+  "manySuspended": {
+    "shim": {
+      "limit": 20000,
+      "shim": true,
+      "liveSuspendedProcesses": 124,
+      "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
+      "spawnMs": 35,
+      "usPerSpawn": 280,
+      "resumeAllAndExitMs": 2,
+      "allExitedZero": true,
+      "liveProcsAfter": 0,
+      "pipelineRightAfterOk": true
+    },
+    "noShim": {
+      "limit": 20000,
+      "shim": false,
+      "liveSuspendedProcesses": 124,
+      "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
+      "spawnMs": 31,
+      "usPerSpawn": 249,
+      "resumeAllAndExitMs": 2,
+      "allExitedZero": true,
+      "liveProcsAfter": 0,
+      "pipelineRightAfterOk": true
+    }
+  },
+  "jsFramesOnStack": {
+    "suspending_import_returning_plain_value": {
+      "order": "import,microtask,import,microtask",
+      "yieldsToMicrotasks": true
+    },
+    "direct_wasm_to_suspending_import": {
+      "ok": true,
+      "value": 110
+    },
+    "wasm_js_wasm_then_suspend": {
+      "ok": false,
+      "error": "SuspendError: trying to suspend JS frames",
+      "caughtInsideJsFrame": "SuspendError: trying to suspend JS frames"
+    },
+    "instance_usable_after_failed_suspend": {
+      "ok": true,
+      "value": 102
+    },
+    "wasm_js_wasm_no_actual_suspend": {
+      "ok": false,
+      "error": "SuspendError: trying to suspend JS frames"
+    },
+    "wasm_asyncjs_wasm_then_suspend": {
+      "ok": true,
+      "value": 1011
+    },
+    "raw_export_then_suspend": {
+      "ok": false,
+      "error": "SuspendError: trying to suspend without WebAssembly.promising"
+    },
+    "raw_export_no_actual_suspend": {
+      "ok": false,
+      "error": "SuspendError: trying to suspend without WebAssembly.promising"
+    },
+    "two_concurrent_activations_same_instance": {
+      "ok": true,
+      "value": [
+        102,
+        104
+      ]
+    },
+    "suspend_through_array_map_frame": {
+      "ok": false,
+      "error": "SuspendError: trying to suspend without WebAssembly.promising"
+    }
+  },
+  "memoryDefaultFlags": {
+    "note": "kill = reject the pending promise (unwind). Pss of the whole browser process tree in MB; default flags, no explicit gc()",
+    "rounds": [
+      {
+        "spawned20": true,
+        "liveMB": 525,
+        "afterKillMB": 525
+      },
+      {
+        "spawned20": true,
+        "liveMB": 846,
+        "afterKillMB": 846
+      },
+      {
+        "spawned20": true,
+        "liveMB": 1167,
+        "afterKillMB": 1167
+      },
+      {
+        "spawned20": true,
+        "liveMB": 1487,
+        "afterKillMB": 1486
+      },
+      {
+        "spawned20": true,
+        "liveMB": 1742,
+        "afterKillMB": 524
+      },
+      {
+        "spawned20": true,
+        "liveMB": 845,
+        "afterKillMB": 845
+      },
+      {
+        "spawned20": true,
+        "liveMB": 1165,
+        "afterKillMB": 1165
+      },
+      {
+        "spawned20": true,
+        "liveMB": 1486,
+        "afterKillMB": 1486
+      }
+    ],
+    "baselineMB": 205,
+    "after3sIdleMB": 1486,
+    "finalizedSoFar": {
+      "instance": 80,
+      "memory": 80
+    },
+    "maxLiveProcessesRightAfter": 125
+  },
+  "oobDefaultFlags": {
+    "PAGE_CRASHED": true
+  },
+  "watchdog": {
+    "pipelineBeforeOk": true,
+    "hangDetectedAfterMs": 1000,
+    "lostInFlightCommands": 1,
+    "terminateCallMs": 0,
+    "newWorkerBootMs": 12.6,
+    "reloadAndCompileProgramsMs": 27.4,
+    "pipelineAfterRestartOk": true,
+    "totalMs": 1057,
+    "note": "all kernel state (pipes, files, every other process) died with the worker"
+  },
+  "memoryWithExposeGc": {
+    "note": "separate browser launched with --js-flags=--expose-gc; each hog = 1 Instance + 1 Memory (16 MiB touched); \"finalized\" = cumulative FinalizationRegistry callbacks",
+    "engineLevelRepro": {
+      "dropped": {
+        "instances": 50,
+        "finalizedAfterGc": 0
+      },
+      "rejected": {
+        "instances": 50,
+        "finalizedAfterGc": 50
+      },
+      "resolved": {
+        "instances": 50,
+        "finalizedAfterGc": 50
+      },
+      "gcExposed": true
+    },
+    "baselineMB": 184,
+    "maxLiveProcessesAtStart": 75,
+    "live20HogsMB": 512,
+    "after20NormalExits": {
+      "gcExposed": true,
+      "finalized": {
+        "instance": 20,
+        "memory": 20
+      }
+    },
+    "after20NormalExitsMB": 191,
+    "after20KilledByUnwind": {
+      "gcExposed": true,
+      "finalized": {
+        "instance": 40,
+        "memory": 40
+      }
+    },
+    "after20KilledByUnwindMB": 192,
+    "after20KilledByDroppingPromise": {
+      "gcExposed": true,
+      "finalized": {
+        "instance": 40,
+        "memory": 40
+      }
+    },
+    "after20KilledByDroppingPromiseMB": 512,
+    "maxLiveProcessesAtEnd": 55
+  },
+  "oobWithEnforcedBoundsChecks": {
+    "note": "separate browser launched with --js-flags=--wasm-enforce-bounds-checks",
+    "raw": {
+      "mode": "oob",
+      "variant": "raw",
+      "error": "RuntimeError: memory access out of bounds",
+      "stderr": "crash: read 5 bytes, now oob"
+    },
+    "promisingNoSuspend": {
+      "mode": "oob",
+      "variant": "promising-nosuspend",
+      "suspends": 0,
+      "exitCode": 134,
+      "state": "trapped",
+      "error": "RuntimeError: memory access out of bounds",
+      "stderr": "crash: read 5 bytes, now oob"
+    },
+    "promisingSuspended": {
+      "mode": "oob",
+      "variant": "promising-suspended",
+      "suspends": 1,
+      "exitCode": 134,
+      "state": "trapped",
+      "error": "RuntimeError: memory access out of bounds",
+      "stderr": "crash: read 5 bytes, now oob"
+    },
+    "many": {
+      "limit": 20000,
+      "shim": true,
+      "liveSuspendedProcesses": 125,
+      "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
+      "spawnMs": 30,
+      "usPerSpawn": 236,
+      "resumeAllAndExitMs": 2,
+      "allExitedZero": true,
+      "liveProcsAfter": 0,
+      "pipelineRightAfterOk": true
+    }
+  }
+}

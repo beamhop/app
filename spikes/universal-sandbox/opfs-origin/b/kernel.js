@@ -39,6 +39,11 @@ spike.call = (cmd, args = {}, transfer = []) => {
 window.addEventListener('message', (e) => {
   if (e.origin === ORIGIN_A && e.data && e.data.type === 'bridge-port') {
     spike.call('bridgePort', {}, [e.ports[0]]);
+  } else if (e.origin === ORIGIN_A && e.data && e.data.type === 'nav-action') {
+    // test hook: run a navigation attempt WITHOUT user activation (postMessage does not carry one,
+    // whereas Playwright's frame.evaluate() runs with userGesture=true)
+    if (e.data.kind.startsWith('arm:')) spike.arm(e.data.kind.slice(4), e.data.tag);
+    else spike.navResult = spike.navAction(e.data.kind, e.data.tag);
   } else if (e.data && e.data.type === 'preview-result') {
     const w = previewWaiters.get(e.data.id + ':' + e.data.kind);
     if (w && e.source === w.frame.contentWindow) { previewWaiters.delete(e.data.id + ':' + e.data.kind); w.resolve(e.data); }
@@ -300,3 +305,6 @@ spike.arm = (kind, tag) => { spike.armed = { kind, tag }; spike.armedResult = nu
 document.getElementById('act').addEventListener('click', () => {
   if (spike.armed) spike.armedResult = spike.navAction(spike.armed.kind, spike.armed.tag);
 });
+
+// tell A we are up (lets the runner avoid touching this frame, which would grant it user activation)
+try { parent.postMessage({ type: 'kernel-ready' }, ORIGIN_A); } catch (e) { /* not embedded in A */ }

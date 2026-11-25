@@ -9,6 +9,7 @@ const boot = { mode: MODE, lockdownOptions: LOCKDOWN_OPTS, errors: [] };
 
 self.__REAL_GLOBAL_CANARY__ = 1;
 const realGc = typeof self.gc === 'function' ? self.gc : null;
+const INDIRECT_EVAL = self.eval; // called under another name => indirect eval, survives guests deleting globalThis.eval in plain mode
 
 let t = performance.now();
 importScripts('/src/kernel.js', '/src/confine-tests.js');
@@ -127,14 +128,19 @@ const commands = {
   async confine() {
     const results = [];
     const { PRELUDE, TESTS } = self.CONFINE;
-    for (const test of TESTS) {
+    // "not hardened" what-ifs must run before anything in this worker hardens the shared host
+    // classes (harden is irreversible); results are put back in declaration order afterwards.
+    const ordered = [...TESTS.filter((t) => t.noHarden), ...TESTS.filter((t) => !t.noHarden)];
+    for (const test of ordered) {
+      const rec = { group: test.group, name: test.name, whatIf: !!test.whatIf };
+      results[TESTS.indexOf(test)] = rec;
+      if (MODE === 'plain' && test.group === 'pollution') { rec.status = 'n/a'; rec.how = 'not run in the plain control (it would succeed and wreck the worker)'; continue; }
       const extra = {};
-      if (test.extra === 'rawSetTimeout') extra.rawSetTimeout = self.setTimeout;
+      if (test.extra === 'rawSetTimeout') extra.rawSetTimeout = self.setTimeout.bind(self);
       if (test.extra === 'WebAssembly') extra.WebAssembly = self.WebAssembly;
       const g = guest({ profile: test.profile || 'extended', extraEndowments: extra, noHarden: !!test.noHarden });
       if (MODE === 'plain') for (const k of Object.keys(extra)) self[k] = extra[k];
       const src = '(async () => {' + PRELUDE + test.body + '\n})()';
-      const rec = { group: test.group, name: test.name, whatIf: !!test.whatIf };
       let viaEvade = false;
       try {
         let p;
@@ -149,7 +155,7 @@ const commands = {
               p = g.compartment.evaluate(src, evade);
             }
           }
-        } else p = (0, eval)(src);
+        } else p = INDIRECT_EVAL(src);
         const v = await Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('probe timed out after 3s')), 3000))]);
         rec.status = v.s; rec.how = v.note;
         if (v.s === 'check') {
@@ -163,7 +169,6 @@ const commands = {
         rec.how = 'threw ' + (e && e.name) + ': ' + String(e && e.message).slice(0, 220);
       }
       if (viaEvade) rec.how = '[default evaluate rejected the probe source with ' + viaEvade + '; re-run with evade options] ' + rec.how;
-      results.push(rec);
     }
     const sideEffects = Object.getOwnPropertyNames(self).filter((k) => /^__pwned|^leakedGlobal$|^guestVar$|^polluted$/.test(k)).map((k) => k + '=' + String(self[k]));
     return { results, realGlobalSideEffects: sideEffects, intrinsicsStillFrozen: MODE === 'ses' ? Object.isFrozen(Object.prototype) && Object.isFrozen(Function.prototype) : null, pollutedCheck: ({}).polluted === undefined };
@@ -289,6 +294,9 @@ const commands = {
           __options__: true,
           name: 'esm-guest',
           globals: { console: g.globalThis.console, process: g.process, Date: self.Date, Math: self.Math },
+          // module sources go through the same censorship; there is no per-module evade flag,
+          // so replicate SES's evade transforms as compartment-level transforms
+          transforms: [(src) => src.replace(/<!--/g, '< ! --').replace(/-->/g, '-- >'), (src) => src.replace(/(^|[^.]|\.\.\.)\bimport(\s*(?:\(|\/[/*]))/g, '$1__import__$2')],
           resolveHook: (spec, referrer) => esmResolver.resolve(spec, referrer, true),
           importNowHook: (full) => {
             let rec = records.get(full);
