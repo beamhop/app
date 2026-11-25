@@ -1,166 +1,189 @@
 # Universal sandbox design
 
-Status: design, November 2026. Background research is in `reports/Browser agent sandbox options.md`. Prototype results are in the last section; anything not listed there is unproven.
+Status: design, revision 2, November 2026. Revision 1 put the agent loop outside the sandbox; that was a misreading and is replaced here. Background research is in `reports/Browser agent sandbox options.md`. Only what is listed under "Prototype results" has been demonstrated, and only in headless Chromium.
 
 ## Goal
 
-One sandbox that gives agents a real development workspace (shell, git, Python, JS/TS, npm packages, tests, web previews) and runs on iOS and Android browsers, desktop browsers, and desktop environments, with nothing installed. Browsers come first. People in a room and their agents share workspaces.
+The sandbox is a computer in a browser tab. A user runs a coding-agent harness inside it (opencode, fx, codex, pi, claude, gemini) the way they would on a laptop, logs in with their own subscription, and shares that machine with a room. It runs on iOS and Android browsers, desktop browsers, and desktop environments, with nothing installed. Browsers come first.
 
 ## Decisions
 
-These were settled in the design interview.
+Settled in the two design interviews. Rows marked *changed* differ from revision 1.
 
 | Question | Decision |
 |---|---|
-| Capability on every device | Dev workspace. The agent loop (fx) stays outside and uses the sandbox as a tool. Stock agent CLIs and x86 binaries are out of scope. |
-| Untrusted JavaScript | Hardened JavaScript (SES) compartments on the browser's own JIT, inside the kernel worker. |
-| Where the kernel lives | A second static origin, on Cloudflare Pages, embedded as an iframe. |
-| Network | Browser-reachable endpoints only. No relays of any kind. |
-| Mobile background | Pause and resume from a journal. No hand-off. |
+| What runs inside | The harness itself, plus the dev tools it drives (shell, git, Python, Node, npm, tests, previews). *Changed.* |
+| Harness fidelity | Unmodified where the harness is JavaScript; Beamhop-maintained builds for native ones. *New.* |
+| Interface | Both: headless into the room chat, and a real terminal. *New.* |
+| Phones | All harnesses on desktop browsers; best effort on phones, which can always drive a desktop-hosted machine remotely. *New.* |
+| Network | A proxy that anyone can host anywhere. Blind tunnel by default, plain CORS mode where raw connections are unavailable. *Changed.* |
+| JavaScript confinement | Undecided: prototype Hardened JS and plain JS behind the origin wall, then choose. *Changed.* |
+| Credentials and sharing | One shared machine. The host's harness logins live inside it; members the host grants can use them. *Changed.* |
+| Where the kernel lives | A second static origin, embedded as an iframe. Whether each workspace gets its own subdomain depends on the confinement choice. |
+| Mobile background | Pause and resume. No hand-off. |
 | Device parity | Same core everywhere; desktop may add extras. |
-| Build path | Assemble from existing open parts behind the kernel interface, then replace. |
+| Build path | Assemble from existing open parts, then replace. |
 | Workspace unit | Per room, hosted on one member's device. |
-| Sharing | One host; other members and agents are remote. |
-| Execution rights | The host grants read, write and execute per member, keyed on the Nostr signer. |
-| Previews | Whole room, tunnelled over the room. |
-| Desktop environments | The bridge runs the same kernel and wasm tools with a local folder mounted. |
-| Durability | Local only. No automatic upload. |
+| Execution rights | Host grants read, write, execute per member, keyed on the Nostr signer. |
+| Previews | Whole room, tunnelled. |
+| Desktop environments | The bridge runs the same kernel with a local folder mounted. |
+| Durability | Local only. |
 
-## Why not an existing engine
+## The six harnesses
 
-Every in-browser Node or Linux engine found in the research (BrowserPod, WebContainers, Wasmer, the emulators) depends on SharedArrayBuffer, which requires cross-origin isolation of the whole page. That is impractical on static hosting, hostile to arbitrary avatars and embeds, and paired on iOS with a memory ceiling that a worker-per-process design does not fit. This design removes the dependency instead of working around it.
+Packaging is from memory and is being checked by the prototype; treat it as unverified.
+
+| Harness | Kind | Route |
+|---|---|---|
+| pi | JavaScript on Node | Unmodified on the Node layer. First target. |
+| gemini | JavaScript on Node | Unmodified on the Node layer. |
+| claude | JavaScript bundle, with native helpers such as ripgrep | Unmodified on the Node layer; helpers replaced by wasm builds on `PATH`. |
+| fx | Already has a browser build | Runs as a wasm guest. |
+| opencode | Bun-compiled binary using Bun APIs | Run from source on the Node layer with a Bun shim, or a maintained build. |
+| codex | Native Rust binary | A maintained wasm build, or its headless protocol behind a port. Hardest. |
 
 ## Architecture
 
 ```
- Origin A: beamhop app (keys, Nostr, agent loop, capability broker)
- ┌──────────────────────────────────────────────────────────────┐
- │  fx agent loop ── tools ──► Workspace client                 │
- │  Capability broker (package fetch, GitHub API, room ACL)     │
- │        ▲ MessagePort RPC                    ▲ MessagePort    │
- │  ┌─────┴───────────────────────┐   ┌────────┴─────────────┐  │
- │  │ iframe, origin B (kernel)   │   │ iframe, origin P     │  │
- │  │  kernel worker              │   │ (previews)           │  │
- │  │   ├ wasm processes          │   │  service worker      │  │
- │  │   ├ SES compartments (JS)   │   │  answers requests    │  │
- │  │   └ SQLite on OPFS          │   │  from the kernel     │  │
- │  │  process workers (heavy)    │   └──────────────────────┘  │
- │  └─────────────────────────────┘                             │
- └──────────────────────────────────────────────────────────────┘
+ Origin A: beamhop app (Nostr keys, room, UI, socket broker)
+ ┌───────────────────────────────────────────────────────────────┐
+ │ chat UI ◄─ ACP / JSON ─┐      terminal UI (xterm) ◄─ pty ─┐   │
+ │ socket broker ──► WebSocket ──► proxy (hosted anywhere)   │   │
+ │      ▲ MessagePort                                        │   │
+ │ ┌────┴────────────────────────────────────────────────────┴─┐ │
+ │ │ iframe, origin B: the machine                             │ │
+ │ │  kernel worker                                            │ │
+ │ │   ├ Node layer ── harness (pi, gemini, claude, …)         │ │
+ │ │   ├ wasm processes (shell, git, rg, python, build tools)  │ │
+ │ │   ├ TLS, HTTP, DNS-over-HTTPS (inside the machine)        │ │
+ │ │   └ SQLite on OPFS                                        │ │
+ │ └───────────────────────────────────────────────────────────┘ │
+ │ iframe, origin P: previews (service worker ⇄ kernel)          │
+ └───────────────────────────────────────────────────────────────┘
         ▲ room events, signed and encrypted (Nostr)
         ▼
- Other members' devices: Workspace client only (remote)
+ Other members: chat, terminal and preview clients (remote)
  Desktop bridge: same kernel under Node, local folder mounted
 ```
 
-Three origins, all static:
+### Kernel and processes
 
-- **A, the app.** Unchanged in role. It holds keys and is the only code that talks to the network.
-- **B, the kernel.** Serves the kernel, the tool images and nothing else. Header CSP with `connect-src 'self'`, so even a full compromise of B cannot send data anywhere but B's own static host.
-- **P, the previews.** Web pages built inside the sandbox are full documents running arbitrary script, which Hardened JS cannot confine. They get their own origin so they cannot reach the kernel's storage or service worker. This third origin was not in the interview; it follows from choosing live previews. It is a second Cloudflare Pages project, not a server.
+A TypeScript kernel in one dedicated worker: process table, file descriptors, pipes, pseudo-terminals, virtual filesystem. The same code runs under Node in the bridge. It needs no SharedArrayBuffer and no cross-origin isolation.
 
-### Kernel
+- **Wasm processes** use WASI preview 1 plus `spawn`, `pipe`, `waitpid`, `kill` and terminal control. A blocking syscall suspends the guest's stack through WebAssembly JSPI, with an Asyncify build as fallback. This is proven in Chromium (see results).
+- **In-kernel is the default placement.** A process in its own worker pays about 1,500 times more per syscall, so workers are for CPU-heavy guests only, pooled and with buffered I/O.
+- **Rules the prototype forced:** every potentially blocking syscall is split into a plain "try" import and a suspending slow path; kill unwinds the stack by rejecting its promise; the kernel yields to the event loop every few milliseconds; a suspension never crosses a synchronous JavaScript frame; plan for about 100 live processes per tab.
+- **Watchdog.** A page-side heartbeat restarts a frozen kernel worker. Files survive; processes do not.
 
-A TypeScript kernel in one dedicated worker. It owns the process table, file descriptors, pipes, a virtual filesystem and a pseudo-terminal layer. The same code runs in the browser and under Node in the bridge.
+### Node layer
 
-**ABI.** WASI preview 1 plus a small extension set: `spawn` (no `fork`; guests are built the way no-MMU Linux programs are, with `vfork`-style spawn), `pipe`, `waitpid`, `kill`, terminal control, and `wasm_link` (below). Sockets are not offered; the network is a set of typed capabilities, not a socket API.
+The harnesses are Node programs, so `node` is the most important program on the machine. It is not a port of Node: the harness's JavaScript runs on the browser's own engine at JIT speed, in the kernel worker, against an emulation of Node's API.
 
-**Blocking without SharedArrayBuffer.** A blocking syscall is an import wrapped in `WebAssembly.Suspending`; the process entry point is wrapped in `WebAssembly.promising`. The guest's stack is suspended by the engine and resumed when the kernel has data. Where JSPI is missing, the same tool is shipped as an Asyncify build and chosen at load time.
+- Because it shares the kernel's thread, `require`, `fs.readFileSync` and friends are direct calls into the filesystem. This is what removes the need for SharedArrayBuffer.
+- `child_process.spawn` starts a wasm process or another Node-layer process and is asynchronous, as in Node.
+- `spawnSync` and `execSync` cannot wait for a child that blocks. They run a wasm child to completion synchronously when it never needs to suspend, and fail otherwise. How often harnesses depend on this is being measured.
+- `net`, `tls`, `http`, `https`, `dns` and `fetch` are implemented on the socket broker (below).
+- A CPU-bound stretch of harness JavaScript stalls every process on the machine until it yields. That is the cost of one thread.
+- `bun` is the same layer with Bun's extra APIs shimmed, for opencode.
 
-**Two placements for a process.**
+### Network and the proxy
 
-- *Coroutine process*: the instance lives in the kernel worker. Non-blocking syscalls are direct function calls. Spawn costs one instantiation of an already compiled module. Used for the shell, coreutils, git, and anything short-lived.
-- *Worker process*: the instance has its own worker; syscalls cross a MessageChannel and are awaited through JSPI. Killable without affecting the kernel, and runs in parallel. Used for Python, compilers and anything CPU-heavy. A tool's manifest states which placement it wants; desktop may use more workers than a phone.
+Browsers cannot open sockets and many provider endpoints refuse browser calls, so the machine's traffic leaves through a proxy.
 
-**Limits.** At load the kernel rewrites each module's memory section to cap its maximum pages, which gives per-process memory limits and a global budget sized for iOS. A page-side heartbeat watches the kernel worker; if a coroutine process spins without making a syscall, the worker is terminated and restarted from the filesystem. Running processes are lost, files are not.
+- **One small program, hostable anywhere**: Cloudflare Workers, Deno, Node, Bun or a container. A room or a user points their machine at one. Beamhop may run a default.
+- **Tunnel mode (default).** The proxy forwards raw TCP over a WebSocket. TLS, HTTP and certificate checks run inside the machine in wasm with a bundled root store, so the operator sees hostnames, addresses and volume, and never tokens or prompts. It carries any protocol: HTTPS, git, SSH.
+- **Plain mode.** For hosts that cannot open raw connections, the proxy makes the HTTPS request and adds CORS headers. The operator can read everything, so this mode is labelled as safe only when self-hosted.
+- **Direct fast path.** Destinations that allow browser calls can skip the proxy.
+- **Not an open relay.** Access tokens, optional destination allowlists, and rate limits.
+- **The kernel frame has no network of its own.** The app on origin A opens the WebSocket and passes bytes over a message port, so origin B keeps a strict CSP and the app can show and limit where a machine connects.
 
-**`wasm_link`.** A guest may hand the kernel wasm bytes to instantiate and link against its own memory and a chosen subset of its imports. This is a JIT hook: it lets a future JS engine or binary translator generate code at run time while still holding no authority beyond its syscalls. Not needed for the first version.
+### Logging in
 
-### Guests
+A harness logs in as it does on a laptop, with two adaptations:
 
-| Need | First version (assembled) | Replacement |
-|---|---|---|
-| Shell and coreutils | A TypeScript virtual shell (just-bash class) over the kernel's filesystem | BusyBox built for the kernel ABI |
-| Git | A JS git implementation plus the GitHub REST transport | git or gitoxide compiled to wasm |
-| JS/TS execution | SES compartments, CommonJS and pre-transformed ESM, Node core-module shims backed by syscalls | Same, with broader Node coverage |
-| Build tools | esbuild, Rolldown, the Go TypeScript compiler, Biome, Tailwind as wasm guests | Same |
-| Python | Pyodide in a worker process with its JS bridge removed | CPython's WASI build with wasm wheels |
-| Package install | Kernel-native `npm`/`pip` front ends that fetch through the broker | Real package managers where they run |
+- Opening a browser: the machine's `xdg-open` asks the app to open a real tab.
+- Loopback callbacks: a redirect to `127.0.0.1` reaches the user's device, not the machine. Harnesses are started with their device-code or paste-the-code login where one exists. Where only a loopback flow exists, the user pastes the redirected address back.
 
-**JavaScript.** `lockdown()` runs once in the kernel worker. Each JS process is a `Compartment` whose globals are a `console`, timers, and Node-style modules implemented on kernel syscalls. Because the compartment shares the kernel's thread, `fs.readFileSync` is a direct call. The guest has no `fetch`, storage, `postMessage` or worker constructors. Two layers stand between guest JS and anything valuable: the compartment, and the B origin with its CSP. Neither is a process boundary, and that is the accepted trade-off.
+Tokens are written to the machine's files and encrypted at rest with the workspace key.
 
-**Python.** Pyodide's `js` module exposes the JavaScript global, so the worker's global is stripped to an allowlist before user code runs and the bridge module is disabled. Its files are synchronised with the kernel at process start and exit. This is the weakest part of the assembled version and the first to replace.
+### Storage
 
-### Filesystem and storage
+A workspace is one SQLite database in OPFS (the `opfs-sahpool` VFS, which needs no SharedArrayBuffer), holding inodes and content-addressed chunks. The Node layer and wasm processes read it synchronously in the kernel worker. Tool and harness images are content-addressed files fetched on first use. A Web Lock elects one tab as host. Storage sits behind a `BlockStore` interface with a second implementation that stores blocks through the app, in case Safari restricts storage in a cross-site iframe. Durability is local only; export to a file is manual.
 
-A workspace is one SQLite database stored in OPFS through the `opfs-sahpool` VFS, which uses synchronous access handles and needs no SharedArrayBuffer. Tables hold inodes and content-addressed chunks. This gives transactions, cheap directory forks, bounded memory (file data stays on disk), and the same file format under native SQLite in the bridge.
+### Interface
 
-- **Base image.** Tool binaries and their support files are content-addressed files on origin B, listed in a manifest and fetched on first use, then cached. Boot costs one manifest.
-- **Encryption.** All workspaces share origin B, so chunks are encrypted with a per-workspace key that A hands to the kernel at boot. Another workspace's kernel never holds that key.
-- **Single writer.** Synchronous access handles are exclusive, so a Web Lock elects one tab as host; other tabs of the same user attach as clients.
-- **Mounts.** On Chromium desktop a real folder can be mounted through the File System Access API. In the bridge a local folder is mounted directly. Elsewhere files are copied in and out.
-- **Durability.** Local only, as decided. The kernel requests persistent storage and the app shows when it was refused. An explicit export to a file is the only way data leaves the device.
-
-Storage is behind a `BlockStore` interface with two implementations: OPFS inside B, and a version that asks A to store blocks over the message port. The second exists because third-party iframe storage on Safari is the largest unknown (see risks).
-
-### Network
-
-The kernel worker has no network. Every outbound request is a typed call to the broker in A, which holds an allowlist and any credentials:
-
-- npm registry, PyPI and its file host, jsDelivr: read-only package fetches.
-- GitHub: clone, fetch and push implemented on the REST git-database endpoints, since git's own HTTPS protocol is not callable from a browser. Tokens stay in A and are granted per repository.
-- Everything else fails with a clear error naming the host. There are no relays.
-
-Read-only registries are low-risk destinations: a request can leak data only to the registry operator. GitHub writes are the one outbound channel an attacker could own an account on, so pushes require a host-approved repository grant.
+- **Chat.** The harness runs headless (ACP where it has it, otherwise its JSON mode) with its stdio connected to the room, reusing the bridge's existing ACP logic.
+- **Terminal.** A pseudo-terminal carries the harness's own interface to a terminal view in the app. The host can share that terminal with granted members.
 
 ### Sharing over the room
 
-The workspace runs only on its host's device. Everything else is a client.
+One machine, on the host's device. Other members' requests (chat turns, terminal input, file access, preview requests) are room events signed by the requester and checked against the host's grant table in the kernel. Streams are chunked and encrypted with the room key, over relays first and a WebRTC data channel later if needed. When the host's tab pauses, the machine pauses and clients see that.
 
-- **Requests** are room events signed by the requester: run a command, read or write a file, open a terminal, fetch a preview resource. The kernel's access check uses the event's signer and the host's grant table (read, write, execute per member). An agent inherits its owner's grant. Message content never confers authority.
-- **Streams** (terminal output, preview responses) are chunked and encrypted with the room key. Nostr relays carry them at first; a WebRTC data channel signalled over Nostr is the upgrade path if relay limits bite.
-- **Previews.** The host's P frame answers requests from the kernel directly. A remote member's P frame forwards each request over the room to the host. Previews work only while the host is active.
-- **Paused host.** Clients see the workspace as paused and their requests queue with a time limit.
+### Previews
 
-### Pause and resume
+Pages built on the machine are served from a third static origin by a service worker that asks the kernel for each response. Remote members' requests travel over the room to the host.
 
-The agent loop journals each step before acting, and every file change is a committed SQLite transaction. When a phone suspends the tab, nothing is lost that was acknowledged. If the tab is merely frozen, processes continue on return. If it was discarded, the kernel restarts, in-flight commands report as interrupted, and the agent continues from the journal.
+### Pause and resume, desktop
 
-### Desktop environments
-
-`packages/bridge` embeds the same kernel under Node with native SQLite and a mounted folder. Guests are the same wasm files, so behaviour matches the browser and the agent stays confined. Native-only tools are unavailable in this mode by decision.
+Unchanged from revision 1: file changes are committed transactions, a discarded tab restarts the kernel and the harness resumes its own session from its files. The bridge embeds the same kernel under Node with native SQLite and a mounted folder.
 
 ## Security model
 
+The machine is trusted the way a laptop is: the harness, the model's commands and the host's tokens share it. The walls are around it, not inside it.
+
 | Threat | Control |
 |---|---|
-| Sandboxed code reads Nostr keys or provider tokens | Keys exist only in origin A. The kernel is cross-site; wasm guests and compartments have no API to reach A. |
-| Sandboxed code sends workspace data out | No network in the kernel; B's CSP allows connections only to B; all egress is brokered and allowlisted. |
-| A room member's message instructs someone's agent to run commands | Authority comes from the signer's grant, checked in the kernel, not from the model's reading of the message. |
-| A preview page attacks the kernel | Previews run on origin P and reach the kernel only through the request/response tunnel. |
-| One workspace reads another | Per-workspace encryption keys. |
-| Runaway process | Memory caps per module, heartbeat and restart. |
-| Escape from a compartment | Lands in origin B: no keys, no egress, one workspace's data. Treated as serious but contained. |
+| Code on the machine reads Beamhop's Nostr keys | Keys exist only in origin A; the machine is a cross-site frame with message-port access only. |
+| One workspace reads another | Per-workspace encryption; per-workspace subdomain if the origin-wall option is chosen. |
+| Proxy operator reads tokens or prompts | Tunnel mode: TLS ends inside the machine. |
+| A stranger uses someone's proxy | Proxy access tokens and limits. |
+| A room member's message drives the host's harness | Only signers the host granted are delivered to the harness. |
+| A preview page attacks the machine | Separate origin, request tunnel only. |
 
-Not defended: a browser engine bug that breaks process or origin isolation, and a malicious room member who has been granted execute.
+Accepted, and to be stated in the app:
+
+- **A member granted execute can use and extract the host's harness logins.** This follows from "one shared machine".
+- **Prompt injection inside the machine can leak what is on the machine**, including those logins, through any destination the proxy allows. A destination allowlist reduces this; it does not remove it.
+- **Provider terms.** Running an official harness with your own login is first-party use, but its traffic arrives from a proxy address, and letting room members use your subscription may count as account sharing. Each provider's current terms need checking before this is promoted.
 
 ## Phases
 
-1. **Interface and assembly.** Define `Kernel`, `Process`, `BlockStore` and the workspace client. Fill them with the virtual shell, JS git, SES runtime, Pyodide and wasm build tools. Deploy origins B and P. Replace today's `sandbox.ts`.
-2. **Room sharing.** Signed requests, grants, terminal streams, tunnelled previews, pause state.
-3. **Real processes.** WASI process model with JSPI and Asyncify, BusyBox and git as wasm, memory caps, watchdog.
-4. **Bridge.** Same kernel under Node with folder mount.
-5. **Replacements.** CPython on WASI, broader Node coverage, `wasm_link`.
+1. **A harness in a tab.** Kernel interface, Node layer, virtual shell, in-memory then SQLite storage, proxy in both modes, pi end to end. Origins B and P deployed.
+2. **More harnesses.** gemini and claude unmodified; login flows; terminal view; wasm ripgrep and git.
+3. **Room sharing.** Grants, chat and terminal streams, tunnelled previews, pause state.
+4. **Real processes and tools.** JSPI process model in production, BusyBox, Python, build tools.
+5. **Native harnesses.** opencode on the Bun shim; codex build.
+6. **Bridge.** Same kernel under Node.
 
 ## Risks and unknowns
 
-- **Safari and iOS are untested.** JSPI availability, storage for a cross-site iframe (Safari may make it ephemeral or cap its lifetime), service workers in a partitioned frame, and real memory limits all need a physical iPhone. The `BlockStore` and Asyncify fallbacks exist for the first two.
-- **Hardened JS compatibility.** Frozen built-ins break some npm packages; the prototype measures how many.
-- **Pyodide confinement** is by stripping globals, which is fragile.
-- **Relay throughput** for terminal and preview streams is unmeasured.
-- **GitHub-only git.** Other git hosts do not work without a relay, by decision.
-- **Node in the bridge** needs JSPI or the Asyncify builds; which Node versions qualify is unverified.
+- **Node emulation breadth** is the main engineering risk. Each harness upgrade can touch a new API.
+- **Safari and iOS are untested**: JSPI, storage and service workers in a cross-site iframe, and whether a Node-class harness fits in a phone tab's memory.
+- **Synchronous child processes** cannot be fully emulated on one thread.
+- **codex and opencode** need ports whose size is unknown.
+- **TLS in wasm** adds code size and a root store to maintain.
+- **Provider terms**, as above.
+- **Hardened JS** may not survive whole harnesses; undecided until prototyped.
 
 ## Prototype results
+
+Headless Chromium 158 in a cloud container. Not a phone, not Safari, not Firefox.
+
+### Stack-switching processes (done)
+
+Code and full numbers: `spikes/universal-sandbox/jspi-processes/RESULTS.md`.
+
+- Unmodified Rust `wasm32-wasip1` programs ran as a three-stage pipeline in one worker with no SharedArrayBuffer and no isolation headers: 200,000 lines, correct output, about 158 MB/s.
+- A process switch costs about 400 ns; a non-blocking syscall 18 to 160 ns; spawning from a compiled module about 0.14 ms.
+- A process in its own worker costs 38 to 52 µs per syscall and moved 0.6 MB/s.
+- Abandoning a suspended process leaks it permanently; rejecting its promise frees it.
+- About 125 live wasm memories per browser process is a hard limit.
+- A guest in a tight loop freezes the kernel; the watchdog restarted it in about 40 ms after a one-second timeout.
+
+### Storage on a second origin, Hardened JS with npm packages (stopped)
+
+Both were cancelled when the design changed. Their partial code is in `spikes/universal-sandbox/` and is unfinished and unreviewed.
+
+### A harness in a tab (running)
 
 Pending.
