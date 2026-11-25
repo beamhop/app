@@ -119,10 +119,10 @@ export function makeEvents() {
       }
     }
     EventEmitter.on = function on(emitter?: Dyn, event?: Dyn, opts: Dyn = {}) {
-      const queue = [],
-        waiters = []
-      let error = null,
-        done = false
+      const queue: Dyn[] = []
+      const waiters: Dyn[] = []
+      let error: Dyn = null
+      let done = false
       const handler = (...args: Dyn[]) => {
         const w = waiters.shift()
         if (w) w.resolve({ value: args, done: false })
@@ -230,11 +230,17 @@ export function makeEvents() {
 // ---------------- stream ----------------
 // Node's stream.finished()/isErrored()/isDisturbed() accept web streams by peeking at internal state. A browser
 // gives no synchronous access to that state, so guest code gets a ReadableStream subclass that records it.
-const webState = new WeakMap()
-export const TrackedReadableStream = class ReadableStream extends globalThis.ReadableStream {
+interface WebStreamState {
+  state: 'readable' | 'closed' | 'errored'
+  error: unknown
+  waiters: ((error?: unknown) => void)[]
+}
+const webState = new WeakMap<object, WebStreamState>()
+// The base is typed loosely because lib.dom declares ReadableStream with overloaded constructors, which a subclass cannot extend.
+export const TrackedReadableStream = class ReadableStream extends (globalThis.ReadableStream as Dyn) {
   constructor(source: Dyn = {}, strategy?: Dyn) {
-    const st = { state: 'readable', error: undefined, waiters: [] }
-    const settle = (state?: Dyn, error?: Dyn) => {
+    const st: WebStreamState = { state: 'readable', error: undefined, waiters: [] }
+    const settle = (state: 'closed' | 'errored', error?: unknown) => {
       if (st.state !== 'readable') return
       st.state = state
       st.error = error
@@ -257,10 +263,10 @@ export const TrackedReadableStream = class ReadableStream extends globalThis.Rea
           return typeof v === 'function' ? v.bind(t) : v
         },
       })
-    const wrapped = {}
+    const wrapped: Dyn = {}
     if (source.type !== undefined) wrapped.type = source.type
     if (source.autoAllocateChunkSize !== undefined) wrapped.autoAllocateChunkSize = source.autoAllocateChunkSize
-    let wc
+    let wc: Dyn
     const ctl = (c?: Dyn) => (wc ??= wrapController(c))
     if (source.start) wrapped.start = (c?: Dyn) => source.start(ctl(c))
     if (source.pull) wrapped.pull = (c?: Dyn) => source.pull(ctl(c))
@@ -437,7 +443,7 @@ export function makeUtil({ Buffer, process }: Dyn) {
   util.stripVTControlCharacters = (s?: Dyn) => String(s).replace(ansi, '')
   util.TextEncoder = TextEncoder
   util.TextDecoder = TextDecoder
-  util.toUSVString = (s?: Dyn) => String(s).toWellFormed()
+  util.toUSVString = (s?: Dyn) => (String(s) as string & { toWellFormed(): string }).toWellFormed()
   util.styleText = (fmt?: Dyn, text?: Dyn) => {
     const codes = util.inspect.colors
     let out = String(text)
@@ -464,10 +470,11 @@ export function makeUtil({ Buffer, process }: Dyn) {
         .map((m?: Dyn) => [m[1], (m[2] || '').replace(/^(['"])(.*)\1$/, '$2')]),
     )
   util.getSystemErrorName = (n?: Dyn) =>
-    ({ '-2': 'ENOENT', '-13': 'EACCES', '-17': 'EEXIST', '-111': 'ECONNREFUSED', '-104': 'ECONNRESET' })[n] || 'UNKNOWN'
+    ({ '-2': 'ENOENT', '-13': 'EACCES', '-17': 'EEXIST', '-111': 'ECONNREFUSED', '-104': 'ECONNRESET' } as Record<string, string>)[String(n)] || 'UNKNOWN'
   util.getSystemErrorMap = () => new Map()
   util.aborted = (signal?: Dyn) => new Promise((resolve?: Dyn) => signal.addEventListener('abort', () => resolve(), { once: true }))
   util.MIMEType = class MIMEType {
+    [field: string]: Dyn // type, subtype, essence, params
     constructor(s?: Dyn) {
       const [essence, ...params] = String(s).split(';')
       ;[this.type, this.subtype] = essence.trim().split('/')
@@ -485,9 +492,9 @@ export function makeUtil({ Buffer, process }: Dyn) {
   util.transferableAbortSignal = (s?: Dyn) => s
   util.parseArgs = (config: Dyn = {}) => {
     const args = config.args || process.argv.slice(2),
-      options = config.options || {},
-      values = {},
-      positionals = []
+      options: Record<string, Dyn> = config.options || {},
+      values: Record<string, Dyn> = {},
+      positionals: string[] = []
     const byShort = Object.fromEntries(
       Object.entries(options)
         .filter(([, o]: Dyn) => o.short)
@@ -777,7 +784,7 @@ export function makeReadline({ EventEmitter, process, util }: Dyn) {
     }
   }
   const cb = (f?: Dyn) => (typeof f === 'function' ? f() : undefined)
-  const readline = {
+  const readline: Dyn = {
     Interface,
     createInterface: (opts?: Dyn, output?: Dyn) => new Interface(opts, output),
     clearLine: (s?: Dyn, d?: Dyn, f?: Dyn) => (cb(f ?? d), true),

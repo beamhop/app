@@ -9,7 +9,7 @@ import { BufferPkg as Buffer } from '../vendor.js'
 import { notImplemented } from './core.js'
 
 export function makeCrypto({ Buffer, stream, track, host }: Dyn) {
-  const algos = { sha1, md5, sha256, sha224, sha512, sha384, ripemd160, 'sha3-256': sha3_256, 'sha3-512': sha3_512, rmd160: ripemd160 }
+  const algos: Record<string, Dyn> = { sha1, md5, sha256, sha224, sha512, sha384, ripemd160, 'sha3-256': sha3_256, 'sha3-512': sha3_512, rmd160: ripemd160 }
   const getAlgo = (name?: Dyn) => {
     const a = algos[String(name).toLowerCase().replace(/^rsa-/, '')]
     if (!a) {

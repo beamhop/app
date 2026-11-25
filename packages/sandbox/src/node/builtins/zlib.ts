@@ -11,7 +11,7 @@ export function makeZlib({ Buffer, stream, track }: Dyn) {
       : d instanceof ArrayBuffer
         ? new Uint8Array(d)
         : new Uint8Array(d.buffer, d.byteOffset, d.byteLength)
-  const syncFns = {
+  const syncFns: Record<string, (data: Uint8Array) => Uint8Array> = {
     gzipSync: fflate.gzipSync,
     gunzipSync: fflate.gunzipSync,
     deflateSync: fflate.zlibSync,
@@ -20,7 +20,7 @@ export function makeZlib({ Buffer, stream, track }: Dyn) {
     inflateRawSync: fflate.inflateSync,
     unzipSync: fflate.decompressSync,
   }
-  const z = {
+  const z: Dyn = {
     constants: {
       Z_NO_FLUSH: 0,
       Z_PARTIAL_FLUSH: 1,
