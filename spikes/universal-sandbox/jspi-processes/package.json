@@ -1,0 +1,12 @@
+{
+  "name": "jspi-processes-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Feasibility spike: POSIX-like wasm processes suspended with WebAssembly JSPI, no SharedArrayBuffer",
+  "scripts": {
+    "spike": "node run.js",
+    "spike:quick": "node run.js --quick",
+    "serve": "node server.js",
+    "build:guest": "sh build-guests.sh"
+  }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "beamhop-tls-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-webpki = { version = "0.103", default-features = false, features = ["ring", "std"] }
+# `web` gives UnixTime::now() on wasm32-unknown-unknown (unused at runtime: we inject the clock).
+rustls-pki-types = { version = "1", features = ["web"] }
+# Enables ring's SystemRandom on wasm32-unknown-unknown via crypto.getRandomValues.
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
+wasm-bindgen = "=0.2.130"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

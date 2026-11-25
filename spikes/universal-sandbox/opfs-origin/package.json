@@ -1,0 +1,12 @@
+{
+  "name": "opfs-origin-spike",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Feasibility spike: cross-origin kernel iframe with OPFS/SQLite, SW previews, no egress, no cross-origin isolation",
+  "scripts": {
+    "spike": "node run.js"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "*"
+  }
+}

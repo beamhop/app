@@ -3,6 +3,7 @@ import { parseInvite } from '@beamhop/shared'
 import { useDesktop, useNow, useStore, go } from './hooks'
 import { Avatar, RoomAvatar, Sheet, TopBar, timeAgo } from './components'
 import { Icon } from './icons'
+import { buildView, type ViewMsg } from './Room'
 
 export function NameSheet({ onClose, onDone, title = 'What should people call you?' }: { onClose: () => void; onDone: (name: string) => void; title?: string }) {
   const s = useStore()
@@ -169,9 +170,10 @@ export function RoomList({ activeRoom, activeDM }: { activeRoom?: string; active
     .filter((r) => !r.left)
     .map((r) => {
       const st = c.state(r.roomId)
-      const msgs = c.messages(r.roomId).filter((m) => m.payload.t === 'msg')
-      const last = msgs[msgs.length - 1]
-      return { r, st, last, at: last?.ms ?? r.joinedAt * 1000 }
+      // apply edits and deletes so the preview matches what the room shows
+      const view = buildView(c.messages(r.roomId)).filter((m): m is ViewMsg => 'text' in m)
+      const last = view[view.length - 1]
+      return { r, st, last, at: last?.ev.ms ?? r.joinedAt * 1000 }
     })
     .sort((a, b) => b.at - a.at)
   const threads = c.dmThreads(s.pk)
@@ -234,7 +236,7 @@ export function RoomList({ activeRoom, activeDM }: { activeRoom?: string; active
               {rooms.map(({ r, st, last, at }) => {
                 const unread = c.unreadCount(r.roomId)
                 const preview = last
-                  ? `${last.pubkey === s.pk ? 'You' : c.nameOf(r.roomId, last.pubkey)}: ${(last.payload as any).text?.replace(/\s+/g, ' ').slice(0, 80) ?? ''}`
+                  ? `${last.ev.pubkey === s.pk ? 'You' : c.nameOf(r.roomId, last.ev.pubkey)}: ${last.deleted ? 'Message deleted' : (last.text ?? '').replace(/\s+/g, ' ').slice(0, 80)}`
                   : st?.closed
                     ? 'Room closed'
                     : 'No messages yet'

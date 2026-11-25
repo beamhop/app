@@ -1,0 +1,12 @@
+{
+  "sha256": "c37744c375ca44c827d7f8e275c47e7fc8cd987d25eaf8dd9e1e029bdfe3207b",
+  "bytes": 548957,
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "crates": {
+    "rustls": "0.23.46",
+    "rustls-webpki": "0.103.17",
+    "ring": "0.17.14",
+    "rustls-pki-types": "1.16.0",
+    "wasm-bindgen": "0.2.130"
+  }
+}

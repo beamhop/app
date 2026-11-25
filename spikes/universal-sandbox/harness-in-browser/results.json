@@ -1,0 +1,1178 @@
+{
+ "environment": {
+  "note": "headless Chromium (Playwright) in a cloud container; not a phone, not a desktop browser; nothing here says anything about Safari/iOS or Firefox",
+  "browser": "158.0.8127.36",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36",
+  "cpus": 4,
+  "cpuModel": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+  "totalMemGB": 15.7,
+  "node": "v22.23.5",
+  "date": "2026-11-25T11:35:25.438Z",
+  "repeat": 5
+ },
+ "isolation": {
+  "page": {
+   "crossOriginIsolated": false,
+   "typeofSharedArrayBuffer": "undefined"
+  },
+  "worker": {
+   "crossOriginIsolated": false,
+   "typeofSharedArrayBuffer": "undefined",
+   "typeofAtomicsWait": "function",
+   "measureUserAgentSpecificMemory": "undefined"
+  }
+ },
+ "harnesses": {
+  "pi": {
+   "image": {
+    "bytes": 77716550,
+    "gzipBytes": 18288773,
+    "files": 6806,
+    "dirs": 1483,
+    "esmPrecompiled": 84,
+    "esmPrecompiledBytes": 10254635
+   },
+   "version": {
+    "output": "1.6.0",
+    "stderr": "",
+    "exit": {
+     "code": 0,
+     "reason": "process.exit"
+    },
+    "timedOut": false,
+    "fatal": null,
+    "ms": {
+     "imageFetch": 190.9,
+     "imageMount": 34.4,
+     "booted": 311.5,
+     "firstOutput": 524.8,
+     "firstStdout": 524.8,
+     "exit": 525.1,
+     "moduleEval": 74.5
+    },
+    "modules": {
+     "esm": 23,
+     "cjs": 0,
+     "json": 0,
+     "evalMB": 4.9,
+     "missingEsm": []
+    },
+    "pass": true
+   },
+   "help": {
+    "firstLine": "pi - AI coding assistant with read, bash, edit, write tools",
+    "stdoutBytes": 11082,
+    "exit": {
+     "code": 0,
+     "reason": "process.exit"
+    },
+    "pass": true
+   },
+   "turn": {
+    "plain+bridge": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: hello from the universal sandbox\nlines=1",
+     "shellCommand": {
+      "command": "/bin/bash",
+      "exitCode": 0,
+      "ms": 13
+     },
+     "exit": {
+      "code": 0,
+      "reason": "loop-empty"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 194.3,
+      "imageMount": 32.1,
+      "booted": 313.1,
+      "firstOutput": 571.2,
+      "firstStdout": 571.2,
+      "exit": 1040.3,
+      "moduleEval": 86.6
+     },
+     "minMaxExitMs": [
+      993.5,
+      1105.3
+     ],
+     "modules": {
+      "esm": 34,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 5.6,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 3,
+      "mockRequests": 3,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 2,
+      "viaEmulatedFetch": 0,
+      "streaming": {
+       "chunks": 11,
+       "firstChunkMs": 4.6,
+       "endMs": null
+      },
+      "proxyChunksDownLastRequest": 14
+     },
+     "ses": null
+    },
+    "plain+tunnel": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: hello from the universal sandbox\nlines=1",
+     "shellCommand": {
+      "command": "/bin/bash",
+      "exitCode": 0,
+      "ms": 12
+     },
+     "exit": {
+      "code": 0,
+      "reason": "loop-empty"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 200.8,
+      "imageMount": 33.4,
+      "booted": 328.7,
+      "firstOutput": 585.8,
+      "firstStdout": 585.8,
+      "exit": 1083.4,
+      "moduleEval": 88
+     },
+     "minMaxExitMs": [
+      1056,
+      1179.1
+     ],
+     "modules": {
+      "esm": 34,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 5.6,
+      "missingEsm": []
+     },
+     "network": {
+      "relayConnections": 2,
+      "relayBytesUp": 18643,
+      "relayBytesDown": 7202,
+      "firstBytesOnTheWire": "POST /v1/chat/completions HTTP/1.1",
+      "proxyRequests": 0,
+      "mockRequests": 3
+     },
+     "ses": null
+    },
+    "ses+bridge": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: hello from the universal sandbox\nlines=1",
+     "shellCommand": {
+      "command": "/bin/bash",
+      "exitCode": 0,
+      "ms": 14.4
+     },
+     "exit": {
+      "code": 0,
+      "reason": "loop-empty"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 188.3,
+      "imageMount": 37.3,
+      "booted": 345.5,
+      "firstOutput": 637.7,
+      "firstStdout": 637.7,
+      "exit": 1108.9,
+      "moduleEval": 112.8
+     },
+     "minMaxExitMs": [
+      1062.9,
+      1256.3
+     ],
+     "modules": {
+      "esm": 34,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 5.6,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 3,
+      "mockRequests": 3,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 2,
+      "viaEmulatedFetch": 0,
+      "streaming": {
+       "chunks": 11,
+       "firstChunkMs": 4.3,
+       "endMs": 154.8
+      },
+      "proxyChunksDownLastRequest": 14
+     },
+     "ses": {
+      "lockdownError": null,
+      "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
+      "lockdownMs": 41.1,
+      "filesThatWouldHitCensor": {
+       "htmlComment": 4,
+       "importExpr": 7,
+       "directEval": 0
+      },
+      "extraGlobalsEndowed": [
+       "Float64Array",
+       "Float32Array",
+       "Float16Array",
+       "DisposableStack",
+       "AsyncDisposableStack",
+       "SuppressedError"
+      ]
+     }
+    }
+   },
+   "sesSlowdown": {
+    "turnExitMs": {
+     "plain": 1040.3,
+     "ses": 1108.9,
+     "ratio": 1.1
+    },
+    "firstOutputMs": {
+     "plain": 571.2,
+     "ses": 637.7,
+     "ratio": 1.1
+    },
+    "moduleEvalMs": {
+     "plain": 86.6,
+     "ses": 112.8,
+     "ratio": 1.3
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 10,
+     "peakUsedMB": 21.8,
+     "lastUsedMB": 21.8,
+     "peakTotalMB": 27.6,
+     "peakBackingStoreMB": 82.6
+    },
+    "fullTurn_plain": {
+     "samples": 23,
+     "peakUsedMB": 27.2,
+     "lastUsedMB": 24.7,
+     "peakTotalMB": 37.7,
+     "peakBackingStoreMB": 82.6
+    },
+    "fullTurn_ses": {
+     "samples": 23,
+     "peakUsedMB": 39.1,
+     "lastUsedMB": 24.6,
+     "peakTotalMB": 50.6,
+     "peakBackingStoreMB": 83.8
+    }
+   }
+  },
+  "gemini": {
+   "image": {
+    "bytes": 143858062,
+    "gzipBytes": 29966835,
+    "files": 827,
+    "dirs": 104,
+    "esmPrecompiled": 24,
+    "esmPrecompiledBytes": 18129005
+   },
+   "version": {
+    "output": "0.71.1",
+    "stderr": "",
+    "exit": {
+     "code": 0,
+     "reason": "process.exit"
+    },
+    "timedOut": false,
+    "fatal": null,
+    "ms": {
+     "imageFetch": 320.2,
+     "imageMount": 6,
+     "booted": 402.7,
+     "firstOutput": 1020.5,
+     "firstStdout": 1020.5,
+     "exit": 1022.4,
+     "moduleEval": 255.8
+    },
+    "modules": {
+     "esm": 19,
+     "cjs": 0,
+     "json": 0,
+     "evalMB": 14.9,
+     "missingEsm": []
+    },
+    "pass": true
+   },
+   "help": {
+    "firstLine": "Usage: gemini [options] [command]",
+    "stdoutBytes": 4134,
+    "exit": {
+     "code": 0,
+     "reason": "process.exit"
+    },
+    "pass": true
+   },
+   "turn": {
+    "plain+bridge": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: <untrusted_context>\nOutput: hello from the universal sandbox\nlines=1\nbash: trap: command not found\nProcess Group PGID: 5002\n</u",
+     "shellCommand": {
+      "command": "/usr/bin/bash",
+      "exitCode": 0,
+      "ms": 19.6
+     },
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [
+      "Warning: Basic terminal detected (TERM=dumb). Visual rendering will be limited. For the best experience, use a terminal emulator with truecolor support.",
+      "Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.",
+      "YOLO mode is enabled. All tool calls will be automatically approved.",
+      "innerError { [Error: Cannot find module '../build/Debug/pty.node'",
+      "Require stack:",
+      "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
+     ],
+     "medianMs": {
+      "imageFetch": 312.2,
+      "imageMount": 6.8,
+      "booted": 423.4,
+      "firstOutput": 1074.8,
+      "firstStdout": 1571.5,
+      "exit": 1573.1,
+      "moduleEval": 251.1
+     },
+     "minMaxExitMs": [
+      1487.5,
+      1609
+     ],
+     "modules": {
+      "esm": 22,
+      "cjs": 15,
+      "json": 0,
+      "evalMB": 17,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 4,
+      "mockRequests": 4,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 0,
+      "viaEmulatedFetch": 4,
+      "streaming": null,
+      "proxyChunksDownLastRequest": 19
+     },
+     "ses": null
+    },
+    "plain+tunnel": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: <untrusted_context>\nOutput: hello from the universal sandbox\nlines=1\nbash: trap: command not found\nProcess Group PGID: 5002\n</u",
+     "shellCommand": {
+      "command": "/usr/bin/bash",
+      "exitCode": 0,
+      "ms": 18.4
+     },
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [
+      "Warning: Basic terminal detected (TERM=dumb). Visual rendering will be limited. For the best experience, use a terminal emulator with truecolor support.",
+      "Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.",
+      "YOLO mode is enabled. All tool calls will be automatically approved.",
+      "innerError { [Error: Cannot find module '../build/Debug/pty.node'",
+      "Require stack:",
+      "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
+     ],
+     "medianMs": {
+      "imageFetch": 306.5,
+      "imageMount": 6.8,
+      "booted": 412.3,
+      "firstOutput": 1026.9,
+      "firstStdout": 1524.2,
+      "exit": 1525.1,
+      "moduleEval": 248.8
+     },
+     "minMaxExitMs": [
+      1503.6,
+      1655.2
+     ],
+     "modules": {
+      "esm": 22,
+      "cjs": 15,
+      "json": 0,
+      "evalMB": 17,
+      "missingEsm": []
+     },
+     "network": {
+      "relayConnections": 4,
+      "relayBytesUp": 144636,
+      "relayBytesDown": 6262,
+      "firstBytesOnTheWire": "POST /v1beta/models/gemini-3.5-flash-lite:generateContent HT",
+      "proxyRequests": 0,
+      "mockRequests": 4
+     },
+     "ses": null
+    },
+    "ses+bridge": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: <untrusted_context>\nOutput: hello from the universal sandbox\nlines=1\nbash: trap: command not found\nProcess Group PGID: 5002\n</u",
+     "shellCommand": {
+      "command": "/usr/bin/bash",
+      "exitCode": 0,
+      "ms": 21.2
+     },
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [
+      "Warning: Basic terminal detected (TERM=dumb). Visual rendering will be limited. For the best experience, use a terminal emulator with truecolor support.",
+      "Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.",
+      "YOLO mode is enabled. All tool calls will be automatically approved.",
+      "innerError { [Error: Cannot find module '../build/Debug/pty.node'",
+      "Require stack:",
+      "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
+     ],
+     "medianMs": {
+      "imageFetch": 295.9,
+      "imageMount": 8.9,
+      "booted": 436.9,
+      "firstOutput": 1177.2,
+      "firstStdout": 1655.2,
+      "exit": 1656.6,
+      "moduleEval": 346.8
+     },
+     "minMaxExitMs": [
+      1624.4,
+      1802.3
+     ],
+     "modules": {
+      "esm": 22,
+      "cjs": 15,
+      "json": 0,
+      "evalMB": 17,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 4,
+      "mockRequests": 4,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 0,
+      "viaEmulatedFetch": 4,
+      "streaming": null,
+      "proxyChunksDownLastRequest": 19
+     },
+     "ses": {
+      "lockdownError": null,
+      "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
+      "lockdownMs": 36.4,
+      "filesThatWouldHitCensor": {
+       "htmlComment": 4,
+       "importExpr": 22,
+       "directEval": 1
+      },
+      "extraGlobalsEndowed": [
+       "Float64Array",
+       "Float32Array",
+       "Float16Array",
+       "DisposableStack",
+       "AsyncDisposableStack",
+       "SuppressedError"
+      ]
+     }
+    }
+   },
+   "sesSlowdown": {
+    "turnExitMs": {
+     "plain": 1573.1,
+     "ses": 1656.6,
+     "ratio": 1.1
+    },
+    "firstOutputMs": {
+     "plain": 1074.8,
+     "ses": 1177.2,
+     "ratio": 1.1
+    },
+    "moduleEvalMs": {
+     "plain": 251.1,
+     "ses": 346.8,
+     "ratio": 1.4
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 18,
+     "peakUsedMB": 62.5,
+     "lastUsedMB": 62.5,
+     "peakTotalMB": 69.5,
+     "peakBackingStoreMB": 155.6
+    },
+    "fullTurn_plain": {
+     "samples": 32,
+     "peakUsedMB": 81.8,
+     "lastUsedMB": 77.4,
+     "peakTotalMB": 98.8,
+     "peakBackingStoreMB": 164.5
+    },
+    "fullTurn_ses": {
+     "samples": 33,
+     "peakUsedMB": 140.7,
+     "lastUsedMB": 140.7,
+     "peakTotalMB": 158,
+     "peakBackingStoreMB": 165.1
+    }
+   }
+  },
+  "claude": {
+   "image": {
+    "bytes": 80047892,
+    "gzipBytes": 30554497,
+    "files": 30,
+    "dirs": 29,
+    "esmPrecompiled": 1,
+    "esmPrecompiledBytes": 13751783
+   },
+   "version": {
+    "output": "2.1.112 (Claude Code)",
+    "stderr": "",
+    "exit": {
+     "code": 0,
+     "reason": "loop-empty"
+    },
+    "timedOut": false,
+    "fatal": null,
+    "ms": {
+     "imageFetch": 242.9,
+     "imageMount": 2.4,
+     "booted": 344.7,
+     "firstOutput": 843.7,
+     "firstStdout": 843.7,
+     "exit": 889.7,
+     "moduleEval": 302.6
+    },
+    "modules": {
+     "esm": 1,
+     "cjs": 0,
+     "json": 0,
+     "evalMB": 13.1,
+     "missingEsm": []
+    },
+    "pass": true
+   },
+   "help": {
+    "firstLine": "Usage: claude [options] [command] [prompt]",
+    "stdoutBytes": 9175,
+    "exit": {
+     "code": 0,
+     "reason": "process.exit"
+    },
+    "pass": true
+   },
+   "turn": {
+    "plain+bridge": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: hello from the universal sandbox\nlines=1",
+     "shellCommand": {
+      "command": "/bin/bash",
+      "exitCode": 0,
+      "ms": 8.7
+     },
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 245.7,
+      "imageMount": 2.1,
+      "booted": 331.8,
+      "firstOutput": 1543.6,
+      "firstStdout": 1543.6,
+      "exit": 1567.4,
+      "moduleEval": 294.5
+     },
+     "minMaxExitMs": [
+      1459.2,
+      1590.4
+     ],
+     "modules": {
+      "esm": 1,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 13.1,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 4,
+      "mockRequests": 4,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 0,
+      "viaEmulatedFetch": 4,
+      "streaming": null,
+      "proxyChunksDownLastRequest": 15
+     },
+     "ses": null
+    },
+    "plain+tunnel": {
+     "pass": true,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": true,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": true,
+      "finalAnswerArrived": true,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: hello from the universal sandbox\nlines=1",
+     "shellCommand": {
+      "command": "/bin/bash",
+      "exitCode": 0,
+      "ms": 7.2
+     },
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 243.7,
+      "imageMount": 2.8,
+      "booted": 338.5,
+      "firstOutput": 1532.2,
+      "firstStdout": 1532.2,
+      "exit": 1543,
+      "moduleEval": 317.8
+     },
+     "minMaxExitMs": [
+      1467.6,
+      1613.6
+     ],
+     "modules": {
+      "esm": 1,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 13.1,
+      "missingEsm": []
+     },
+     "network": {
+      "relayConnections": 4,
+      "relayBytesUp": 310928,
+      "relayBytesDown": 6490,
+      "firstBytesOnTheWire": "HEAD / HTTP/1.1",
+      "proxyRequests": 0,
+      "mockRequests": 4
+     },
+     "ses": null
+    },
+    "ses+bridge": {
+     "pass": false,
+     "runs": 5,
+     "checks": {
+      "exitCode0": true,
+      "fileWrittenInVfs": true,
+      "shellToolRanInJustBash": false,
+      "mockSawThreeSteps": true,
+      "toolResultReachedModel": false,
+      "finalAnswerArrived": false,
+      "networkOnlyViaExpectedProxy": true
+     },
+     "finalAnswer": "FINAL ANSWER: the shell printed: Invalid property descriptor. Cannot both specify accessors and a value or writable attribute, [object Object]",
+     "exit": {
+      "code": 0,
+      "reason": "process.exit"
+     },
+     "stderrFirstLines": [],
+     "medianMs": {
+      "imageFetch": 240,
+      "imageMount": 2.6,
+      "booted": 375.3,
+      "firstOutput": 1843.2,
+      "firstStdout": 1843.2,
+      "exit": 1855,
+      "moduleEval": 408.4
+     },
+     "minMaxExitMs": [
+      1830.8,
+      2143.3
+     ],
+     "modules": {
+      "esm": 1,
+      "cjs": 0,
+      "json": 0,
+      "evalMB": 13.1,
+      "missingEsm": []
+     },
+     "network": {
+      "proxyRequests": 4,
+      "mockRequests": 4,
+      "relayConnections": 0,
+      "socketsOpenedByHarness": 0,
+      "viaEmulatedFetch": 5,
+      "streaming": null,
+      "proxyChunksDownLastRequest": 25
+     },
+     "ses": {
+      "lockdownError": null,
+      "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
+      "lockdownMs": 50.9,
+      "filesThatWouldHitCensor": {
+       "htmlComment": 1,
+       "importExpr": 1,
+       "directEval": 1
+      },
+      "extraGlobalsEndowed": [
+       "Float64Array",
+       "Float32Array",
+       "Float16Array",
+       "DisposableStack",
+       "AsyncDisposableStack",
+       "SuppressedError"
+      ]
+     },
+     "failure": {
+      "stdoutTail": ",\"output_tokens\":60,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-sonnet-4-6\":{\"inputTokens\":300,\"outputTokens\":60,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0018000000000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"206cec15-79a6-42ef-885c-9973c31d954c\"}\n",
+      "stderr": ""
+     }
+    }
+   },
+   "sesSlowdown": {
+    "turnExitMs": {
+     "plain": 1567.4,
+     "ses": 1855,
+     "ratio": 1.2
+    },
+    "firstOutputMs": {
+     "plain": 1543.6,
+     "ses": 1843.2,
+     "ratio": 1.2
+    },
+    "moduleEvalMs": {
+     "plain": 294.5,
+     "ses": 408.4,
+     "ratio": 1.4
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 12,
+     "peakUsedMB": 39.2,
+     "lastUsedMB": 39.2,
+     "peakTotalMB": 40.7,
+     "peakBackingStoreMB": 92.2
+    },
+    "fullTurn_plain": {
+     "samples": 29,
+     "peakUsedMB": 61.7,
+     "lastUsedMB": 61.7,
+     "peakTotalMB": 69.8,
+     "peakBackingStoreMB": 92.3
+    },
+    "fullTurn_ses": {
+     "samples": 33,
+     "peakUsedMB": 124.3,
+     "lastUsedMB": 57.3,
+     "peakTotalMB": 130.5,
+     "peakBackingStoreMB": 92.7
+    }
+   }
+  }
+ },
+ "hardenedJs": {
+  "probeInsideCompartment": {
+   "objectPrototypeFrozen": true,
+   "arrayPrototypeFrozen": true,
+   "globalIsNotWorkerGlobal": true,
+   "functionConstructorGlobal": "undefined",
+   "functionConstructorSeesWorker": "undefined",
+   "pollutionBlocked": "throws TypeError",
+   "dateNowWorks": true,
+   "mathRandomWorks": true,
+   "missingStandardGlobals": [
+    "SharedArrayBuffer",
+    "Atomics"
+   ],
+   "errorCaptureStackTrace": "function"
+  },
+  "probeWithoutExtraGlobals": {
+   "objectPrototypeFrozen": true,
+   "arrayPrototypeFrozen": true,
+   "globalIsNotWorkerGlobal": true,
+   "functionConstructorGlobal": "undefined",
+   "functionConstructorSeesWorker": "undefined",
+   "pollutionBlocked": "throws TypeError",
+   "dateNowWorks": true,
+   "mathRandomWorks": true,
+   "missingStandardGlobals": [
+    "Float64Array",
+    "Float32Array",
+    "Float16Array",
+    "SharedArrayBuffer",
+    "Atomics",
+    "DisposableStack",
+    "AsyncDisposableStack",
+    "SuppressedError"
+   ],
+   "errorCaptureStackTrace": "function"
+  },
+  "piWithStockSes": {
+   "pass": false,
+   "checks": {
+    "exitCode0": true,
+    "fileWrittenInVfs": false,
+    "shellToolRanInJustBash": false,
+    "mockSawThreeSteps": false,
+    "toolResultReachedModel": false,
+    "finalAnswerArrived": false,
+    "networkOnlyViaExpectedProxy": true
+   },
+   "errorMessages": [
+    "Cannot assign to read only property 'return' of object '[object AsyncGenerator]'"
+   ],
+   "stderr": ""
+  },
+  "piWithoutExtraGlobals": {
+   "pass": false,
+   "stderr": "Uncaught TypeError: Float64Array is not a constructor"
+  }
+ },
+ "nativeReference": {
+  "what": "same pi turn on real Node.js v22.23.5 against the same mock, direct connection (wall time of the child process)",
+  "medianMs": 646,
+  "runs": [
+   668,
+   646,
+   612
+  ]
+ },
+ "observedApiUsage": {
+  "gemini": {
+   "AsyncLocalStorage.new": {
+    "count": 6,
+    "samples": []
+   },
+   "output written after process.exit (dropped)": {
+    "count": 1,
+    "samples": []
+   },
+   "native-addon": {
+    "count": 4,
+    "samples": [
+     "/opt/gemini/node_modules/@lydell/node-pty-linux-x64/pty.node",
+     "/opt/gemini/node_modules/node-pty/build/Release/pty.node"
+    ]
+   },
+   "AsyncLocalStorage.run(async)": {
+    "count": 6,
+    "samples": []
+   }
+  },
+  "claude": {
+   "AsyncLocalStorage.new": {
+    "count": 7,
+    "samples": []
+   },
+   "fs.watchFile": {
+    "count": 1,
+    "samples": []
+   },
+   "spawn of native executable": {
+    "count": 9,
+    "samples": [
+     "/opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -> just-bash rg"
+    ]
+   },
+   "child_process.spawnSync": {
+    "count": 3,
+    "samples": [
+     "which /opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg",
+     "which bwrap",
+     "which socat"
+    ]
+   },
+   "AsyncLocalStorage.run(async)": {
+    "count": 2,
+    "samples": []
+   },
+   "AsyncLocalStorage.enterWith": {
+    "count": 1,
+    "samples": []
+   },
+   "process.kill": {
+    "count": 2,
+    "samples": [
+     "4242 SIGKILL"
+    ]
+   }
+  }
+ },
+ "observedSyncChildProcessCalls": {
+  "claude": [
+   "spawnSync which /opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg",
+   "spawnSync which bwrap",
+   "spawnSync which socat"
+  ]
+ },
+ "observedSpawns": {
+  "pi": [
+   "/bin/bash -c cat hello.txt && echo lines=$(wc -l < hello.txt)"
+  ],
+  "gemini": [
+   "[ENOENT] git rev-parse --show-toplevel",
+   "/usr/bin/bash -c shopt -u promptvars nullglob extglob nocaseglob dotglob; _bgpids_file=/tmp/gemini-shell*/bgpi"
+  ],
+  "claude": [
+   "/opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg --version",
+   "/opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg --files -* -* --no* --glob *.md",
+   "/opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg --files -* --no* --max-depth 4 ",
+   "/opt/claude/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg --files -* /work",
+   "ps aux | grep -E \"code|cursor|windsurf|idea|pycharm|webstorm|phpstorm|rubymine|clion|goland|rider|datagrip|dat",
+   "which zsh",
+   "which bash",
+   "/bin/bash -c -l SNAPSHOT_FILE=/home/user/.claude/shell-snapshots/snapshot-bash-**.sh # No user config file to ",
+   "/bin/bash -c source /home/user/.claude/shell-snapshots/snapshot-bash-**.sh 2>/dev/null || true && shopt -u ext"
+  ]
+ },
+ "runtime": {
+  "workerJsBytes": 2713887,
+  "workerJsGzipBytes": 590065,
+  "sesBytes": 519237,
+  "bundledInputBytesByPackage": {
+   "(spike source)": 170208,
+   "base64-js": 3932,
+   "ieee754": 2154,
+   "buffer": 58353,
+   "sprintf-js": 9250,
+   "fflate": 90922,
+   "diff": 78584,
+   "turndown": 25307,
+   "just-bash": 1264594,
+   "events": 14890,
+   "readable-stream": 203676,
+   "abort-controller": 394,
+   "safe-buffer": 1670,
+   "string_decoder": 9465,
+   "has-symbols": 2369,
+   "has-tostringtag": 189,
+   "es-object-atoms": 67,
+   "es-errors": 524,
+   "math-intrinsics": 781,
+   "gopd": 303,
+   "es-define-property": 288,
+   "get-proto": 1127,
+   "function-bind": 2169,
+   "call-bind-apply-helpers": 1383,
+   "dunder-proto": 980,
+   "hasown": 206,
+   "get-intrinsic": 14439,
+   "call-bound": 687,
+   "is-arguments": 1150,
+   "is-regex": 2221,
+   "safe-regex-test": 405,
+   "generator-function": 228,
+   "is-generator-function": 860,
+   "is-callable": 3224,
+   "for-each": 2374,
+   "possible-typed-array-names": 264,
+   "available-typed-arrays": 475,
+   "define-data-property": 2336,
+   "has-property-descriptors": 588,
+   "set-function-length": 1273,
+   "call-bind": 1054,
+   "which-typed-array": 3774,
+   "is-typed-array": 180,
+   "util": 28572,
+   "inherits": 753,
+   "path-browserify": 16166,
+   "assert": 76059,
+   "object-keys": 4463,
+   "object.assign": 2723,
+   "object-is": 1163,
+   "define-properties": 1268,
+   "is-nan": 1230,
+   "url": 38204,
+   "object-inspect": 37235,
+   "side-channel-list": 3289,
+   "side-channel-map": 1981,
+   "side-channel-weakmap": 2708,
+   "side-channel": 1222,
+   "qs": 51730,
+   "querystring-es3": 5181,
+   "punycode": 12780,
+   "@noble/hashes": 99845
+  }
+ },
+ "imagesBuild": {
+  "pi": {
+   "files": 6806,
+   "dirs": 1483,
+   "symlinks": 8,
+   "fileBytes": 66748265,
+   "imageBytes": 77716550,
+   "imageGzipBytes": 18288773,
+   "esmPrecompiled": 84,
+   "esmPrecompiledBytes": 10254635,
+   "excluded": {
+    "sourceMapsAndTypeDecls": 9290,
+    "sourceMapsAndTypeDeclsBytes": 56045679,
+    "largerThan30MB": []
+   },
+   "babelFailed": 0
+  },
+  "gemini": {
+   "files": 827,
+   "dirs": 104,
+   "symlinks": 1,
+   "fileBytes": 125632353,
+   "imageBytes": 143858062,
+   "imageGzipBytes": 29966835,
+   "esmPrecompiled": 24,
+   "esmPrecompiledBytes": 18129005,
+   "excluded": {
+    "sourceMapsAndTypeDecls": 24,
+    "sourceMapsAndTypeDeclsBytes": 80421,
+    "largerThan30MB": []
+   },
+   "babelFailed": 0
+  },
+  "claude": {
+   "files": 30,
+   "dirs": 29,
+   "symlinks": 1,
+   "fileBytes": 66290901,
+   "imageBytes": 80047892,
+   "imageGzipBytes": 30554497,
+   "esmPrecompiled": 1,
+   "esmPrecompiledBytes": 13751783,
+   "excluded": {
+    "sourceMapsAndTypeDecls": 2,
+    "sourceMapsAndTypeDeclsBytes": 119977,
+    "largerThan30MB": []
+   },
+   "babelFailed": 0
+  }
+ },
+ "staticSyncScan": {
+  "pi": {
+   "filesScanned": 84,
+   "distinctCallSites": {
+    "spawnSync": 6,
+    "execSync": 2
+   }
+  },
+  "gemini": {
+   "filesScanned": 104,
+   "distinctCallSites": {
+    "spawnSync": 15,
+    "execSync": 14,
+    "execFileSync": 6
+   }
+  },
+  "claude": {
+   "filesScanned": 1,
+   "distinctCallSites": {
+    "execSync": 1,
+    "spawnSync": 2
+   }
+  }
+ },
+ "pageErrors": [],
+ "destinationsDeniedByProxy": {
+  "corsProxy": [
+   "GET https://api.anthropic.com/api/claude_code/organizations/metrics_enabled"
+  ],
+  "relay": []
+ },
+ "allTurnsPass": {
+  "pi": {
+   "plain+bridge": true,
+   "plain+tunnel": true,
+   "ses+bridge": true
+  },
+  "gemini": {
+   "plain+bridge": true,
+   "plain+tunnel": true,
+   "ses+bridge": true
+  },
+  "claude": {
+   "plain+bridge": true,
+   "plain+tunnel": true,
+   "ses+bridge": false
+  }
+ }
+}

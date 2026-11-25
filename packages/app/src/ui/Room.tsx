@@ -143,7 +143,7 @@ function RenameSheet({ roomId, st, onClose }: { roomId: string; st: RoomState; o
 
 // ------------------------------------------------------------------ chat
 
-interface ViewMsg {
+export interface ViewMsg {
   ev: Decoded
   text: string
   edited: boolean
@@ -152,7 +152,7 @@ interface ViewMsg {
   reply?: Decoded
 }
 
-function buildView(msgs: Decoded[]) {
+export function buildView(msgs: Decoded[]) {
   const byId = new Map(msgs.map((m) => [m.id, m]))
   const edits = new Map<string, string>()
   const dels = new Set<string>()
@@ -816,6 +816,8 @@ function Composer({
       setText('')
       setFiles([])
       localStorage.removeItem(draftKey)
+      // sending clears our typing state for others, so the next keystroke should ping again right away
+      lastTyping.current = 0
       onSent()
     } catch (e: any) {
       // If the message was kept locally as "Not sent · Retry", clear the composer so pressing

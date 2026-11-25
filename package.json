@@ -4,15 +4,17 @@
   "type": "module",
   "workspaces": [
     "packages/shared",
+    "packages/proxy",
+    "packages/tls",
     "packages/app",
     "packages/extension",
     "packages/bridge"
   ],
   "scripts": {
     "dev": "npm run dev -w @beamhop/app",
-    "build": "npm run build -w @beamhop/app && npm run build -w @beamhop/extension && npm run build -w @beamhop/bridge",
+    "build": "npm run build -w @beamhop/app && npm run build -w @beamhop/extension && npm run build -w @beamhop/bridge && npm run build -w @beamhop/proxy",
     "dist": "npm run build && node tools/assemble-dist.mjs",
-    "typecheck": "tsc -p packages/shared && tsc -p packages/app && tsc -p packages/bridge",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/proxy && tsc -p packages/tls && tsc -p packages/app && tsc -p packages/bridge",
     "test": "vitest run",
     "e2e": "playwright test --trace off",
     "relay": "node tools/relay.mjs"

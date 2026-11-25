@@ -1,0 +1,16 @@
+{
+  "source": "https://curl.se/ca/cacert.pem",
+  "date": "Thu Nov  5 04:12:01 2026 GMT",
+  "sha256": "427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285",
+  "count": 118,
+  "generated": "2026-11-25",
+  "packedBytes": 54338,
+  "keyTypes": {
+    "ec-secp384r1": 35,
+    "rsa-2048": 20,
+    "rsa-4096": 59,
+    "ec-prime256v1": 3,
+    "ec-secp521r1": 1
+  },
+  "skipped": []
+}

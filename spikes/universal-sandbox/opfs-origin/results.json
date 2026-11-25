@@ -1,0 +1,187 @@
+{
+  "meta": {
+    "date": "2026-11-25T10:33:44.535Z",
+    "chromium": "158.0.8127.36",
+    "node": "v22.23.5",
+    "host": {
+      "platform": "linux 6.18.44-fc-v880",
+      "cpus": 4,
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+      "totalMemGB": 15.7,
+      "tmpdir": "/tmp"
+    },
+    "origins": {
+      "A": "http://localhost:8101",
+      "B": "http://127.0.0.1:8102",
+      "attacker": "http://localhost:8103"
+    },
+    "benchRuns": 1,
+    "caveat": "headless Chromium in a cloud container (not a phone); profile dir on the container tmpfs/overlay disk",
+    "flags": "Playwright flags minus --disable-popup-blocking, with ThirdPartyStoragePartitioning left at its Chromium default (enabled)",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36",
+    "browserKilledExternallyRetries": 0
+  },
+  "finalCsp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'",
+  "playwrightStockFlags": [
+    "--disable-field-trial-config",
+    "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
+    "--disable-popup-blocking"
+  ],
+  "csp_relaxations": {
+    "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'",
+    "probes": {
+      "full policy": {
+        "doc.wasmCompile": "ok",
+        "doc.eval": "ok 2",
+        "doc.newFunction": "ok 2",
+        "worker(self)": "ok",
+        "worker(self).wasm": "ok",
+        "worker(self).eval": "ok 2",
+        "worker(blob:)": "ok",
+        "worker(blob:).wasm": "ok",
+        "worker(blob:).eval": "ok 2",
+        "import(blob:)": "ok 42",
+        "script src=blob:": "ok",
+        "inline <script>": "blocked",
+        "inline style attr": "ok",
+        "<style> element": "ok",
+        "img data:": "ok",
+        "img blob:": "ok",
+        "fetch(self)": "ok 200",
+        "fetch(blob:)": "blocked: TypeError",
+        "iframe(self static file)": "blocked: empty/err doc",
+        "iframe(blob:)": "ok",
+        "serviceWorker.register": "ok http://127.0.0.1:8102/preview/",
+        "opfs.getDirectory": "ok"
+      },
+      "minus 'wasm-unsafe-eval' (keeps 'unsafe-eval')": {
+        "changedVersusFullPolicy": {}
+      },
+      "minus 'unsafe-eval' (keeps 'wasm-unsafe-eval')": {
+        "changedVersusFullPolicy": {
+          "doc.eval": "blocked: EvalError",
+          "doc.newFunction": "blocked: EvalError",
+          "worker(self).eval": "blocked: EvalError",
+          "worker(blob:).eval": "blocked: EvalError"
+        }
+      },
+      "minus both eval tokens": {
+        "changedVersusFullPolicy": {
+          "doc.wasmCompile": "blocked: CompileError",
+          "doc.eval": "blocked: EvalError",
+          "doc.newFunction": "blocked: EvalError",
+          "worker(self).wasm": "blocked: CompileError",
+          "worker(self).eval": "blocked: EvalError",
+          "worker(blob:).wasm": "blocked: CompileError",
+          "worker(blob:).eval": "blocked: EvalError"
+        }
+      },
+      "minus blob: in script-src": {
+        "changedVersusFullPolicy": {
+          "import(blob:)": "blocked: TypeError",
+          "script src=blob:": "blocked: error event"
+        }
+      },
+      "minus blob: in worker-src": {
+        "changedVersusFullPolicy": {
+          "worker(blob:)": "blocked: error event",
+          "worker(blob:).wasm": "blocked",
+          "worker(blob:).eval": "blocked"
+        }
+      },
+      "without worker-src (falls back to script-src)": {
+        "changedVersusFullPolicy": {}
+      },
+      "minus 'unsafe-inline' in style-src": {
+        "changedVersusFullPolicy": {
+          "inline style attr": "blocked",
+          "<style> element": "blocked"
+        }
+      },
+      "minus data: blob: in img-src": {
+        "changedVersusFullPolicy": {
+          "img data:": "blocked: error event",
+          "img blob:": "blocked: error event"
+        }
+      },
+      "without connect-src": {
+        "changedVersusFullPolicy": {
+          "fetch(self)": "blocked: TypeError"
+        }
+      },
+      "minus blob: in frame-src": {
+        "changedVersusFullPolicy": {
+          "iframe(blob:)": "blocked: empty/err doc"
+        }
+      }
+    },
+    "minimalPolicyForThisSpike": {
+      "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'",
+      "result": {
+        "sqliteInit": "ok",
+        "swPreview": "ok"
+      }
+    },
+    "minimalMinusWasmUnsafeEval": {
+      "result": {
+        "sqliteInit": "FAILED: frame.evaluate: Error: RuntimeError: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'un",
+        "swPreview": "ok"
+      }
+    },
+    "minimalMinusConnectSrc": {
+      "result": {
+        "sqliteInit": "FAILED: frame.evaluate: Error: RuntimeError: Aborted(NetworkError: Failed to execute 'send' on 'XMLHttpRequest': Failed to load 'http://127.0.0.1:8102/vendor/sqlite/sqlite3.wasm'.). Build with -sASSERTIONS fo",
+        "swPreview": "ok"
+      }
+    },
+    "minimalMinusWorkerSrc": {
+      "note": "worker-src removed: workers fall back to script-src 'self'",
+      "result": {
+        "sqliteInit": "ok",
+        "swPreview": "ok"
+      }
+    }
+  },
+  "consoleNotes": [
+    "[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:'. Either the 'unsafe-inline' keyword, a hash ('sha256-oSpnayrYeorAkrvuvcDAbnB4kADSks12weGRLziMYVQ='),",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/5a742a08-7592-4165-b4f8-e57140eccdca' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/5a742a08-7592-4165-b4f8-e57140eccdca. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Framing 'http://127.0.0.1:8102/' violates the following Content Security Policy directive: \"frame-ancestors http://localhost:8101\". The request has been blocked.\n",
+    "[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'unsafe-eval' blob:'. Either the 'unsafe-inline' keyword, a hash ('sha256-oSpnayrYeorAkrvuvcDAbnB4kADSks12weGRLziMYVQ='), or a nonce ('nonce",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/3fe72709-3e81-4d3a-a133-e3355d930536' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/3fe72709-3e81-4d3a-a133-e3355d930536. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval' blob:'. Either the 'unsafe-inline' keyword, a hash ('sha256-oSpnayrYeorAkrvuvcDAbnB4kADSks12weGRLziMYVQ='), or a nonce ('",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/da79de0f-83fd-43f7-89af-a7deeca56020' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/da79de0f-83fd-43f7-89af-a7deeca56020. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' blob:'. Either the 'unsafe-inline' keyword, a hash ('sha256-oSpnayrYeorAkrvuvcDAbnB4kADSks12weGRLziMYVQ='), or a nonce ('nonce-...') is requ",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/cadfad3c-d092-40e9-9586-02dddbbd8db2' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/cadfad3c-d092-40e9-9586-02dddbbd8db2. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Loading the script 'blob:http://127.0.0.1:8102/b12c5275-e78a-47c4-8843-e431bab6b486' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'\". Note that 'script-src-elem' was not explici",
+    "[error] Loading the script 'blob:http://127.0.0.1:8102/16619414-a5db-4de1-b9f0-e7c241a55159' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'\". Note that 'script-src-elem' was not explici",
+    "[error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval''. Either the 'unsafe-inline' keyword, a hash ('sha256-oSpnayrYeorAkrvuvcDAbnB4kADSks12weGRLziMYVQ='), or a ",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/2b794fb1-a2ce-4a4d-91df-3300152b39e8' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/2b794fb1-a2ce-4a4d-91df-3300152b39e8. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Creating a worker from 'blob:http://127.0.0.1:8102/d62ecbcc-7404-44ec-8036-63a05114f978' violates the following Content Security Policy directive: \"worker-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/cadba826-b145-4595-837b-8f92da172d7a' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/cadba826-b145-4595-837b-8f92da172d7a. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/7e3e076c-cd05-4709-9350-e05681fccb19' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/7e3e076c-cd05-4709-9350-e05681fccb19. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-Za6Zan2PDmnL9X+2n+h73b6oY+EbRZ6SXyk28023jBU='), or a nonce ('nonce-...') is required to e",
+    "[error] Applying inline style violates the following Content Security Policy directive 'style-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-NE3b+YW7YLFcPfnkBsRqxkh4Vt4aO5D268V5ZmUjVYw='), or a nonce ('nonce-...') is required to e",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/f97ec11f-0987-4407-8e62-7411fe79e912' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/f97ec11f-0987-4407-8e62-7411fe79e912. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Loading the image 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' violates the following Content Security Policy directive: \"img-src 'self'\". The action has been blocked.",
+    "[error] Loading the image 'blob:http://127.0.0.1:8102/d3bc30fa-3e9d-4c37-87ee-7dec3bdc2efc' violates the following Content Security Policy directive: \"img-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/d71a643e-b8f7-4513-bcfb-0ad78a653b5d' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/d71a643e-b8f7-4513-bcfb-0ad78a653b5d. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://127.0.0.1:8102/hello.json' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'connect-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blo",
+    "[error] Fetch API cannot load http://127.0.0.1:8102/hello.json. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/b3a37695-8dc9-4f60-8d03-8f0a3611fb2d' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'connect-src' was not explicitly set, so 'default-src' is used as a fa",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/b3a37695-8dc9-4f60-8d03-8f0a3611fb2d. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'blob:http://127.0.0.1:8102/06814c69-e9e6-45dd-973f-0b06261b6877' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load blob:http://127.0.0.1:8102/06814c69-e9e6-45dd-973f-0b06261b6877. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Framing 'blob:http://127.0.0.1:8102/7ae61cd7-2400-4f98-a343-57226915d9b5' violates the following Content Security Policy directive: \"frame-src 'self'\". The request has been blocked.\n",
+    "[error] Exception loading sqlite3 module: RuntimeError: Aborted(CompileError: WebAssembly.instantiate(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed ",
+    "[error] Exception loading sqlite3 module: RuntimeError: Aborted(NetworkError: Failed to execute 'send' on 'XMLHttpRequest': Failed to load 'http://127.0.0.1:8102/vendor/sqlite/sqlite3.wasm'.). Build with -sASSERTIONS for more info.\n    at abort (ht"
+  ]
+}
