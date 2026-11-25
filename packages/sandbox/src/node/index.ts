@@ -12,7 +12,7 @@ import { makeMisc } from './builtins/misc.js'
 import { makeZlib } from './builtins/zlib.js'
 import { createChildProcess } from './child_process.js'
 import { createFs } from './fs.js'
-import { createGuestGlobal, HIDDEN_GLOBALS } from './globals.js'
+import { createFetchSlot, createGuestGlobal, HIDDEN_GLOBALS, removeBrowserOnlyGlobals } from './globals.js'
 import { createLoader, type EsmTransform, type Loader } from './loader.js'
 import { createNet } from './net/index.js'
 import { createProcess, EXEC_PATH, NODE_VERSION, ProcessExit } from './process.js'
@@ -41,6 +41,7 @@ let hooksInstalled = false
 function installGlobalHooks(): void {
   if (hooksInstalled) return
   hooksInstalled = true
+  removeBrowserOnlyGlobals()
   shimHooks.onError = (error) => current()?.uncaught(error)
   const g = globalThis as Dyn
   if (typeof g.addEventListener === 'function' && typeof g.WorkerGlobalScope !== 'undefined') {
@@ -140,13 +141,14 @@ export function createNodeProgram(options: NodeProgramOptions): Program {
       const childProcess = createChildProcess({ core, fs, stream, EventEmitter, util })
       const os = makeOs({ process, host })
 
+      const fetchSlot = createFetchSlot(net.fetch)
       const navigator = { userAgent: `Node.js/${NODE_VERSION.split('.')[0]}`, language: 'en-US', languages: ['en-US'], platform: 'linux', hardwareConcurrency: host.navigator?.hardwareConcurrency || 4 }
       // Per-process globals. `scopeNames` become parameters of every module wrapper; see globals.ts.
       const own: Record<string, Dyn> = {
         process,
         Buffer,
         console: null,
-        fetch: net.fetch,
+        fetch: null,
         navigator,
         ReadableStream: TrackedReadableStream,
         setTimeout: timers.setTimeout,
@@ -156,6 +158,9 @@ export function createNodeProgram(options: NodeProgramOptions): Program {
         clearInterval: timers.clearInterval,
         clearImmediate: timers.clearImmediate,
       }
+      // `globalThis.fetch` reads and writes the slot; the bare identifier `fetch` is the slot's trampoline.
+      Object.defineProperty(own, 'fetch', { get: fetchSlot.get, set: fetchSlot.set, enumerable: true, configurable: true })
+      const scopeValue = (name: string): Dyn => (name === 'fetch' ? fetchSlot.call : own[name])
       const guestGlobal = createGuestGlobal(own)
       own.global = guestGlobal
       own.globalThis = guestGlobal
@@ -163,7 +168,7 @@ export function createNodeProgram(options: NodeProgramOptions): Program {
       const evaluateInScope = (code: string, file: string): Dyn => {
         const names = Object.keys(own)
         const run = evaluate(`(function (${[...HIDDEN_GLOBALS, ...names].join(', ')}) { return eval(arguments[arguments.length - 1]) })`, file)
-        return run(...HIDDEN_GLOBALS.map(() => undefined), ...names.map((n) => own[n]), code)
+        return run(...HIDDEN_GLOBALS.map(() => undefined), ...names.map(scopeValue), code)
       }
       const misc = makeMisc({ Buffer, EventEmitter, stream, util, process, track, host, evaluate: evaluateInScope, timers })
       own.console = misc.console
@@ -209,7 +214,7 @@ export function createNodeProgram(options: NodeProgramOptions): Program {
         core,
         builtins,
         evaluate,
-        scope: { names: [...HIDDEN_GLOBALS, ...scopeNames], values: [...HIDDEN_GLOBALS.map(() => undefined), ...scopeNames.map((n) => own[n])] },
+        scope: { names: [...HIDDEN_GLOBALS, ...scopeNames], values: [...HIDDEN_GLOBALS.map(() => undefined), ...scopeNames.map(scopeValue)] },
         esmCache: options.esmCache,
         loadTransformer: options.loadTransformer,
       })

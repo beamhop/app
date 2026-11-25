@@ -17,6 +17,8 @@
 // This module uses only web platform APIs (CompressionStream, crypto.subtle), so the same code packs images
 // under Node and unpacks them in a worker.
 
+import { host } from '../host.js'
+
 export const IMAGE_MAGIC = 'BHIMAGE1'
 export const IMAGE_HEADER_BYTES = 56
 const FLAG_GZIP = 1
@@ -105,7 +107,7 @@ export async function encodeImage(input: ImageInput, opts: { compress?: boolean 
   }
   const digest = await sha256(payload)
   const compress = opts.compress !== false
-  const body = compress ? await collect(new Blob([payload as BlobPart]).stream().pipeThrough(new CompressionStream('gzip')), payload.byteLength >> 2) : payload
+  const body = compress ? await collect(new host.Blob([payload as BlobPart]).stream().pipeThrough(new host.CompressionStream('gzip')), payload.byteLength >> 2) : payload
   const bytes = new Uint8Array(IMAGE_HEADER_BYTES + body.byteLength)
   const view = new DataView(bytes.buffer)
   bytes.set(new TextEncoder().encode(IMAGE_MAGIC), 0)
@@ -126,7 +128,7 @@ export class ImageFormatError extends Error {
 
 /** Unpack an image from bytes or from a byte stream (a fetch body). Peak memory is one payload-sized buffer. */
 export async function decodeImage(source: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>, opts: { verify?: boolean } = {}): Promise<DecodedImage> {
-  const stream = source instanceof ReadableStream ? source : new Blob([source as BlobPart]).stream()
+  const stream = source instanceof host.ReadableStream ? source : new host.Blob([source as BlobPart]).stream()
   const reader = stream.getReader()
   // Read the fixed header, keeping whatever came after it in the same chunk.
   const header = new Uint8Array(IMAGE_HEADER_BYTES)
@@ -149,7 +151,7 @@ export async function decodeImage(source: Uint8Array | ArrayBuffer | ReadableStr
   if (indexBytes > payloadBytes) throw new ImageFormatError('index larger than payload')
 
   const first = rest
-  const body = new ReadableStream<Uint8Array>({
+  const body = new host.ReadableStream<Uint8Array>({
     start(controller) {
       if (first) controller.enqueue(first)
     },
@@ -162,7 +164,7 @@ export async function decodeImage(source: Uint8Array | ArrayBuffer | ReadableStr
       return reader.cancel(reason)
     },
   })
-  const plain = flags & FLAG_GZIP ? body.pipeThrough(new DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>) : body
+  const plain = flags & FLAG_GZIP ? body.pipeThrough(new host.DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>) : body
   const payload = new Uint8Array(payloadBytes)
   const out = plain.getReader()
   let length = 0

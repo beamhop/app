@@ -9,6 +9,7 @@
 //             net/tls (undici, for one) works unchanged; the proxy operator sees plaintext.
 import type { ByteTransport, SocketChannel } from '../../kernel/net.js'
 import { NetError } from '../../kernel/net.js'
+import { host } from '../../host.js'
 import type { Dyn, ProcessCore } from '../types.js'
 import { BufferPkg as Buffer } from '../vendor.js'
 import { HttpBridge } from './http-bridge.js'
@@ -196,7 +197,7 @@ export function createSockets({ core, stream, EventEmitter, stats }: Deps) {
     /** TLS over a tunnel socket, through the connector the kernel was given (see TlsConnector in kernel/net.ts). */
     _connectTls(host: string, port: number, connected: (t: Transport) => void, receive: (c: Uint8Array) => void, remoteEnd: () => void, failed: (e?: string) => void): void {
       let controller!: ReadableStreamDefaultController<Uint8Array>
-      const readable = new ReadableStream<Uint8Array>({ start: (c) => void (controller = c) })
+      const readable = new host.ReadableStream<Uint8Array>({ start: (c) => void (controller = c) })
       const quiet = (fn: () => void): void => {
         try {
           fn()

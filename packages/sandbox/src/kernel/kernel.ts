@@ -139,7 +139,11 @@ export class Kernel {
 
   // ---------------------------------------------------------------- processes
 
-  /** Start a process. Resolution errors are thrown synchronously; the program itself starts in a microtask. */
+  /**
+   * Start a process. Resolution errors are thrown synchronously. The program itself starts in a later task, so
+   * whoever asked for the spawn (the app, over the port) gets its answer before the program's first slice of
+   * synchronous work, which for a Node harness is all of its module evaluation.
+   */
   spawn(opts: SpawnOptions): Process {
     const env = { ...(opts.env ?? this.env) }
     const cwd = resolve('/', opts.cwd ?? env.PWD ?? '/work')
@@ -154,7 +158,7 @@ export class Kernel {
       for (const l of this.listeners) l.exit?.(proc, status)
     })
     for (const l of this.listeners) l.spawn?.(proc)
-    queueMicrotask(() => {
+    setTimeout(() => {
       if (!proc.running) return
       try {
         resolved.program.start({ kernel: this, process: proc, exit: (code) => proc.finish({ code }) })
@@ -162,7 +166,7 @@ export class Kernel {
         proc.stderr.write(new TextEncoder().encode(`${resolved.argv[0]}: ${e instanceof Error ? e.message : String(e)}\n`))
         proc.finish({ code: 126 })
       }
-    })
+    }, 0)
     return proc
   }
 

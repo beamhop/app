@@ -115,11 +115,10 @@ const scenarios = {
           const direct = async (fn) => { try { await fn(); return 'reached' } catch (e) { return 'blocked: ' + (e && e.name) } }
           Promise.all([
             direct(() => real.fetch(${JSON.stringify(cfg.mockUrl + '/v1/models')})),
-            direct(() => new Promise((res, rej) => { const ws = new real.WebSocket(${JSON.stringify(cfg.proxyUrl.replace(/^http/, 'ws') + '/v1/tcp?host=127.0.0.1&port=1')}); ws.onopen = res; ws.onerror = () => rej(new Error('ws')) })),
             fetch('http://example.com/').then((r) => 'reached ' + r.status, (e) => 'refused: ' + ((e.cause && e.cause.message) || e.message)),
-          ]).then(([directFetch, directWebSocket, outside]) => console.log(JSON.stringify({
+          ]).then(([directFetch, outside]) => console.log(JSON.stringify({
             crossOriginIsolated: real.crossOriginIsolated, sharedArrayBuffer: typeof real.SharedArrayBuffer, workerScope: typeof real.WorkerGlobalScope,
-            directFetch, directWebSocket, outside, guestSeesSelf: typeof self, origin: real.location.origin,
+            directFetch, outside, guestSeesSelf: typeof self, browserOnly: [typeof real.WebSocket, typeof real.XMLHttpRequest, typeof real.indexedDB].join(), origin: real.location.origin,
           })))
         `],
         { stdin: 'none' },
@@ -205,6 +204,7 @@ const scenarios = {
       "const data = await Promise.resolve(readFileSync(new URL('./counter.mjs', import.meta.url), 'utf8').length)",
       "console.log(JSON.stringify({ count, same: lazy.count === count, box: new Box(7).v, data, file: path.basename(import.meta.filename), isolated: globalThis.crossOriginIsolated }))",
     ].join('\n'))
+    const counterBytes = (await machine.fs.read('/work/counter.mjs')).length
     const first = await finish(await machine.spawn(['node', 'main.mjs'], { cwd: '/work', stdin: 'none' }))
     // A big module, to measure the transformer: ~1 MB of generated source.
     const big = Array.from({ length: 12000 }, (_, i) => `export function f${i}(a, b) { return a * ${i} + b - (a % ${i + 1}) }`).join('\n') + '\nexport const total = 12000\n'
@@ -214,7 +214,7 @@ const scenarios = {
     const viaShell = await finish(await machine.spawn(['bash', '-c', 'cd /work && node main.mjs | wc -l'], { stdin: 'none' }))
     await sleep(50)
     machine.dispose()
-    return { first, second, bigBytes: big.length, viaShell, logs }
+    return { first, second, counterBytes, bigBytes: big.length, viaShell, logs }
   },
 }
 

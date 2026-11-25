@@ -71,6 +71,7 @@ const config = {
 // ---- browser ----
 const browser = await chromium.launch({ headless: !args.includes('--headed') })
 const failures = []
+const SCENARIO_TIMEOUT_MS = 25_000
 const measurements = []
 
 async function scenario(name, fn) {
@@ -87,12 +88,13 @@ async function scenario(name, fn) {
   try {
     await page.goto(appOrigin + '/host.html')
     await page.waitForFunction(() => 'e2e' in window)
-    await fn(page, { pageErrors, frameHeaders })
+    await Promise.race([fn(page, { pageErrors, frameHeaders }), new Promise((_, reject) => setTimeout(() => reject(new Error(`scenario timed out after ${SCENARIO_TIMEOUT_MS} ms`)), SCENARIO_TIMEOUT_MS))])
     console.log(`  ok   ${name} (${Date.now() - t} ms)`)
   } catch (e) {
     failures.push(name)
     console.log(`  FAIL ${name}\n${String(e && e.stack || e).split('\n').map((l) => '       ' + l).join('\n')}`)
     if (pageErrors.length) console.log('       page errors:', pageErrors)
+    if (mock.log.length) console.log('       mock saw:', mock.log.map((e) => `${e.method} ${e.path} step=${e.step}`).join(', '))
   } finally {
     await context.close()
   }
@@ -137,7 +139,7 @@ for (let round = 1; round <= repeat; round++) {
       assert.equal(probe.guestSeesSelf, 'undefined')
       assert.equal(probe.origin, machineOrigin)
       assert.match(probe.directFetch, /^blocked/, 'CSP stops the worker fetching the mock directly')
-      assert.match(probe.directWebSocket, /^blocked/, 'CSP stops the worker opening a WebSocket')
+      assert.equal(probe.browserOnly, 'undefined,undefined,undefined', 'browser-only APIs are removed from the worker')
       // a destination outside the allow-list is refused by the test proxy, and nothing left the machine for it
       assert.match(probe.outside, /^refused/, 'non-local destination refused: ' + probe.outside)
       assert.deepEqual([...new Set(proxy.stats.denied)], ['example.com:80'])
@@ -145,7 +147,7 @@ for (let round = 1; round <= repeat; round++) {
       assert.equal(r.pageSab, 'undefined')
       // the frame was served with the documented CSP and without isolation headers, and nothing violated it
       assert.ok(frameHeaders.length >= 3 && frameHeaders.every((h) => h.csp === CSP && !h.coop && !h.coep), 'CSP on every machine-origin response')
-      assert.deepEqual(pageErrors.filter((e) => !/Content Security Policy|ERR_BLOCKED_BY_CSP|WebSocket connection/.test(e)), [])
+      assert.deepEqual(pageErrors.filter((e) => !/Content Security Policy|ERR_BLOCKED_BY_CSP|status of 502/.test(e)), [])
       const stats = JSON.parse(r.logs.find((l) => l.includes('node-exit') && l.includes('"esm":3')) ?.replace(/^.*?node-exit /, '') ?? '{}')
       measurements.push({ scenario: 'turn', netMode, ...r.timings, mounted: r.mounted, moduleEvalMs: stats.evalMs })
     })
@@ -181,7 +183,7 @@ for (let round = 1; round <= repeat; round++) {
   await scenario('ES modules written at run time run through the in-worker transformer', async (page) => {
     const r = await page.evaluate((cfg) => window.e2e.esm(cfg), config)
     assert.equal(r.first.stderr, '')
-    assert.deepEqual(JSON.parse(r.first.stdout), { count: 2, same: true, box: 7, data: 119, file: 'main.mjs', isolated: false })
+    assert.deepEqual(JSON.parse(r.first.stdout), { count: 2, same: true, box: 7, data: r.counterBytes, file: 'main.mjs', isolated: false })
     assert.deepEqual(r.second, { code: 0, stdout: '25 12000\n', stderr: '' })
     assert.equal(r.viaShell.stdout.trim(), '1', 'bash can run node on an ES module')
     const load = r.logs.find((l) => l.includes('esm-transform loaded'))

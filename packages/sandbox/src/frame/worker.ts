@@ -3,6 +3,7 @@
 // network only by asking the app (`sock.*`, `http.*`). It never opens a connection of its own, and the frame's
 // CSP (connect-src 'self') would refuse one.
 import type { TransformResult } from '../esm/transform.js'
+import { host } from '../host.js'
 import { decodeImage } from '../image/format.js'
 import { type HttpExchange, NetError, type NetBroker, type SocketChannel, type SocketEvents, type HttpResponseEvents } from '../kernel/net.js'
 import type { Process } from '../kernel/process.js'
@@ -220,7 +221,7 @@ function start(port: MessagePort): void {
           const url = new URL(req.source, scope.location.href)
           // The machine fetches from its own origin only. Anything else would be a network path around the app.
           if (url.origin !== scope.location.origin) throw new RpcError('policy', `images must come from the machine origin, not ${url.origin}`)
-          const res = await fetch(url, { credentials: 'omit' })
+          const res = await host.fetch(url, { credentials: 'omit' })
           if (!res.ok || !res.body) throw new RpcError('ENOENT', `image fetch failed: ${url.pathname} (HTTP ${res.status})`)
           source = res.body
         } else source = req.source

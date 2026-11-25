@@ -7,18 +7,69 @@
 // (URL, TextEncoder, WebAssembly, …) falls through to the real global.
 //
 // Limits of this scheme, by design:
-//  - A program that assigns `globalThis.fetch = mine` changes what `globalThis.fetch` returns, but a bare
-//    `fetch` identifier in other modules still refers to the value the module was started with.
-//  - Assignments of other names (`globalThis.myFlag = 1`) go to the real global so bare references to them
-//    work; they are therefore visible to every Node process in the machine.
+//  - Assignments of any other name (`globalThis.myFlag = 1`, or undici's install() replacing Response, Headers,
+//    Request, FormData, WebSocket) go to the real global, so that bare references to them see the new value, as
+//    they would in Node. They are therefore visible to every Node process in the machine, and to this package's
+//    own code, which is why that code uses the references captured in src/host.ts.
+//  - `fetch` is the one per-process global programs routinely replace (pi installs undici's). A module parameter
+//    cannot be reassigned from outside, so the `fetch` parameter is a trampoline to the process's current
+//    implementation; see createFetchSlot.
 //  - Code compiled outside a module wrapper (`new Function`, indirect `eval`) sees the worker's real globals.
 import type { Dyn } from './types.js'
 
-/** Worker and browser globals a Node program must not see: their presence makes libraries pick a browser code path. */
-export const HIDDEN_GLOBALS = [
-  'self', 'window', 'document', 'importScripts', 'location', 'postMessage', 'onmessage', 'close', 'WorkerGlobalScope', 'DedicatedWorkerGlobalScope',
-  'WebSocket', 'XMLHttpRequest', 'EventSource', 'Worker', 'SharedWorker', 'indexedDB', 'caches',
-]
+/** Worker globals a Node program must not see as bare identifiers. They cannot be removed, so every module shadows them. */
+export const HIDDEN_GLOBALS = ['self', 'window', 'document', 'importScripts', 'location', 'postMessage', 'onmessage', 'close', 'WorkerGlobalScope', 'DedicatedWorkerGlobalScope']
+
+/**
+ * Browser APIs Node does not have. Their presence makes libraries choose a browser code path that cannot work
+ * here (the frame's CSP allows no connection but to its own origin), so in a worker they are removed outright.
+ * Removing, rather than shadowing, lets a program install its own (undici's WebSocket runs over net.Socket).
+ */
+const BROWSER_ONLY = ['WebSocket', 'XMLHttpRequest', 'EventSource', 'Worker', 'SharedWorker', 'indexedDB', 'caches']
+let browserGlobalsRemoved = false
+export function removeBrowserOnlyGlobals(): void {
+  const real = globalThis as Dyn
+  if (browserGlobalsRemoved || typeof real.WorkerGlobalScope === 'undefined') return
+  browserGlobalsRemoved = true
+  for (const name of BROWSER_ONLY) {
+    try {
+      delete real[name]
+      // Attributes such as indexedDB live on the prototype; an own property hides them.
+      if (name in real) Object.defineProperty(real, name, { value: undefined, writable: true, configurable: true })
+    } catch {
+      // a non-configurable global stays; nothing in the layer depends on its absence
+    }
+  }
+}
+
+/**
+ * `fetch` for one process: `call` is what modules receive as the bare identifier, `get`/`set` back
+ * `globalThis.fetch`. A program that wraps the fetch it captured as a bare identifier and installs the wrapper
+ * would otherwise recurse through the trampoline forever; a re-entrant call therefore goes one implementation
+ * down the stack. (Only synchronous re-entry can be recognised: a wrapper that awaits before calling a captured
+ * bare `fetch` still loops. Capturing `globalThis.fetch`, the usual way, is always safe.)
+ */
+export function createFetchSlot(initial: Dyn): { call: Dyn; get(): Dyn; set(fn: Dyn): void } {
+  const stack: Dyn[] = [initial]
+  let depth = 0
+  function fetch(this: unknown, ...args: Dyn[]): Dyn {
+    const impl = stack[Math.max(0, stack.length - 1 - depth)]
+    depth++
+    try {
+      return impl.apply(this, args)
+    } finally {
+      depth--
+    }
+  }
+  return {
+    call: fetch,
+    get: () => stack[stack.length - 1],
+    set(fn) {
+      if (fn === fetch) return
+      if (typeof fn === 'function') stack.push(fn)
+    },
+  }
+}
 
 export function createGuestGlobal(own: Record<string, Dyn>): Dyn {
   const real = globalThis as Dyn
