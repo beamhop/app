@@ -20,7 +20,9 @@ const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a 
 const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 const mb = (x) => (x == null ? null : Math.round((x / 1048576) * 10) / 10);
 
-const [mock, stat, proxy, relay] = await Promise.all([startMock(), startStatic({ dir: path.join(root, 'dist/web') }), startCorsProxy(), startRelay()]);
+// Both proxies only allow the mock model server: a harness must not reach a real provider from this spike.
+const mock = await startMock();
+const [stat, proxy, relay] = await Promise.all([startStatic({ dir: path.join(root, 'dist/web') }), startCorsProxy({ allow: (u) => u.hostname === '127.0.0.1' && Number(u.port) === mock.port }), startRelay({ allow: (h, p) => h === '127.0.0.1' && p === mock.port })]);
 const debugPort = await freePort();
 // The debugging port is used only by the heap sampler (scripts/heap-sampler.mjs); it does not change isolation.
 const browser = await chromium.launch({ args: ['--remote-debugging-port=' + debugPort] });
@@ -168,6 +170,7 @@ results.runtime = manifest.runtime;
 results.imagesBuild = Object.fromEntries(Object.entries(manifest.images).map(([k, v]) => [k, { files: v.files, dirs: v.dirs, symlinks: v.symlinks, fileBytes: v.fileBytes, imageBytes: v.imageBytes, imageGzipBytes: v.imageGzipBytes, esmPrecompiled: v.esmPrecompiled, esmPrecompiledBytes: v.esmPrecompiledBytes, excluded: v.excluded, babelFailed: v.babel.failed.length }]));
 try { const scan = JSON.parse(fs.readFileSync(path.join(root, 'dist/sync-scan.json'), 'utf8')); results.staticSyncScan = Object.fromEntries(Object.entries(scan).map(([k, v]) => [k, { filesScanned: v.filesScanned, distinctCallSites: v.counts }])); } catch {}
 results.pageErrors = pageErrors;
+results.destinationsDeniedByProxy = { corsProxy: [...new Set(proxy.denied)], relay: [...new Set(relay.log.filter((l) => l.denied).map((l) => l.host + ':' + l.port))] };
 results.allTurnsPass = Object.fromEntries(Object.entries(results.harnesses).map(([h, H]) => [h, Object.fromEntries(Object.entries(H.turn).map(([k, v]) => [k, v.pass]))]));
 
 await browser.close();

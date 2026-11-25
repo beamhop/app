@@ -14,7 +14,9 @@ const argv = process.argv.slice(2);
 const split = argv.indexOf('--');
 const flags = split === -1 ? argv : argv.slice(0, split), args = split === -1 ? null : argv.slice(split + 1);
 const harness = flags.find((f) => !f.startsWith('--')) || 'pi';
-const [mock, stat, proxy, relay] = await Promise.all([startMock(), startStatic({ dir: path.join(root, 'dist/web') }), startCorsProxy(), startRelay()]);
+// Both proxies only allow the mock model server: a harness must not reach a real provider from this spike.
+const mock = await startMock();
+const [stat, proxy, relay] = await Promise.all([startStatic({ dir: path.join(root, 'dist/web') }), startCorsProxy({ allow: (u) => u.hostname === '127.0.0.1' && Number(u.port) === mock.port }), startRelay({ allow: (h, p) => h === '127.0.0.1' && p === mock.port })]);
 const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('console', (m) => console.error('[browser]', m.text().slice(0, 2000)));

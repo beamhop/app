@@ -6,7 +6,7 @@ import http from 'node:http';
 import https from 'node:https';
 
 export function startCorsProxy({ port = 0, allow = () => true } = {}) {
-  const log = [];
+  const log = [], denied = [];
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'access-control-expose-headers': '*', 'access-control-max-age': '600' };
   const server = http.createServer((req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
@@ -15,7 +15,7 @@ export function startCorsProxy({ port = 0, allow = () => true } = {}) {
     if (url.pathname !== '/fetch') { res.writeHead(404, cors); return res.end('no such route'); }
     let target;
     try { target = new URL(url.searchParams.get('url')); } catch { res.writeHead(400, cors); return res.end('bad url'); }
-    if (!allow(target)) { res.writeHead(403, cors); return res.end('destination not allowed'); }
+    if (!allow(target)) { denied.push(req.method + ' ' + target.origin + target.pathname); res.writeHead(403, cors); return res.end('destination not allowed'); }
     let headers = {};
     try { for (const [k, v] of JSON.parse(req.headers['x-sandbox-headers'] || '[]')) headers[k] = k in headers ? [].concat(headers[k], v) : v; } catch {}
     if (req.headers['content-length']) headers['content-length'] = req.headers['content-length'];
@@ -38,5 +38,5 @@ export function startCorsProxy({ port = 0, allow = () => true } = {}) {
     req.on('end', () => up.end());
     res.on('close', () => { if (!res.writableEnded) up.destroy(); });
   });
-  return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({ port: server.address().port, log, close: () => new Promise((r) => { server.closeAllConnections(); server.close(r); }) })));
+  return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({ port: server.address().port, log, denied, close: () => new Promise((r) => { server.closeAllConnections(); server.close(r); }) })));
 }
