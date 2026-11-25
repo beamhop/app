@@ -111,6 +111,7 @@
     tty: '/app/core-tty.js',
     url: '/app/core-url.js',
     timers: '/app/core-timers.js',
+    child_process: '/app/core-unavailable.js',
   };
   const EXTS = ['.js', '.cjs', '.mjs', '.json'];
 
@@ -184,7 +185,9 @@
       if (spec.startsWith('node:')) spec = spec.slice(5);
       if (coreValues.has(spec)) return 'core:' + spec;
       if (Object.prototype.hasOwnProperty.call(CORE_FILES, spec)) return CORE_FILES[spec];
-      const conds = isEsm ? ['import', 'browser', 'default'] : ['require', 'browser', 'default'];
+      // No 'node' condition (we are not Node) and no 'browser' condition either: in practice
+      // "browser" export targets are often ESM-syntax .js files meant for bundlers.
+      const conds = isEsm ? ['import', 'default'] : ['require', 'default'];
       const fromDir = dirname(from);
       if (spec.startsWith('./') || spec.startsWith('../') || spec === '.' || spec === '..' || spec.startsWith('/')) {
         const p = spec.startsWith('/') ? norm(spec) : join(fromDir, spec);
@@ -317,6 +320,14 @@
       stdout: stream('stdout'),
       stderr: stream('stderr'),
       nextTick: (fn, ...args) => { needFn(fn); real.queueMicrotask(() => { fn(...args); }); },
+      hrtime: (prev) => {
+        const ms = real.now(); let s = Math.floor(ms / 1000), ns = Math.floor((ms % 1000) * 1e6);
+        if (prev) { s -= prev[0]; ns -= prev[1]; if (ns < 0) { s--; ns += 1e9; } }
+        return [s, ns];
+      },
+      // no real process lifecycle in the spike: listeners are accepted and ignored
+      on: () => process, once: () => process, off: () => process, removeListener: () => process, emit: () => false,
+      exit: (code) => { process.exitCode = code; throw new Error('process.exit(' + code + ') called'); },
     };
     const kernel = { fs: vfs.fs, process };
 
@@ -345,6 +356,9 @@
           randomUUID: () => real.crypto.randomUUID(),
         },
         performance: { now: () => real.now(), timeOrigin: 0 },
+        // pure host classes without ambient authority that packages expect (chai 6 needs both)
+        EventTarget: self.EventTarget,
+        Event: self.Event,
       });
     }
     if (opts.extraEndowments) Object.assign(endow, opts.extraEndowments);

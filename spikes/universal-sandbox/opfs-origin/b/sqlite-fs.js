@@ -1,7 +1,10 @@
 // Toy filesystem on SQLite.
 //
 //   inodes(ino, parent, name, path, mode, size, mtime, data_id)
-//   chunks(data_id, idx, data)        64 KiB blobs
+//   chunks(id = data_id*65536 + idx, data)   64 KiB blobs, ordinary rowid table (default)
+//     or chunks(data_id, idx, data) PRIMARY KEY(data_id, idx) WITHOUT ROWID  (opts.chunkTable = 'without-rowid';
+//     kept only to measure it: it turned out to more than double the file size for 1-4 KB files,
+//     because index b-trees keep at most ~1/4 page of a row inline and spill the rest to overflow pages)
 //   shared(data_id)                   data ids referenced by more than one inode (set by fork)
 //
 // File content is addressed through inodes.data_id rather than ino, so a fork of a directory tree
@@ -15,17 +18,18 @@ export const S_IFDIR = 0o040755;
 export const S_IFREG = 0o100644;
 
 export class ToyFs {
-  constructor(db) {
+  constructor(db, opts = {}) {
     this.db = db;
+    const wr = (this.withoutRowid = opts.chunkTable === 'without-rowid');
     db.exec(`
       CREATE TABLE IF NOT EXISTS inodes(
         ino INTEGER PRIMARY KEY, parent INTEGER NOT NULL, name TEXT NOT NULL, path TEXT NOT NULL,
         mode INTEGER NOT NULL, size INTEGER NOT NULL, mtime INTEGER NOT NULL, data_id INTEGER NOT NULL);
       CREATE UNIQUE INDEX IF NOT EXISTS inodes_path ON inodes(path);
       CREATE UNIQUE INDEX IF NOT EXISTS inodes_parent_name ON inodes(parent, name);
-      CREATE TABLE IF NOT EXISTS chunks(
-        data_id INTEGER NOT NULL, idx INTEGER NOT NULL, data BLOB NOT NULL,
-        PRIMARY KEY(data_id, idx)) WITHOUT ROWID;
+      ${wr
+        ? 'CREATE TABLE IF NOT EXISTS chunks(data_id INTEGER NOT NULL, idx INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(data_id, idx)) WITHOUT ROWID;'
+        : 'CREATE TABLE IF NOT EXISTS chunks(id INTEGER PRIMARY KEY, data BLOB NOT NULL);'}
       CREATE TABLE IF NOT EXISTS shared(data_id INTEGER PRIMARY KEY) WITHOUT ROWID;
       INSERT OR IGNORE INTO inodes VALUES(1, 0, '', '/', ${S_IFDIR}, 0, 0, 0);
     `);
@@ -35,9 +39,9 @@ export class ToyFs {
       stat: db.prepare('SELECT ino, mode, size, mtime, data_id FROM inodes WHERE path = ?'),
       insInode: db.prepare('INSERT INTO inodes(parent, name, path, mode, size, mtime, data_id) VALUES(?,?,?,?,?,?,?)'),
       updInode: db.prepare('UPDATE inodes SET size = ?, mtime = ?, data_id = ? WHERE ino = ?'),
-      insChunk: db.prepare('INSERT INTO chunks(data_id, idx, data) VALUES(?,?,?)'),
-      delChunks: db.prepare('DELETE FROM chunks WHERE data_id = ?'),
-      selChunks: db.prepare('SELECT data FROM chunks WHERE data_id = ? ORDER BY idx'),
+      insChunk: db.prepare(wr ? 'INSERT INTO chunks(data_id, idx, data) VALUES(?1,?2,?3)' : 'INSERT INTO chunks(id, data) VALUES(?1 * 65536 + ?2, ?3)'),
+      delChunks: db.prepare(wr ? 'DELETE FROM chunks WHERE data_id = ?1' : 'DELETE FROM chunks WHERE id >= ?1 * 65536 AND id < (?1 + 1) * 65536'),
+      selChunks: db.prepare(wr ? 'SELECT data FROM chunks WHERE data_id = ?1 ORDER BY idx' : 'SELECT data FROM chunks WHERE id >= ?1 * 65536 AND id < (?1 + 1) * 65536 ORDER BY id'),
       isShared: db.prepare('SELECT 1 FROM shared WHERE data_id = ?'),
       list: db.prepare('SELECT name, mode, size FROM inodes WHERE parent = ?'),
     };
@@ -157,9 +161,13 @@ export class ToyFs {
     });
     const rows = this.db.changes();
     this.db.exec({
-      sql: `INSERT INTO chunks(data_id, idx, data)
+      sql: this.withoutRowid
+        ? `INSERT INTO chunks(data_id, idx, data)
               SELECT c.data_id + $ddelta, c.idx, c.data FROM chunks c
-              WHERE c.data_id IN (SELECT data_id FROM inodes WHERE data_id != 0 AND path > $src || '/' AND path < $src || '0')`,
+              WHERE c.data_id IN (SELECT data_id FROM inodes WHERE data_id != 0 AND path > $src || '/' AND path < $src || '0')`
+        : `INSERT INTO chunks(id, data)
+              SELECT c.id + $ddelta * 65536, c.data FROM chunks c
+              WHERE (c.id >> 16) IN (SELECT data_id FROM inodes WHERE data_id != 0 AND path > $src || '/' AND path < $src || '0')`,
       bind: { $ddelta: ddelta, $src: src },
     });
     this.nextData += ddelta;

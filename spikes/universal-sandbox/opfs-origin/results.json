@@ -1,0 +1,548 @@
+{
+  "meta": {
+    "date": "2026-11-25T10:21:59.979Z",
+    "chromium": "158.0.8127.36",
+    "node": "v22.23.5",
+    "host": {
+      "platform": "linux 6.18.44-fc-v880",
+      "cpus": 4,
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+      "totalMemGB": 15.7,
+      "tmpdir": "/tmp"
+    },
+    "origins": {
+      "A": "http://localhost:8101",
+      "B": "http://127.0.0.1:8102",
+      "attacker": "http://localhost:8103"
+    },
+    "benchRuns": 1,
+    "caveat": "headless Chromium in a cloud container (not a phone); profile dir on the container tmpfs/overlay disk",
+    "flags": "Playwright flags minus --disable-popup-blocking, with ThirdPartyStoragePartitioning left at its Chromium default (enabled)",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36"
+  },
+  "finalCsp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'",
+  "playwrightStockFlags": [
+    "--disable-field-trial-config",
+    "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
+    "--disable-popup-blocking"
+  ],
+  "3_sqlite": {
+    "package": "3.54.1-build1",
+    "downloadSize": {
+      "sqlite3.wasm": {
+        "rawBytes": 879084,
+        "gzipBytes": 407291,
+        "brotliBytes": 352905
+      },
+      "index.mjs": {
+        "rawBytes": 656872,
+        "gzipBytes": 178750,
+        "brotliBytes": 143883
+      },
+      "note": "this spike serves the files uncompressed; gzip/brotli sizes computed with node zlib"
+    },
+    "initCold": {
+      "importJsMs": 14.9,
+      "initModuleMs": 41.7,
+      "installSahPoolMs": 45,
+      "totalMs": 101.6,
+      "sqliteVersion": "3.54.1",
+      "vfsList": [
+        "unix-none",
+        "kernel-pool",
+        "memdb",
+        "kvvfs",
+        "unix-excl",
+        "unix-dotfile",
+        "unix"
+      ],
+      "hasOpfsVfsNeedingSAB": false,
+      "poolCapacity": 12,
+      "poolFiles": [],
+      "resources": [
+        {
+          "name": "index.mjs",
+          "transferSize": 657172,
+          "encodedBodySize": 656872,
+          "decodedBodySize": 656872,
+          "durationMs": 3.8
+        },
+        {
+          "name": "sqlite3.wasm",
+          "transferSize": 879384,
+          "encodedBodySize": 879084,
+          "decodedBodySize": 879084,
+          "durationMs": 9.9
+        }
+      ],
+      "logs": []
+    },
+    "oneTransactionPerFile": {
+      "plainWalWithoutExclusive": "PRAGMA journal_mode=WAL -> delete",
+      "delete/NORMAL (default journal)": {
+        "journalMode": "delete",
+        "filesPerSec": 518,
+        "msPerTx": 1.932,
+        "rowsOk": true
+      },
+      "delete/OFF": {
+        "journalMode": "delete",
+        "filesPerSec": 762,
+        "msPerTx": 1.313,
+        "rowsOk": true
+      },
+      "truncate/NORMAL": {
+        "journalMode": "truncate",
+        "filesPerSec": 935,
+        "msPerTx": 1.069,
+        "rowsOk": true
+      },
+      "persist/NORMAL": {
+        "journalMode": "persist",
+        "filesPerSec": 1014,
+        "msPerTx": 0.987,
+        "rowsOk": true
+      },
+      "memory-journal/NORMAL (not crash safe)": {
+        "journalMode": "memory",
+        "filesPerSec": 2404,
+        "msPerTx": 0.416,
+        "rowsOk": true
+      },
+      "wal+exclusive/NORMAL": {
+        "journalMode": "wal",
+        "filesPerSec": 7424,
+        "msPerTx": 0.135,
+        "rowsOk": true
+      },
+      "wal+exclusive/FULL": {
+        "journalMode": "wal",
+        "filesPerSec": 1981,
+        "msPerTx": 0.505,
+        "rowsOk": true
+      },
+      "poolFilesAfter": [
+        "/txm.db"
+      ]
+    },
+    "median": {
+      "config": {
+        "chunkTable": "rowid",
+        "journal": "delete"
+      },
+      "pragmas": {
+        "journal_mode": "delete",
+        "synchronous": 1,
+        "page_size": 8192,
+        "cache_size": -16384,
+        "locking_mode": "normal"
+      },
+      "smallFiles": {
+        "count": 20000,
+        "totalMB": 48.6,
+        "dirs": 401
+      },
+      "createOneTx": {
+        "ms": 602,
+        "commitMs": 94.3,
+        "filesPerSec": 33223,
+        "MBps": 80.7
+      },
+      "stat": {
+        "ms": 253.6,
+        "opsPerSec": 78864,
+        "found": 20000
+      },
+      "statMissing": {
+        "ms": 148.4,
+        "opsPerSec": 134771,
+        "missing": 20000
+      },
+      "readAll": {
+        "ms": 754.1,
+        "filesPerSec": 26522,
+        "MBps": 64.5,
+        "bytesOk": true,
+        "mismatches": 0
+      },
+      "createBatched500": {
+        "ms": 625.7,
+        "filesPerSec": 31964,
+        "MBps": 77.7,
+        "transactions": 41
+      },
+      "overwrite5000OneTx": {
+        "ms": 230.8,
+        "filesPerSec": 21664
+      },
+      "bigWrite": {
+        "MB": 50,
+        "ms": 151,
+        "MBps": 331.1,
+        "chunks": 800
+      },
+      "bigRead": {
+        "MB": 50,
+        "ms": 151.3,
+        "MBps": 330.5,
+        "contentOk": true
+      },
+      "wideDirCreateMs": 63,
+      "listDir": {
+        "entries": 5000,
+        "firstMs": 19.7,
+        "medianMs": 6.8,
+        "entriesPerSec": 735294
+      },
+      "forkCow": {
+        "ms": 57.7,
+        "inodeRowsCopied": 20401,
+        "rowsPerSec": 353570,
+        "dbGrowthMB": 3,
+        "forkReadsSameContent": true,
+        "writeInForkLeavesOriginal": true,
+        "forkSeesItsWrite": true,
+        "writeInOriginalLeavesFork": true
+      },
+      "forkDeepCopy": {
+        "ms": 332,
+        "inodeRowsCopied": 20401,
+        "MBps": 146.4,
+        "dbGrowthMB": 62
+      },
+      "db": {
+        "pageCount": 30747,
+        "pageSize": 8192,
+        "fileSizeMB": 240.2,
+        "freelistPages": 0,
+        "inodeRows": 86607,
+        "chunkRows": 65802,
+        "logicalPayloadMB": 195.9,
+        "overheadFactor": 1.23
+      },
+      "storageEstimateAfter": {
+        "quota": 11060381982,
+        "usage": 322963742,
+        "usageDetails": {
+          "fileSystem": 322963742
+        }
+      },
+      "poolFileCount": 1
+    },
+    "runs": [
+      {
+        "config": {
+          "chunkTable": "rowid",
+          "journal": "delete"
+        },
+        "pragmas": {
+          "journal_mode": "delete",
+          "synchronous": 1,
+          "page_size": 8192,
+          "cache_size": -16384,
+          "locking_mode": "normal"
+        },
+        "smallFiles": {
+          "count": 20000,
+          "totalMB": 48.6,
+          "dirs": 401
+        },
+        "createOneTx": {
+          "ms": 602,
+          "commitMs": 94.3,
+          "filesPerSec": 33223,
+          "MBps": 80.7
+        },
+        "stat": {
+          "ms": 253.6,
+          "opsPerSec": 78864,
+          "found": 20000
+        },
+        "statMissing": {
+          "ms": 148.4,
+          "opsPerSec": 134771,
+          "missing": 20000
+        },
+        "readAll": {
+          "ms": 754.1,
+          "filesPerSec": 26522,
+          "MBps": 64.5,
+          "bytesOk": true,
+          "mismatches": 0
+        },
+        "createBatched500": {
+          "ms": 625.7,
+          "filesPerSec": 31964,
+          "MBps": 77.7,
+          "transactions": 41
+        },
+        "overwrite5000OneTx": {
+          "ms": 230.8,
+          "filesPerSec": 21664
+        },
+        "bigWrite": {
+          "MB": 50,
+          "ms": 151,
+          "MBps": 331.1,
+          "chunks": 800
+        },
+        "bigRead": {
+          "MB": 50,
+          "ms": 151.3,
+          "MBps": 330.5,
+          "contentOk": true
+        },
+        "wideDirCreateMs": 63,
+        "listDir": {
+          "entries": 5000,
+          "firstMs": 19.7,
+          "medianMs": 6.8,
+          "entriesPerSec": 735294
+        },
+        "forkCow": {
+          "ms": 57.7,
+          "inodeRowsCopied": 20401,
+          "rowsPerSec": 353570,
+          "dbGrowthMB": 3,
+          "forkReadsSameContent": true,
+          "writeInForkLeavesOriginal": true,
+          "forkSeesItsWrite": true,
+          "writeInOriginalLeavesFork": true
+        },
+        "forkDeepCopy": {
+          "ms": 332,
+          "inodeRowsCopied": 20401,
+          "MBps": 146.4,
+          "dbGrowthMB": 62
+        },
+        "db": {
+          "pageCount": 30747,
+          "pageSize": 8192,
+          "fileSizeMB": 240.2,
+          "freelistPages": 0,
+          "inodeRows": 86607,
+          "chunkRows": 65802,
+          "logicalPayloadMB": 195.9,
+          "overheadFactor": 1.23
+        },
+        "storageEstimateAfter": {
+          "quota": 11060381982,
+          "usage": 322963742,
+          "usageDetails": {
+            "fileSystem": 322963742
+          }
+        },
+        "poolFileCount": 1
+      }
+    ],
+    "variant_walExclusive_median": {
+      "config": {
+        "chunkTable": "rowid",
+        "journal": "wal"
+      },
+      "pragmas": {
+        "journal_mode": "wal",
+        "synchronous": 1,
+        "page_size": 8192,
+        "cache_size": -16384,
+        "locking_mode": "exclusive"
+      },
+      "smallFiles": {
+        "count": 20000,
+        "totalMB": 48.6,
+        "dirs": 401
+      },
+      "createOneTx": {
+        "ms": 877.9,
+        "commitMs": 265.7,
+        "filesPerSec": 22782,
+        "MBps": 55.4
+      },
+      "stat": {
+        "ms": 123.4,
+        "opsPerSec": 162075,
+        "found": 20000
+      },
+      "statMissing": {
+        "ms": 51.9,
+        "opsPerSec": 385356,
+        "missing": 20000
+      },
+      "readAll": {
+        "ms": 528.8,
+        "filesPerSec": 37821,
+        "MBps": 91.9,
+        "bytesOk": true,
+        "mismatches": 0
+      },
+      "createBatched500": {
+        "ms": 731.6,
+        "filesPerSec": 27337,
+        "MBps": 66.4,
+        "transactions": 41
+      },
+      "overwrite5000OneTx": {
+        "ms": 224,
+        "filesPerSec": 22321
+      },
+      "bigWrite": {
+        "MB": 50,
+        "ms": 291.1,
+        "MBps": 171.8,
+        "chunks": 800
+      },
+      "bigRead": {
+        "MB": 50,
+        "ms": 168.6,
+        "MBps": 296.6,
+        "contentOk": true
+      },
+      "wideDirCreateMs": 57.3,
+      "listDir": {
+        "entries": 5000,
+        "firstMs": 15,
+        "medianMs": 6.1,
+        "entriesPerSec": 819672
+      },
+      "forkCow": {
+        "ms": 44.1,
+        "inodeRowsCopied": 20401,
+        "rowsPerSec": 462608,
+        "dbGrowthMB": 3,
+        "forkReadsSameContent": true,
+        "writeInForkLeavesOriginal": true,
+        "forkSeesItsWrite": true,
+        "writeInOriginalLeavesFork": true
+      },
+      "forkDeepCopy": {
+        "ms": 432.8,
+        "inodeRowsCopied": 20401,
+        "MBps": 112.3,
+        "dbGrowthMB": 62
+      },
+      "db": {
+        "pageCount": 30747,
+        "pageSize": 8192,
+        "fileSizeMB": 240.2,
+        "freelistPages": 0,
+        "inodeRows": 86607,
+        "chunkRows": 65802,
+        "logicalPayloadMB": 195.9,
+        "overheadFactor": 1.23
+      },
+      "storageEstimateAfter": {
+        "quota": 11454646558,
+        "usage": 717228318,
+        "usageDetails": {
+          "fileSystem": 717228318
+        }
+      },
+      "poolFileCount": 1
+    },
+    "variant_withoutRowidChunkTable_singleRun": {
+      "config": {
+        "chunkTable": "without-rowid",
+        "journal": "delete"
+      },
+      "pragmas": {
+        "journal_mode": "delete",
+        "synchronous": 1,
+        "page_size": 8192,
+        "cache_size": -16384,
+        "locking_mode": "normal"
+      },
+      "smallFiles": {
+        "count": 20000,
+        "totalMB": 48.6,
+        "dirs": 401
+      },
+      "createOneTx": {
+        "ms": 905.8,
+        "commitMs": 180.3,
+        "filesPerSec": 22080,
+        "MBps": 53.7
+      },
+      "stat": {
+        "ms": 205.3,
+        "opsPerSec": 97418,
+        "found": 20000
+      },
+      "statMissing": {
+        "ms": 158,
+        "opsPerSec": 126582,
+        "missing": 20000
+      },
+      "readAll": {
+        "ms": 1019.7,
+        "filesPerSec": 19614,
+        "MBps": 47.7,
+        "bytesOk": true,
+        "mismatches": 0
+      },
+      "createBatched500": {
+        "ms": 885.5,
+        "filesPerSec": 22586,
+        "MBps": 54.9,
+        "transactions": 41
+      },
+      "overwrite5000OneTx": {
+        "ms": 386.1,
+        "filesPerSec": 12950
+      },
+      "bigWrite": {
+        "MB": 50,
+        "ms": 204.6,
+        "MBps": 244.4,
+        "chunks": 800
+      },
+      "bigRead": {
+        "MB": 50,
+        "ms": 146.1,
+        "MBps": 342.2,
+        "contentOk": true
+      },
+      "wideDirCreateMs": 106.8,
+      "listDir": {
+        "entries": 5000,
+        "firstMs": 16.6,
+        "medianMs": 7.6,
+        "entriesPerSec": 657895
+      },
+      "forkCow": {
+        "ms": 88.6,
+        "inodeRowsCopied": 20401,
+        "rowsPerSec": 230260,
+        "dbGrowthMB": 3,
+        "forkReadsSameContent": true,
+        "writeInForkLeavesOriginal": true,
+        "forkSeesItsWrite": true,
+        "writeInOriginalLeavesFork": true
+      },
+      "forkDeepCopy": {
+        "ms": 644.9,
+        "inodeRowsCopied": 20401,
+        "MBps": 75.4,
+        "dbGrowthMB": 132.5
+      },
+      "db": {
+        "pageCount": 57935,
+        "pageSize": 8192,
+        "fileSizeMB": 452.6,
+        "freelistPages": 0,
+        "inodeRows": 86607,
+        "chunkRows": 65802,
+        "logicalPayloadMB": 195.9,
+        "overheadFactor": 2.31
+      },
+      "storageEstimateAfter": {
+        "quota": 12056529182,
+        "usage": 1319110942,
+        "usageDetails": {
+          "fileSystem": 1319110942
+        }
+      },
+      "poolFileCount": 1
+    }
+  },
+  "consoleNotes": []
+}

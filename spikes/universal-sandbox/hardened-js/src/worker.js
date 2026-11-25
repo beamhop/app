@@ -58,6 +58,10 @@ const guest = (opts) => K.makeGuest(vfs, Object.assign({ mode: MODE }, opts || {
 const commands = {
   ping() { pings++; timeline.push([r2(performance.now()), 'kernel: ping ' + pings]); return pings; },
   boot() { return boot; },
+  wasmProbe() {
+    // kernel-side: is WebAssembly compilation allowed under the current CSP?
+    try { new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])); return 'wasm compile ok'; } catch (e) { return 'wasm blocked: ' + e.name + ': ' + String(e.message).slice(0, 120); }
+  },
 
   async loadImage({ url }) {
     const t0 = performance.now();

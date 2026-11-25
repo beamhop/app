@@ -151,16 +151,19 @@ function openDb(name, pragmas = true) {
 }
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 
-cmds.sqliteBench = async ({ nFiles = 20000, bigMB = 50, dirEntries = 5000, tag = 'r' } = {}) => {
+cmds.sqliteBench = async ({ nFiles = 20000, bigMB = 50, dirEntries = 5000, tag = 'r', chunkTable = 'rowid', journal = 'delete' } = {}) => {
   const out = {};
   const dbName = `/bench-${tag}.db`;
   try { pool.unlink(dbName); } catch (e) { /* not there */ }
   const db = openDb(dbName);
+  // WAL has no shared-memory support in this VFS; it is only reachable through locking_mode=EXCLUSIVE
+  if (journal === 'wal') db.exec('PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=WAL;');
+  out.config = { chunkTable, journal };
   out.pragmas = {
     journal_mode: db.selectValue('PRAGMA journal_mode'), synchronous: db.selectValue('PRAGMA synchronous'),
     page_size: db.selectValue('PRAGMA page_size'), cache_size: db.selectValue('PRAGMA cache_size'), locking_mode: db.selectValue('PRAGMA locking_mode'),
   };
-  const fs = new ToyFs(db);
+  const fs = new ToyFs(db, { chunkTable });
   const nDirs = nFiles / 100;
   const rnd = rng(7);
   const sizes = new Uint16Array(nFiles);
@@ -221,20 +224,6 @@ cmds.sqliteBench = async ({ nFiles = 20000, bigMB = 50, dirEntries = 5000, tag =
   }
   ms = performance.now() - t;
   out.createBatched500 = { ms: r1(ms), filesPerSec: rate(nFiles, ms), MBps: mbps(totalBytes, ms), transactions: nFiles / 500 + 1 };
-
-  // --- create: one implicit transaction per statement (worst case), synchronous NORMAL and OFF ---
-  db.exec('BEGIN'); mkTree('/nm-auto'); mkTree('/nm-auto-off'); db.exec('COMMIT');
-  const nAuto = 1000;
-  t = performance.now();
-  for (let i = 0; i < nAuto; i++) { db.exec('BEGIN'); fs.writeFile(pathOf('/nm-auto', i), dataOf(i)); db.exec('COMMIT'); }
-  ms = performance.now() - t;
-  out.createTxPerFile_syncNormal = { n: nAuto, ms: r1(ms), filesPerSec: rate(nAuto, ms) };
-  db.exec('PRAGMA synchronous=OFF');
-  t = performance.now();
-  for (let i = 0; i < nAuto; i++) { db.exec('BEGIN'); fs.writeFile(pathOf('/nm-auto-off', i), dataOf(i)); db.exec('COMMIT'); }
-  ms = performance.now() - t;
-  out.createTxPerFile_syncOff = { n: nAuto, ms: r1(ms), filesPerSec: rate(nAuto, ms) };
-  db.exec('PRAGMA synchronous=NORMAL');
 
   // --- overwrite existing small files (stat + delete chunks + update + insert) ---
   t = performance.now();
@@ -303,6 +292,7 @@ cmds.sqliteBench = async ({ nFiles = 20000, bigMB = 50, dirEntries = 5000, tag =
     inodeRows: db.selectValue('SELECT count(*) FROM inodes'), chunkRows: db.selectValue('SELECT count(*) FROM chunks'),
     logicalPayloadMB: r1(db.selectValue('SELECT sum(length(data)) FROM chunks') / MB),
   };
+  out.db.overheadFactor = Math.round(out.db.fileSizeMB / out.db.logicalPayloadMB * 100) / 100;
   fs.close();
   db.close();
   try { out.storageEstimateAfter = await navigator.storage.estimate(); } catch (e) { /* ignore */ }
@@ -311,28 +301,37 @@ cmds.sqliteBench = async ({ nFiles = 20000, bigMB = 50, dirEntries = 5000, tag =
   return out;
 };
 
-// Can WAL be used with the SAH pool (no shared memory)? Only via locking_mode=EXCLUSIVE, if at all.
-cmds.walProbe = async () => {
+// Cost of one transaction per file under different journal settings. WAL has no shared-memory
+// support in the SAH pool VFS, so it is only reachable through locking_mode=EXCLUSIVE.
+cmds.txModes = async ({ n = 1000 } = {}) => {
   const out = {};
-  try { pool.unlink('/wal-probe.db'); } catch (e) { /* */ }
-  const db = new pool.OpfsSAHPoolDb('/wal-probe.db');
-  try {
-    out.plainWal = db.selectValue('PRAGMA journal_mode=WAL');
-    out.lockingMode = db.selectValue('PRAGMA locking_mode=EXCLUSIVE');
-    out.exclusiveWal = db.selectValue('PRAGMA journal_mode=WAL');
-    db.exec('PRAGMA synchronous=NORMAL; CREATE TABLE t(a INTEGER PRIMARY KEY, b BLOB)');
-    const n = 2000;
-    const st = db.prepare('INSERT INTO t(b) VALUES(?)');
-    const t = performance.now();
-    for (let i = 0; i < n; i++) st.bind(1, POOL.subarray(i, i + 2048)).stepReset();
-    out.autocommitInsertsPerSec = rate(n, performance.now() - t);
-    st.finalize();
-    out.journalModeAfter = db.selectValue('PRAGMA journal_mode');
-    out.rows = db.selectValue('SELECT count(*) FROM t');
-  } catch (e) { out.error = `${e.name}: ${e.message}`; }
-  db.close();
-  out.poolFiles = pool.getFileNames();
-  try { pool.unlink('/wal-probe.db'); } catch (e) { /* */ }
+  const modes = {
+    'delete/NORMAL (default journal)': 'PRAGMA synchronous=NORMAL;',
+    'delete/OFF': 'PRAGMA synchronous=OFF;',
+    'truncate/NORMAL': 'PRAGMA journal_mode=TRUNCATE; PRAGMA synchronous=NORMAL;',
+    'persist/NORMAL': 'PRAGMA journal_mode=PERSIST; PRAGMA synchronous=NORMAL;',
+    'memory-journal/NORMAL (not crash safe)': 'PRAGMA journal_mode=MEMORY; PRAGMA synchronous=NORMAL;',
+    'wal+exclusive/NORMAL': 'PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
+    'wal+exclusive/FULL': 'PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;',
+  };
+  out.plainWalWithoutExclusive = (() => { try { pool.unlink('/txm.db'); } catch (e) { /* */ } const d = new pool.OpfsSAHPoolDb('/txm.db'); const r = d.selectValue('PRAGMA journal_mode=WAL'); d.close(); pool.unlink('/txm.db'); return 'PRAGMA journal_mode=WAL -> ' + r; })();
+  for (const [label, pragmas] of Object.entries(modes)) {
+    try { pool.unlink('/txm.db'); } catch (e) { /* */ }
+    const db = new pool.OpfsSAHPoolDb('/txm.db');
+    try {
+      db.exec(pragmas);
+      const fs = new ToyFs(db);
+      db.exec('BEGIN'); fs.mkdir('/d'); db.exec('COMMIT');
+      const t = performance.now();
+      for (let i = 0; i < n; i++) { db.exec('BEGIN'); fs.writeFile('/d/f' + i, POOL.subarray(i * 3, i * 3 + 1024 + (i * 7919) % 3072)); db.exec('COMMIT'); }
+      const ms = performance.now() - t;
+      out[label] = { journalMode: db.selectValue('PRAGMA journal_mode'), filesPerSec: rate(n, ms), msPerTx: Math.round(ms / n * 1000) / 1000, rowsOk: db.selectValue('SELECT count(*) FROM inodes') === n + 2 };
+      fs.close();
+    } catch (e) { out[label] = { error: `${e.name}: ${e.message}` }; }
+    db.close();
+  }
+  out.poolFilesAfter = pool.getFileNames();
+  try { pool.unlink('/txm.db'); } catch (e) { /* */ }
   return out;
 };
 

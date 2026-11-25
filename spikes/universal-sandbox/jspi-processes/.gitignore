@@ -2,4 +2,3 @@ node_modules/
 guest/target/
 guest-reentrant/target/
 results.json.tmp
-guest-shim/target/

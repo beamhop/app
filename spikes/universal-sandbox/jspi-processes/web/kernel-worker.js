@@ -2,7 +2,7 @@
 // Protocol with the page: {id, cmd, args} -> {id, ok, result|error};  {ping} -> {pong}.
 import { Kernel } from './kernel.js';
 
-const PROGRAMS = ['shim', 'producer', 'upper', 'count', 'spin', 'pingpong', 'hog', 'crash', 'parent', 'reentrant'];
+const PROGRAMS = ['producer', 'upper', 'count', 'spin', 'pingpong', 'hog', 'crash', 'parent', 'reentrant'];
 let k = new Kernel();
 const enc = new TextEncoder();
 const now = () => performance.now();
@@ -176,10 +176,9 @@ const cmds = {
     const r = {};
     // (a) instantiate only (imports object + new WebAssembly.Instance), not started
     let t0 = now();
-    const made = [];
-    for (let i = 0; i < batch; i++) made.push(k.spawn('spin', ['clock', '1'], { fds, noStart: true }));
+    // (kept alive only one at a time: the number of live wasm memories is limited, see `many`)
+    for (let i = 0; i < batch; i++) k.kill(k.spawn('spin', ['clock', '1'], { fds, noStart: true }).pid);
     r.a_instantiateOnlyUs = +(((now() - t0) * 1000) / batch).toFixed(1);
-    for (const p of made) k.kill(p.pid);
     // (a) full lifecycle: instantiate + _start (Rust runtime init, args, 1 syscall, println) + exit
     t0 = now();
     for (let i = 0; i < batch; i++) await k.spawn('spin', ['clock', '1'], { fds }).exited;
@@ -325,14 +324,14 @@ const cmds = {
   },
 
   // ---------------------------------------------------------------- traps
-  async trap() {
+  async trap({ modes = ['trap', 'panic', 'oob', 'overflow'] } = {}) {
     const r = {};
     // a bystander process that must survive the others' traps
     const bp = k.pipe(4096);
     const bout = k.memFile();
     const bw = bp.w.open();
     const bystander = k.spawn('count', [], { fds: [bp.r, bout, bout] });
-    for (const mode of ['trap', 'panic', 'oob', 'overflow']) {
+    for (const mode of modes) {
       const p = k.pipe(4096);
       const err = k.memFile();
       const w = p.w.open();
@@ -358,36 +357,41 @@ const cmds = {
   },
 
   // ---------------------------------------------------------------- many suspended procs
-  async many({ counts = [1000, 4000, 10000], budgetMs = 60000 } = {}) {
-    const res = [];
-    const tStart = now();
-    for (const n of counts) {
-      if (now() - tStart > budgetMs) { res.push({ n, skipped: 'time budget' }); break; }
-      const procs = [];
-      const ws = [];
-      const nul = k.nullFile();
-      let error = null;
-      const t0 = now();
-      try {
-        for (let i = 0; i < n; i++) {
-          const p = k.pipe(16);
-          ws.push(p.w.open());
-          procs.push(k.spawn('count', [], { fds: [p.r, nul, nul] }));
-        }
-      } catch (e) {
-        error = `${e.constructor.name}: ${e.message}`;
+  // Spawn `count` processes (each blocks reading its own empty pipe) until `limit` or until
+  // instantiation fails; then EOF them all and wait for every exit.
+  async many({ limit = 20000, budgetMs = 30000, shim = true } = {}) {
+    const procs = [];
+    const ws = [];
+    const nul = k.nullFile();
+    let error = null;
+    const t0 = now();
+    try {
+      for (let i = 0; i < limit && now() - t0 < budgetMs; i++) {
+        const p = k.pipe(16);
+        ws.push(p.w.open());
+        procs.push(k.spawn('count', [], { fds: [p.r, nul, nul], shim }));
       }
-      const spawnMs = now() - t0;
-      const suspended = procs.filter((p) => p.state === 'running' && p.suspends === 1).length;
-      const t1 = now();
-      ws.forEach(release); // EOF for everyone -> all resume, print, exit
-      const codes = await Promise.all(procs.map((p) => p.exited));
-      res.push({
-        n, spawnedAndSuspended: suspended, error,
-        spawnMs: +spawnMs.toFixed(0), usPerSpawn: +((spawnMs * 1000) / Math.max(1, procs.length)).toFixed(0),
-        resumeAllAndExitMs: +(now() - t1).toFixed(0), allExitedZero: codes.every((c) => c === 0), liveProcsAfter: k.procs.size,
-      });
-      if (error) break;
+    } catch (e) {
+      error = `${e.constructor.name}: ${e.message}`;
+    }
+    const spawnMs = now() - t0;
+    const suspended = procs.filter((p) => p.state === 'running' && p.suspends === 1).length;
+    const t1 = now();
+    for (const w of ws) release(w); // EOF for everyone -> all resume, print, exit
+    const codes = await Promise.all(procs.map((p) => p.exited));
+    const res = {
+      limit, shim, liveSuspendedProcesses: suspended, firstError: error,
+      spawnMs: +spawnMs.toFixed(0), usPerSpawn: +((spawnMs * 1000) / Math.max(1, procs.length)).toFixed(0),
+      resumeAllAndExitMs: +(now() - t1).toFixed(0), allExitedZero: codes.every((c) => c === 0), liveProcsAfter: k.procs.size,
+    };
+    // can we spawn again right away (i.e. was the address space of the dead ones reclaimed)?
+    procs.length = 0;
+    try {
+      const again = await cmds.pipeline({ lines: 2000 });
+      res.pipelineRightAfterOk = again.ok;
+    } catch (e) {
+      res.pipelineRightAfterOk = false;
+      res.pipelineRightAfterError = `${e.constructor.name}: ${e.message}`;
     }
     return res;
   },

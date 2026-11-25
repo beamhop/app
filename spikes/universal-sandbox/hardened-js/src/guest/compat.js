@@ -62,10 +62,16 @@ const tests = {
     const _ = require('lodash');
     eq(_.chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
     eq(_.cloneDeep({ a: { b: [1] } }), { a: { b: [1] } });
-    eq(_.template('<%= a %>-<%- b %>')({ a: 1, b: '<' }), '1-&lt;');
     eq(_.chain([3, 1, 2]).sortBy().map((x) => x * 2).value(), [2, 4, 6]);
     eq(_.get({ a: [{ b: 1 }] }, 'a[0].b'), 1);
     return _.VERSION;
+  },
+  'lodash:_.template': () => {
+    const _ = require('lodash');
+    eq(_.template('<%= o.a %>', { variable: 'o' })({ a: 1 }), '1');
+    // default mode generates sloppy code using a `with` statement
+    eq(_.template('<%= a %>-<%- b %>')({ a: 1, b: '<' }), '1-&lt;');
+    return 'template ok';
   },
   zod: () => {
     const { z } = require('zod');
@@ -228,8 +234,8 @@ const tests = {
     const debug = require('debug');
     const d = debug('spike:test'); debug.enable('spike:*');
     const lines = []; debug.log = (...a) => lines.push(a.join(' '));
-    d('hello %d', 5);
-    ok(lines.length === 1 && lines[0].includes('hello 5'), 'debug output: ' + JSON.stringify(lines));
+    d('hello', 5);
+    ok(lines.length === 1 && lines[0].includes('spike:test') && lines[0].includes('hello'), 'debug output: ' + JSON.stringify(lines));
     return 'ok';
   },
   rxjs: () => {

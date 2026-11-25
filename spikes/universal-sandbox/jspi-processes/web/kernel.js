@@ -134,16 +134,50 @@ const SUSPENDING = new Set([
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
+// Fast-path shim, hand-assembled (no linear memory, ~150 bytes). One instance per process,
+// linked wasm-to-wasm between an UNMODIFIED wasip1 guest and the kernel:
+//
+//   (func (export "fd_write") (param i32 i32 i32 i32) (result i32) (local i32)
+//     (local.tee 4 (call $try_fd_write (local.get 0) (local.get 1) (local.get 2) (local.get 3)))
+//     (if (result i32) (i32.ge_s (i32.const 0))
+//       (then (local.get 4))
+//       (else (call $slow_fd_write (local.get 0) (local.get 1) (local.get 2) (local.get 3)))))
+//   ... same for fd_read.
+//
+// Why: in Chromium 158 an import wrapped in WebAssembly.Suspending suspends+resumes the
+// stack on EVERY call, even when the JS function returns a plain number. With the shim only
+// calls that really block reach a Suspending import; the common case is a plain JS call.
+function buildShimModule() {
+  const str = (s) => [s.length, ...enc.encode(s)];
+  const section = (id, body) => [id, body.length, ...body];
+  const imp = (name) => [...str('k'), ...str(name), 0x00, 0x00];
+  const body = (tryIdx, slowIdx) => {
+    const args = [0x20, 0, 0x20, 1, 0x20, 2, 0x20, 3];
+    const code = [0x01, 0x01, 0x7f, ...args, 0x10, tryIdx, 0x22, 4, 0x41, 0x00, 0x4e, 0x04, 0x7f, 0x20, 4, 0x05, ...args, 0x10, slowIdx, 0x0b, 0x0b];
+    return [code.length, ...code];
+  };
+  const bytes = [
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+    ...section(1, [0x01, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f]),
+    ...section(2, [0x04, ...imp('try_fd_write'), ...imp('slow_fd_write'), ...imp('try_fd_read'), ...imp('slow_fd_read')]),
+    ...section(3, [0x02, 0x00, 0x00]),
+    ...section(7, [0x02, ...str('fd_write'), 0x00, 4, ...str('fd_read'), 0x00, 5]),
+    ...section(10, [0x02, ...body(0, 1), ...body(2, 3)]),
+  ];
+  return new WebAssembly.Module(new Uint8Array(bytes));
+}
+
 export class Kernel {
   constructor() {
     this.modules = {}; // name -> WebAssembly.Module
+    this.shimModule = buildShimModule();
     this.procs = new Map(); // pid -> proc (live)
     this.nextPid = 1;
     // suspends: kernel-level blocks (a Promise was returned). suspendingCalls: calls that
     // went through a WebAssembly.Suspending import (each one suspends+resumes the stack in
     // Chromium, whether or not the kernel blocked).
     this.stats = { syscalls: 0, suspends: 0, switches: 0, remoteSyscalls: 0, suspendingCalls: 0 };
-    // true: fd_read/fd_write go through the wasm fast-path shim (guest-shim) so that only
+    // true: fd_read/fd_write go through the wasm fast-path shim (buildShimModule) so that only
     // calls that really block touch a Suspending import. false: they are Suspending directly.
     this.useShim = true;
     this.lastPid = 0;
@@ -247,8 +281,13 @@ export class Kernel {
     const module = this.modules[name];
     if (!module) throw new Error('no such program ' + name);
     const proc = this._newProc(name, args, opts);
-    const imports = this._imports(module, proc);
-    const instance = new WebAssembly.Instance(module, imports);
+    let instance;
+    try {
+      instance = new WebAssembly.Instance(module, this._imports(module, proc));
+    } catch (e) {
+      this._finish(proc, 127, 'spawn-failed', String(e)); // closes the fds we just opened
+      throw e;
+    }
     proc.instance = instance;
     proc.memory = instance.exports.memory;
     proc._refresh();
@@ -474,7 +513,7 @@ export class Kernel {
         return -1;
       };
       const slow = new WebAssembly.Suspending(() => { stats.suspendingCalls++; return pend; });
-      shim = new WebAssembly.Instance(k.modules.shim, {
+      shim = new WebAssembly.Instance(k.shimModule, {
         k: { try_fd_write: tryOf(wasi.fd_write), slow_fd_write: slow, try_fd_read: tryOf(wasi.fd_read), slow_fd_read: slow },
       }).exports;
     }

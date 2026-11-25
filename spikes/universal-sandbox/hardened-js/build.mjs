@@ -29,12 +29,12 @@ const ROOTS = [
 const FILTERS = {
   typescript: (rel) => rel === 'package.json' || rel === 'lib/typescript.js' || /^lib\/lib\..*\.d\.ts$/.test(rel),
   prettier: (rel) => rel === 'package.json' || rel === 'standalone.js' || /^plugins\/(babel|estree|typescript|markdown|postcss)\.js$/.test(rel),
-  'date-fns': (rel) => !rel.startsWith('fp/') && !rel.startsWith('docs/') && (!rel.startsWith('locale/') || rel.startsWith('locale/en-US')) && !/cdn(\.min)?\.js$/.test(rel),
+  'date-fns': (rel) => !rel.startsWith('fp/') && !rel.startsWith('docs/') && (!rel.startsWith('locale/') || rel.startsWith('locale/en-US') || rel.startsWith('locale/_lib')) && !/cdn(\.min)?\.js$/.test(rel),
   rxjs: (rel) => rel === 'package.json' || rel.startsWith('dist/cjs/'),
   handlebars: (rel) => rel === 'package.json' || rel.startsWith('dist/cjs/') || rel.startsWith('lib/'),
 };
 const EXT_OK = /\.(js|cjs|mjs|json)$/;
-const SKIP_DIR = /^(test|tests|__tests__|docs|example|examples|\.github|node_modules|src-xs)$/;
+const SKIP_DIR = /^(test|tests|__tests__|docs|example|examples|\.github|node_modules|src-xs|benchmark|benchmarks)$/;
 
 function walk(dir, rel, out) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
