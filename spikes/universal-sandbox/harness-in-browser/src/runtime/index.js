@@ -6,7 +6,7 @@ import { createLoader } from './loader.js';
 import { createNet } from './net.js';
 import { createChildProcess } from './child_process.js';
 import { holder as processHolder } from './process-shim.js';
-import { makeBuffer, makeEvents, makeStream, makeUtil, makePath, makeOs, makeTty, makeReadline, makeCrypto, makeZlib, makeAsyncHooks, makeMisc, assertPkg } from './builtins.js';
+import { makeBuffer, makeEvents, makeStream, makeUtil, makePath, makeOs, makeTty, makeReadline, makeCrypto, makeZlib, makeAsyncHooks, makeMisc, assertPkg, TrackedReadableStream } from './builtins.js';
 
 export { VFS, ProcessExit };
 
@@ -61,7 +61,7 @@ export function boot(config) {
   const guest = config.guestGlobal;
   const navigator = { userAgent: 'Node.js/22', language: 'en-US', languages: ['en-US'], platform: 'linux', hardwareConcurrency: host.navigator.hardwareConcurrency || 4 };
   const guestGlobals = {
-    process, Buffer, global: guest, console: misc.console, fetch: netMods.fetch, navigator,
+    process, Buffer, global: guest, console: misc.console, ReadableStream: TrackedReadableStream, fetch: netMods.fetch, navigator,
     setTimeout: timers.setTimeout, setInterval: timers.setInterval, setImmediate: timers.setImmediate, clearTimeout: timers.clearTimeout, clearInterval: timers.clearInterval, clearImmediate: timers.clearImmediate,
   };
   const installFailures = [];

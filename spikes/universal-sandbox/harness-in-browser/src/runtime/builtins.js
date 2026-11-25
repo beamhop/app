@@ -96,9 +96,29 @@ export function makeEvents() {
 }
 
 // ---------------- stream ----------------
+// Node's stream.finished()/isErrored()/isDisturbed() accept web streams by peeking at internal state. A browser
+// gives no synchronous access to that state, so guest code gets a ReadableStream subclass that records it.
+const webState = new WeakMap();
+export const TrackedReadableStream = class ReadableStream extends globalThis.ReadableStream {
+  constructor(source = {}, strategy) {
+    const st = { state: 'readable', error: undefined, waiters: [] };
+    const settle = (state, error) => { if (st.state !== 'readable') return; st.state = state; st.error = error; for (const w of st.waiters.splice(0)) queueMicrotask(() => w(state === 'errored' ? error : undefined)); };
+    const wrapController = (c) => new Proxy(c, { get(t, k) { if (k === 'close') return () => { t.close(); settle('closed'); }; if (k === 'error') return (e) => { t.error(e); settle('errored', e); }; const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; } });
+    const wrapped = {};
+    if (source.type !== undefined) wrapped.type = source.type;
+    if (source.autoAllocateChunkSize !== undefined) wrapped.autoAllocateChunkSize = source.autoAllocateChunkSize;
+    let wc;
+    const ctl = (c) => (wc ??= wrapController(c));
+    if (source.start) wrapped.start = (c) => source.start(ctl(c));
+    if (source.pull) wrapped.pull = (c) => source.pull(ctl(c));
+    wrapped.cancel = (reason) => { settle('closed'); return source.cancel ? source.cancel(reason) : undefined; };
+    super(wrapped, strategy);
+    webState.set(this, st);
+  }
+};
 export function makeStream(Buffer) {
   const stream = streamPkg;
-  if (!stream.__patched) {
+  if (!Object.prototype.hasOwnProperty.call(stream, '__patched')) {
     stream.__patched = true;
     const { Readable, Writable, Duplex } = stream;
     Readable.fromWeb = (rs, options = {}) => {
@@ -135,6 +155,19 @@ export function makeStream(Buffer) {
     });
     Duplex.fromWeb = (pair, options) => { const r = Readable.fromWeb(pair.readable, options), w = Writable.fromWeb(pair.writable, options); return Duplex.from({ readable: r, writable: w }); };
     Duplex.toWeb = (duplex) => ({ readable: Readable.toWeb(duplex), writable: Writable.toWeb(duplex) });
+    const origFinished = stream.finished, origIsErrored = stream.isErrored, origIsDisturbed = stream.isDisturbed;
+    const isWeb = (s) => s instanceof globalThis.ReadableStream || s instanceof globalThis.WritableStream;
+    stream.finished = function finished(s, opts, cb) {
+      if (!isWeb(s)) return origFinished.call(this, s, opts, cb);
+      if (typeof opts === 'function') cb = opts;
+      const st = webState.get(s);
+      if (!st) return () => {}; // a native stream we cannot observe: the callback never fires
+      if (st.state !== 'readable') queueMicrotask(() => cb(st.state === 'errored' ? st.error : undefined)); else st.waiters.push(cb);
+      return () => { const i = st.waiters.indexOf(cb); if (i !== -1) st.waiters.splice(i, 1); };
+    };
+    stream.isErrored = (s) => (isWeb(s) ? (webState.get(s) || {}).state === 'errored' : origIsErrored ? origIsErrored(s) : !!(s && s.errored));
+    stream.isDisturbed = (s) => (isWeb(s) ? !!(s.locked) : origIsDisturbed ? origIsDisturbed(s) : !!(s && s.readableDidRead));
+    if (stream.promises) { const pf = stream.promises.finished; stream.promises.finished = (s, o) => (isWeb(s) ? new Promise((res, rej) => stream.finished(s, (e) => (e ? rej(e) : res()))) : pf(s, o)); }
     stream.isReadable ??= (s) => !!s && s.readable !== false && !s.destroyed && !s.readableEnded;
     stream.isWritable ??= (s) => !!s && s.writable !== false && !s.destroyed && !s.writableEnded;
     stream.isErrored ??= (s) => !!(s && (s.errored || (s._readableState && s._readableState.errored) || (s._writableState && s._writableState.errored)));
@@ -399,6 +432,7 @@ export function makeMisc({ Buffer, EventEmitter, stream, util, process, track, h
   };
   const channel = (name) => ({ name, hasSubscribers: false, publish() {}, subscribe() {}, unsubscribe() { return false; }, bindStore() {}, unbindStore() {}, runStores(ctx, fn, thisArg, ...args) { return fn.apply(thisArg, args); } });
   const tracing = (name) => { const tc = { start: channel(), end: channel(), asyncStart: channel(), asyncEnd: channel(), error: channel(), hasSubscribers: false, subscribe() {}, unsubscribe() {}, traceSync: (fn, ctx, thisArg, ...args) => fn.apply(thisArg, args), tracePromise: (fn, ctx, thisArg, ...args) => fn.apply(thisArg, args), traceCallback: (fn, pos, ctx, thisArg, ...args) => fn.apply(thisArg, args) }; return tc; };
+  for (const [k, v] of Object.entries({ markResourceTiming: () => {}, eventLoopUtilization: () => ({ idle: 0, active: 0, utilization: 0 }), timerify: (f) => f, nodeTiming: { name: 'node', entryType: 'node', startTime: 0, duration: 0, nodeStart: 0, v8Start: 0, bootstrapComplete: 0, environment: 0, loopStart: 0, loopExit: -1, idleTime: 0 } })) { try { if (!(k in host.performance)) host.performance[k] = v; } catch {} }
   const mem = () => host.performance.memory || { usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 2 ** 31 };
   class Console {
     constructor(stdout, stderr) { if (stdout && !stdout.write && stdout.stdout) ({ stdout, stderr } = stdout); this._stdout = stdout; this._stderr = stderr || stdout; this._counts = {}; this._timers = {}; this._indent = '';
@@ -450,7 +484,7 @@ export function makeMisc({ Buffer, EventEmitter, stream, util, process, track, h
     repl: { start: ni('repl.start') },
     trace_events: { createTracing: () => ({ enable() {}, disable() {}, enabled: false }), getEnabledCategories: () => undefined },
     wasi: { WASI: class WASI { constructor() { ni('wasi.WASI')(); } } },
-    'stream/web': { ReadableStream, WritableStream, TransformStream, ReadableStreamDefaultReader, WritableStreamDefaultWriter, ByteLengthQueuingStrategy, CountQueuingStrategy, TextEncoderStream, TextDecoderStream, CompressionStream, DecompressionStream, ReadableByteStreamController: globalThis.ReadableByteStreamController, ReadableStreamBYOBReader: globalThis.ReadableStreamBYOBReader, ReadableStreamDefaultController: globalThis.ReadableStreamDefaultController },
+    'stream/web': { ReadableStream: TrackedReadableStream, WritableStream, TransformStream, ReadableStreamDefaultReader, WritableStreamDefaultWriter, ByteLengthQueuingStrategy, CountQueuingStrategy, TextEncoderStream, TextDecoderStream, CompressionStream, DecompressionStream, ReadableByteStreamController: globalThis.ReadableByteStreamController, ReadableStreamBYOBReader: globalThis.ReadableStreamBYOBReader, ReadableStreamDefaultController: globalThis.ReadableStreamDefaultController },
   };
 }
 

@@ -22,6 +22,7 @@ page.on('pageerror', (e) => console.error('[pageerror]', e.message));
 await page.goto(`http://127.0.0.1:${stat.port}/`);
 const cfg = scenario(harness, { mockPort: mock.port, proxyPort: proxy.port, relayPort: relay.port, variant: flags.includes('--ses') ? 'ses' : 'plain', netMode: flags.includes('--tunnel') ? 'tunnel' : 'bridge', args, timeoutMs: Number(process.env.TIMEOUT || 30000) });
 if (process.env.LIVE) cfg.debugLive = true;
+if (process.env.SCRIPT) { cfg.files['/work/test.cjs'] = (await import('node:fs')).readFileSync(process.env.SCRIPT, 'utf8').replaceAll('__MOCK__', 'http://127.0.0.1:' + mock.port); cfg.entry = '/work/test.cjs'; cfg.args = []; }
 const out = await page.evaluate((c) => window.runHarness(c), cfg);
 const rep = out.report || {};
 console.log('--- stdout ---\n' + out.stdout.slice(0, Number(process.env.OUT || 3000)));
