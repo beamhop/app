@@ -7,7 +7,7 @@
   "cpuModel": "Intel(R) Xeon(R) Processor @ 2.30GHz",
   "totalMemGB": 15.7,
   "node": "v22.23.5",
-  "date": "2026-11-25T11:26:22.176Z",
+  "date": "2026-11-25T11:30:38.740Z",
   "repeat": 5
  },
  "isolation": {
@@ -42,19 +42,13 @@
     "timedOut": false,
     "fatal": null,
     "ms": {
-     "imageFetch": 205.3,
-     "imageMount": 42.2,
-     "booted": 350,
-     "firstOutput": 584.1,
-     "firstStdout": 584.1,
-     "exit": 584.3,
-     "moduleEval": 80.8
-    },
-    "heapMB": {
-     "afterImages": null,
-     "afterLoad": null,
-     "atFirstOutput": null,
-     "atExit": null
+     "imageFetch": 172.3,
+     "imageMount": 33.3,
+     "booted": 284.2,
+     "firstOutput": 501.3,
+     "firstStdout": 501.3,
+     "exit": 501.5,
+     "moduleEval": 76.5
     },
     "modules": {
      "esm": 23,
@@ -91,7 +85,7 @@
      "shellCommand": {
       "command": "/bin/bash",
       "exitCode": 0,
-      "ms": 12.9
+      "ms": 11.6
      },
      "exit": {
       "code": 0,
@@ -99,24 +93,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 202.9,
-      "imageMount": 32.8,
-      "booted": 322.5,
-      "firstOutput": 575.6,
-      "firstStdout": 575.6,
-      "exit": 1078.9,
-      "moduleEval": 88.5
+      "imageFetch": 180.6,
+      "imageMount": 29.5,
+      "booted": 297.3,
+      "firstOutput": 512.8,
+      "firstStdout": 512.8,
+      "exit": 965.2,
+      "moduleEval": 82
      },
      "minMaxExitMs": [
-      1039.1,
-      1142.5
+      953,
+      1013.9
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 34,
       "cjs": 0,
@@ -132,8 +120,8 @@
       "viaEmulatedFetch": 0,
       "streaming": {
        "chunks": 11,
-       "firstChunkMs": 5.2,
-       "endMs": 155.6
+       "firstChunkMs": 3.2,
+       "endMs": null
       },
       "proxyChunksDownLastRequest": 14
      },
@@ -155,7 +143,7 @@
      "shellCommand": {
       "command": "/bin/bash",
       "exitCode": 0,
-      "ms": 17.7
+      "ms": 11.7
      },
      "exit": {
       "code": 0,
@@ -163,24 +151,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 193.1,
-      "imageMount": 33.9,
-      "booted": 319,
-      "firstOutput": 575.6,
-      "firstStdout": 575.6,
-      "exit": 1091.2,
-      "moduleEval": 90.2
+      "imageFetch": 175.9,
+      "imageMount": 29.5,
+      "booted": 294.6,
+      "firstOutput": 512.7,
+      "firstStdout": 512.7,
+      "exit": 1016.7,
+      "moduleEval": 82.1
      },
      "minMaxExitMs": [
-      1068.9,
-      1134.3
+      991.6,
+      1032
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 34,
       "cjs": 0,
@@ -214,7 +196,7 @@
      "shellCommand": {
       "command": "/bin/bash",
       "exitCode": 0,
-      "ms": 12
+      "ms": 12.8
      },
      "exit": {
       "code": 0,
@@ -222,24 +204,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 190.1,
-      "imageMount": 39.2,
-      "booted": 391.2,
-      "firstOutput": 676.9,
-      "firstStdout": 676.9,
-      "exit": 1138.7,
-      "moduleEval": 120.2
+      "imageFetch": 177.6,
+      "imageMount": 36.8,
+      "booted": 330,
+      "firstOutput": 593.9,
+      "firstStdout": 593.9,
+      "exit": 1060,
+      "moduleEval": 106.5
      },
      "minMaxExitMs": [
-      1116.1,
-      1250.1
+      1024,
+      1097.3
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 34,
       "cjs": 0,
@@ -255,15 +231,15 @@
       "viaEmulatedFetch": 0,
       "streaming": {
        "chunks": 11,
-       "firstChunkMs": 4.1,
-       "endMs": 154.4
+       "firstChunkMs": 3.5,
+       "endMs": 154.2
       },
       "proxyChunksDownLastRequest": 14
      },
      "ses": {
       "lockdownError": null,
       "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
-      "lockdownMs": 48.3,
+      "lockdownMs": 31.7,
       "filesThatWouldHitCensor": {
        "htmlComment": 4,
        "importExpr": 7,
@@ -282,19 +258,43 @@
    },
    "sesSlowdown": {
     "turnExitMs": {
-     "plain": 1078.9,
-     "ses": 1138.7,
+     "plain": 965.2,
+     "ses": 1060,
      "ratio": 1.1
     },
     "firstOutputMs": {
-     "plain": 575.6,
-     "ses": 676.9,
+     "plain": 512.8,
+     "ses": 593.9,
      "ratio": 1.2
     },
     "moduleEvalMs": {
-     "plain": 88.5,
-     "ses": 120.2,
-     "ratio": 1.4
+     "plain": 82,
+     "ses": 106.5,
+     "ratio": 1.3
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 10,
+     "peakUsedMB": 21.7,
+     "lastUsedMB": 21.7,
+     "peakTotalMB": 27.1,
+     "peakBackingStoreMB": 82.6
+    },
+    "fullTurn_plain": {
+     "samples": 24,
+     "peakUsedMB": 27.9,
+     "lastUsedMB": 24.5,
+     "peakTotalMB": 37.7,
+     "peakBackingStoreMB": 82.6
+    },
+    "fullTurn_ses": {
+     "samples": 26,
+     "peakUsedMB": 38.2,
+     "lastUsedMB": 24.5,
+     "peakTotalMB": 49.9,
+     "peakBackingStoreMB": 83.8
     }
    }
   },
@@ -317,19 +317,13 @@
     "timedOut": false,
     "fatal": null,
     "ms": {
-     "imageFetch": 312.3,
-     "imageMount": 5.9,
-     "booted": 397.4,
-     "firstOutput": 943.5,
-     "firstStdout": 943.5,
-     "exit": 945.3,
-     "moduleEval": 237
-    },
-    "heapMB": {
-     "afterImages": null,
-     "afterLoad": null,
-     "atFirstOutput": null,
-     "atExit": null
+     "imageFetch": 302.7,
+     "imageMount": 6.2,
+     "booted": 384.8,
+     "firstOutput": 990.7,
+     "firstStdout": 990.7,
+     "exit": 992.5,
+     "moduleEval": 280.5
     },
     "modules": {
      "esm": 19,
@@ -366,7 +360,7 @@
      "shellCommand": {
       "command": "/usr/bin/bash",
       "exitCode": 0,
-      "ms": 18.7
+      "ms": 17.8
      },
      "exit": {
       "code": 0,
@@ -381,24 +375,18 @@
       "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
      ],
      "medianMs": {
-      "imageFetch": 323.9,
-      "imageMount": 8.1,
-      "booted": 423.5,
-      "firstOutput": 1080.8,
-      "firstStdout": 1588.3,
-      "exit": 1589.2,
-      "moduleEval": 261.9
+      "imageFetch": 299.6,
+      "imageMount": 6.2,
+      "booted": 398.7,
+      "firstOutput": 1062.7,
+      "firstStdout": 1574,
+      "exit": 1575.2,
+      "moduleEval": 274.3
      },
      "minMaxExitMs": [
-      1565.3,
-      1691.1
+      1462.9,
+      1714.1
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 22,
       "cjs": 15,
@@ -433,7 +421,7 @@
      "shellCommand": {
       "command": "/usr/bin/bash",
       "exitCode": 0,
-      "ms": 18
+      "ms": 19.7
      },
      "exit": {
       "code": 0,
@@ -448,24 +436,18 @@
       "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
      ],
      "medianMs": {
-      "imageFetch": 309,
-      "imageMount": 7.6,
-      "booted": 419.4,
-      "firstOutput": 1087.1,
-      "firstStdout": 1595.7,
-      "exit": 1596.5,
-      "moduleEval": 260.2
+      "imageFetch": 323.3,
+      "imageMount": 6.7,
+      "booted": 414.4,
+      "firstOutput": 1062.3,
+      "firstStdout": 1548.7,
+      "exit": 1549.5,
+      "moduleEval": 251.9
      },
      "minMaxExitMs": [
-      1526.7,
-      1684.2
+      1530,
+      1741.8
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 22,
       "cjs": 15,
@@ -499,7 +481,7 @@
      "shellCommand": {
       "command": "/usr/bin/bash",
       "exitCode": 0,
-      "ms": 18.4
+      "ms": 19.6
      },
      "exit": {
       "code": 0,
@@ -514,24 +496,18 @@
       "- /opt/gemini/node_modules/node-pty/lib/unixTerminal.js] code: 'MODULE_NOT_FOUND' }"
      ],
      "medianMs": {
-      "imageFetch": 309.5,
-      "imageMount": 9.7,
-      "booted": 456.1,
-      "firstOutput": 1283.1,
-      "firstStdout": 1783,
-      "exit": 1783.8,
-      "moduleEval": 352.5
+      "imageFetch": 302.4,
+      "imageMount": 10.8,
+      "booted": 452.6,
+      "firstOutput": 1247.7,
+      "firstStdout": 1741.9,
+      "exit": 1742.9,
+      "moduleEval": 343.9
      },
      "minMaxExitMs": [
-      1697.5,
-      1958.4
+      1727.7,
+      1900.3
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 22,
       "cjs": 15,
@@ -551,7 +527,7 @@
      "ses": {
       "lockdownError": null,
       "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
-      "lockdownMs": 53.5,
+      "lockdownMs": 42.9,
       "filesThatWouldHitCensor": {
        "htmlComment": 4,
        "importExpr": 22,
@@ -570,19 +546,43 @@
    },
    "sesSlowdown": {
     "turnExitMs": {
-     "plain": 1589.2,
-     "ses": 1783.8,
+     "plain": 1575.2,
+     "ses": 1742.9,
      "ratio": 1.1
     },
     "firstOutputMs": {
-     "plain": 1080.8,
-     "ses": 1283.1,
+     "plain": 1062.7,
+     "ses": 1247.7,
      "ratio": 1.2
     },
     "moduleEvalMs": {
-     "plain": 261.9,
-     "ses": 352.5,
+     "plain": 274.3,
+     "ses": 343.9,
      "ratio": 1.3
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 17,
+     "peakUsedMB": 64.6,
+     "lastUsedMB": 64.6,
+     "peakTotalMB": 73.2,
+     "peakBackingStoreMB": 155.7
+    },
+    "fullTurn_plain": {
+     "samples": 31,
+     "peakUsedMB": 81.7,
+     "lastUsedMB": 80.1,
+     "peakTotalMB": 97,
+     "peakBackingStoreMB": 155.6
+    },
+    "fullTurn_ses": {
+     "samples": 33,
+     "peakUsedMB": 140.8,
+     "lastUsedMB": 140.8,
+     "peakTotalMB": 158,
+     "peakBackingStoreMB": 165.1
     }
    }
   },
@@ -605,19 +605,13 @@
     "timedOut": false,
     "fatal": null,
     "ms": {
-     "imageFetch": 287.3,
-     "imageMount": 7.1,
-     "booted": 427.5,
-     "firstOutput": 1013.2,
-     "firstStdout": 1013.2,
-     "exit": 1059.1,
-     "moduleEval": 371.1
-    },
-    "heapMB": {
-     "afterImages": null,
-     "afterLoad": null,
-     "atFirstOutput": null,
-     "atExit": null
+     "imageFetch": 253.9,
+     "imageMount": 2.6,
+     "booted": 349.4,
+     "firstOutput": 843.3,
+     "firstStdout": 843.3,
+     "exit": 889.2,
+     "moduleEval": 303.4
     },
     "modules": {
      "esm": 1,
@@ -654,7 +648,7 @@
      "shellCommand": {
       "command": "/bin/bash",
       "exitCode": 0,
-      "ms": 7.2
+      "ms": 7.4
      },
      "exit": {
       "code": 0,
@@ -662,24 +656,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 258.3,
-      "imageMount": 2.6,
-      "booted": 352.8,
-      "firstOutput": 1608.6,
-      "firstStdout": 1608.6,
-      "exit": 1636.4,
-      "moduleEval": 295.7
+      "imageFetch": 243.8,
+      "imageMount": 2,
+      "booted": 347,
+      "firstOutput": 1552.1,
+      "firstStdout": 1552.1,
+      "exit": 1566.7,
+      "moduleEval": 293.1
      },
      "minMaxExitMs": [
-      1564.3,
-      1705.2
+      1511.4,
+      1645.5
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 1,
       "cjs": 0,
@@ -714,7 +702,7 @@
      "shellCommand": {
       "command": "/bin/bash",
       "exitCode": 0,
-      "ms": 7.3
+      "ms": 7.2
      },
      "exit": {
       "code": 0,
@@ -722,24 +710,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 253.9,
-      "imageMount": 2.1,
-      "booted": 357.4,
-      "firstOutput": 1562.6,
-      "firstStdout": 1562.6,
-      "exit": 1574.2,
-      "moduleEval": 292.8
+      "imageFetch": 253.3,
+      "imageMount": 1.9,
+      "booted": 370.5,
+      "firstOutput": 1573.2,
+      "firstStdout": 1573.2,
+      "exit": 1585.5,
+      "moduleEval": 295.1
      },
      "minMaxExitMs": [
-      1534,
-      1661.4
+      1540.9,
+      1629.3
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 1,
       "cjs": 0,
@@ -776,24 +758,18 @@
      },
      "stderrFirstLines": [],
      "medianMs": {
-      "imageFetch": 233,
-      "imageMount": 2,
-      "booted": 385.1,
-      "firstOutput": 1843,
-      "firstStdout": 1843,
-      "exit": 1892.8,
-      "moduleEval": 385
+      "imageFetch": 245.4,
+      "imageMount": 2.9,
+      "booted": 384.3,
+      "firstOutput": 1849.1,
+      "firstStdout": 1849.1,
+      "exit": 1883.5,
+      "moduleEval": 383.8
      },
      "minMaxExitMs": [
-      1757.4,
-      2006.5
+      1859.2,
+      1935.7
      ],
-     "medianHeapMB": {
-      "afterImages": null,
-      "afterLoad": null,
-      "atFirstOutput": null,
-      "atExit": null
-     },
      "modules": {
       "esm": 1,
       "cjs": 0,
@@ -813,7 +789,7 @@
      "ses": {
       "lockdownError": null,
       "sesBuild": "ses@2.3.0 + 2 extra severe enablements",
-      "lockdownMs": 32.9,
+      "lockdownMs": 44.9,
       "filesThatWouldHitCensor": {
        "htmlComment": 1,
        "importExpr": 1,
@@ -829,26 +805,50 @@
       ]
      },
      "failure": {
-      "stdoutTail": ",\"output_tokens\":60,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-sonnet-4-6\":{\"inputTokens\":300,\"outputTokens\":60,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0018000000000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"19ac7b2a-1d17-4e34-8384-c0f501a6f678\"}\n",
+      "stdoutTail": ",\"output_tokens\":60,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-sonnet-4-6\":{\"inputTokens\":300,\"outputTokens\":60,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0018000000000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"6aec9dfb-4ac0-4f93-9910-14fd51c76e5a\"}\n",
       "stderr": ""
      }
     }
    },
    "sesSlowdown": {
     "turnExitMs": {
-     "plain": 1636.4,
-     "ses": 1892.8,
+     "plain": 1566.7,
+     "ses": 1883.5,
      "ratio": 1.2
     },
     "firstOutputMs": {
-     "plain": 1608.6,
-     "ses": 1843,
-     "ratio": 1.1
+     "plain": 1552.1,
+     "ses": 1849.1,
+     "ratio": 1.2
     },
     "moduleEvalMs": {
-     "plain": 295.7,
-     "ses": 385,
+     "plain": 293.1,
+     "ses": 383.8,
      "ratio": 1.3
+    }
+   },
+   "workerHeap": {
+    "method": "CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)",
+    "loadOnly_version": {
+     "samples": 11,
+     "peakUsedMB": 39.2,
+     "lastUsedMB": 39.2,
+     "peakTotalMB": 40.7,
+     "peakBackingStoreMB": 92.2
+    },
+    "fullTurn_plain": {
+     "samples": 26,
+     "peakUsedMB": 61.5,
+     "lastUsedMB": 61.5,
+     "peakTotalMB": 70.5,
+     "peakBackingStoreMB": 92.3
+    },
+    "fullTurn_ses": {
+     "samples": 35,
+     "peakUsedMB": 137.6,
+     "lastUsedMB": 137.6,
+     "peakTotalMB": 155.9,
+     "peakBackingStoreMB": 92.8
     }
    }
   }
@@ -913,11 +913,11 @@
  },
  "nativeReference": {
   "what": "same pi turn on real Node.js v22.23.5 against the same mock, direct connection (wall time of the child process)",
-  "medianMs": 640,
+  "medianMs": 660,
   "runs": [
-   640,
-   655,
-   619
+   660,
+   677,
+   634
   ]
  },
  "observedApiUsage": {
@@ -1009,11 +1009,11 @@
   ]
  },
  "runtime": {
-  "workerJsBytes": 2714153,
-  "workerJsGzipBytes": 590165,
+  "workerJsBytes": 2713887,
+  "workerJsGzipBytes": 590065,
   "sesBytes": 519237,
   "bundledInputBytesByPackage": {
-   "(spike source)": 170467,
+   "(spike source)": 170208,
    "base64-js": 3932,
    "ieee754": 2154,
    "buffer": 58353,

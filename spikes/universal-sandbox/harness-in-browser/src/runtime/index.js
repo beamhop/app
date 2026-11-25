@@ -31,6 +31,7 @@ export function boot(config) {
 
   const process = createProcess({ EventEmitter, stream, argv: config.argv, env: config.env, cwd: config.cwd, onStdout: config.onStdout, onStderr: config.onStderr, onExit: config.onExit, track, host });
   processHolder.process = process;
+  process.__debugLive = !!config.debugLive;
   const timers = process.__timers;
   const util = makeUtil({ Buffer, process });
   const fs = createFs({ vfs, process, stream, EventEmitter, track });

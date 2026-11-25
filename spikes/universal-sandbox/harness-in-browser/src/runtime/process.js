@@ -27,9 +27,9 @@ export function createProcess({ EventEmitter, stream, argv, env, cwd, onStdout, 
   };
   const dbg = [];
   process.__liveLog = dbg;
-  const st = () => (new Error().stack || '').split('\n').slice(3, 7).map((l) => l.trim().slice(0, 90)).join(' | ');
-  const ref = () => { live.handles++; live.idleChecks = 0; { if (dbg.length > 600) dbg.splice(0, 300); } dbg.push('+' + live.handles + ' ' + st()); };
-  const unref = () => { { if (dbg.length > 600) dbg.splice(0, 300); } dbg.push('-' + (live.handles - 1) + ' ' + st()); live.handles = Math.max(0, live.handles - 1); if (live.handles === 0) scheduleIdleCheck(); };
+  const st = () => !process.__debugLive ? '' : (new Error().stack || '').split('\n').slice(3, 7).map((l) => l.trim().slice(0, 90)).join(' | ');
+  const ref = () => { live.handles++; live.idleChecks = 0; if (process.__debugLive) { if (dbg.length > 600) dbg.splice(0, 300); dbg.push('+' + live.handles + ' ' + st()); } };
+  const unref = () => { if (process.__debugLive) { if (dbg.length > 600) dbg.splice(0, 300); dbg.push('-' + (live.handles - 1) + ' ' + st()); } live.handles = Math.max(0, live.handles - 1); if (live.handles === 0) scheduleIdleCheck(); };
   process.__ref = ref; process.__unref = unref;
   process.__mainStarted = () => { live.startedMain = true; scheduleIdleCheck(); };
   process.__liveHandles = () => live.handles;

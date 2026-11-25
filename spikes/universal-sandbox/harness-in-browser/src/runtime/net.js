@@ -46,8 +46,8 @@ export function createNet({ EventEmitter, stream, process, track, host, config }
     }
     _ref() { if (!this._refed && this._wantRef !== false) { this._refed = true; process.__ref(); } }
     _unrefHandle() { if (this._refed) { this._refed = false; process.__unref(); } }
-    ref() { track('socket.ref'); this._wantRef = true; if (!this.destroyed && (this.connecting || !this.pending)) this._ref(); return this; }
-    unref() { track('socket.unref', (new Error().stack||'').split('\n').slice(2,6).join(' | ')); this._wantRef = false; this._unrefHandle(); return this; }
+    ref() { this._wantRef = true; if (!this.destroyed && (this.connecting || !this.pending)) this._ref(); return this; }
+    unref() { this._wantRef = false; this._unrefHandle(); return this; }
     connect(...args) {
       let opts = {}, cb;
       if (typeof args[args.length - 1] === 'function') cb = args.pop();
@@ -92,7 +92,6 @@ export function createNet({ EventEmitter, stream, process, track, host, config }
     }
     _final(cb) { if (this._ws && this._ws.readyState <= 1) { /* TCP half-close is not expressible over WebSocket; keep reading */ } cb(); }
     _destroy(err, cb) {
-      track('socket.destroy', String(err && (err.stack || err.message)).slice(0, 3000).replace(/file:\/\/\/opt\/pi\/node_modules\/@earendil-works\/pi-coding-agent\/dist\/bundle\/chunks\//g, "") + " @ " + (new Error().stack || '').split('\n').slice(2, 9).map((l) => l.trim().slice(0, 100)).join(' | '));
       host.clearTimeout(this._timer);
       if (this._ws) { try { this._ws.onclose = null; this._ws.close(); } catch {} }
       if (this._bridge) this._bridge.destroy();

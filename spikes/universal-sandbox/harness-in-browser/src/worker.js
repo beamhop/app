@@ -96,7 +96,7 @@ async function run(cfg, pageT0) {
   self.__report = report;
 
   rt = boot({
-    vfs, esmCache, evaluate, guestGlobal, trace: cfg.trace, debugPatches: cfg.debugPatches, argv: ['node', cfg.entry, ...(cfg.args || [])], env: { ...cfg.env }, cwd: cfg.cwd, net: cfg.net,
+    vfs, esmCache, evaluate, guestGlobal, trace: cfg.trace, debugLive: cfg.debugLive, debugPatches: cfg.debugPatches, argv: ['node', cfg.entry, ...(cfg.args || [])], env: { ...cfg.env }, cwd: cfg.cwd, net: cfg.net,
     onStdout: (s) => { if (m.tFirstStdout == null) { m.tFirstStdout = now(); m.heapAtFirstOutput = heap(); } outBuf += s; schedule(); },
     onStderr: (s) => { if (m.tFirstStderr == null) m.tFirstStderr = now(); errBuf += s; schedule(); },
     onExit: (code, reason) => {
