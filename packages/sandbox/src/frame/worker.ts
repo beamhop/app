@@ -207,6 +207,8 @@ function start(port: MessagePort): void {
           env: { BEAMHOP_WORKSPACE: req.workspaceId, ...req.env },
           net: broker,
           netMode: req.net ?? 'tunnel',
+          // TODO(tls): pass `connectTls` here (packages/tls's connectTls fits the TlsConnector type) so that tls.connect
+          // and https: work in tunnel mode. Until then they fail with ERR_TLS_NOT_AVAILABLE; http mode is unaffected.
           log,
           openUrl: (url) => emit({ ev: 'open-url', url }),
           loadTransformer,
