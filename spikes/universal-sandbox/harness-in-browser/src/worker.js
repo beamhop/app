@@ -6,10 +6,11 @@ const native = { setTimeout: self.setTimeout.bind(self), fetch: self.fetch.bind(
 const tWorker = performance.now();
 
 function sesSetup(cfg) {
-  importScripts('ses.umd.js');
+  importScripts(cfg.sesBuild === 'stock' ? 'ses.umd.js' : 'ses.patched.umd.js');
   const opts = { errorTaming: 'unsafe', overrideTaming: 'severe', consoleTaming: 'unsafe', stackFiltering: 'verbose', errorTrapping: 'none', unhandledRejectionTrapping: 'none', evalTaming: 'safe-eval', ...(cfg.lockdownOptions || {}) };
-  lockdown(opts);
-  return opts;
+  let lockdownError = null;
+  try { lockdown(opts); } catch (e) { lockdownError = String(e && e.stack || e); }
+  return Object.assign(opts, { lockdownError, sesBuild: cfg.sesBuild === 'stock' ? 'stock ses@2.3.0' : 'ses@2.3.0 + 2 extra severe enablements' });
 }
 
 // Web platform globals a Node 22 process also has; these are the only non-emulated endowments.
@@ -29,9 +30,12 @@ async function run(cfg, pageT0) {
     const t = performance.now();
     const options = sesSetup(cfg);
     const globals = {};
-    for (const k of WEB_GLOBALS) if (k in self) globals[k] = self[k];
+    for (const k of WEB_GLOBALS) if (k in self) globals[k] = ['structuredClone', 'queueMicrotask', 'atob', 'btoa', 'reportError'].includes(k) ? self[k].bind(self) : self[k]; // WebIDL operations need the real global as receiver
     // Date and Math in a Compartment are tamed (no clock, no randomness); a Node program needs the real ones.
     globals.Date = Date; globals.Math = Math;
+    // Standard globals SES 2.3 does not put on a Compartment global (float typed arrays are start-compartment only; the rest are newer than its permit list).
+    const missing = [];
+    for (const k of cfg.sesExtraGlobals || ['Float64Array', 'Float32Array', 'Float16Array', 'DisposableStack', 'AsyncDisposableStack', 'SuppressedError']) if (k in self) { globals[k] = self[k]; missing.push(k); }
     const compartment = new Compartment({ globals, __options__: true });
     guestGlobal = compartment.globalThis;
     const censor = { htmlComment: 0, importExpr: 0, directEval: 0 };
@@ -42,7 +46,7 @@ async function run(cfg, pageT0) {
       if (/\beval\s*\(/.test(code)) censor.directEval++;
       return compartment.evaluate(code + '\n//# sourceURL=file://' + file, evalOptions);
     };
-    sesInfo = { lockdownOptions: options, lockdownMs: performance.now() - t, filesThatWouldHitCensor: censor, evalOptions };
+    sesInfo = { extraGlobalsEndowed: missing, lockdownOptions: options, lockdownMs: performance.now() - t, filesThatWouldHitCensor: censor, evalOptions };
   } else {
     guestGlobal = self;
     const indirectEval = native.eval;

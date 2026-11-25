@@ -29,6 +29,15 @@ const r = await esbuild.build({
   logLevel: 'warning',
 });
 fs.copyFileSync(path.join(root, 'node_modules/ses/dist/ses.umd.js'), path.join(web, 'ses.umd.js'));
+// SES patch: overrideTaming:'severe' has no entry for generator objects, and pi (via the OpenAI SDK stream code it
+// bundles) assigns `.return` on an async generator. SES has no public API to add enablements, so the spike ships a
+// copy of ses.umd.js with two extra lines in its severe enablement table.
+{
+  const src = fs.readFileSync(path.join(root, 'node_modules/ses/dist/ses.umd.js'), 'utf8');
+  const anchor = "  '%ObjectPrototype%': '*',\n";
+  if (src.split(anchor).length !== 2) throw new Error('ses patch anchor not found exactly once');
+  fs.writeFileSync(path.join(web, 'ses.patched.umd.js'), src.replace(anchor, anchor + "  '%AsyncGeneratorPrototype%': '*',\n  '%GeneratorPrototype%': '*',\n"));
+}
 fs.copyFileSync(path.join(root, 'src/page.html'), path.join(web, 'index.html'));
 fs.copyFileSync(path.join(root, 'src/page.js'), path.join(web, 'page.js'));
 const bundled = {};
@@ -38,8 +47,10 @@ console.error(`[build] runtime bundle ${(fs.statSync(path.join(web, 'worker.js')
 // ---------- 2 + 3. images ----------
 const HARNESSES = {
   pi: { dir: 'harnesses/pi', mount: '/opt/pi', entries: ['node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'], precompileDirs: ['node_modules/@earendil-works/pi-coding-agent/dist/bundle'] },
-  gemini: { dir: 'harnesses/gemini', mount: '/opt/gemini', entries: ['node_modules/@google/gemini-cli/bundle/gemini.js'], precompileDirs: ['node_modules/@google/gemini-cli/bundle'] },
-  claude: { dir: 'harnesses/claude', mount: '/opt/claude', entries: [], precompileDirs: [] },
+  // gemini: the bundle directory holds several generations of 17 MB chunks; only the import closure of the entry is precompiled.
+  gemini: { dir: 'harnesses/gemini', mount: '/opt/gemini', entries: ['node_modules/@google/gemini-cli/bundle/gemini.js'], precompileDirs: [] },
+  // claude: @anthropic-ai/claude-code@latest is a native-binary launcher; 2.1.112 is the last release that shipped cli.js.
+  claude: { dir: 'harnesses/claude-js', mount: '/opt/claude', entries: ['node_modules/@anthropic-ai/claude-code/cli.js'], precompileDirs: [] },
 };
 const EXCLUDE = [/\.map$/, /\.d\.[mc]?ts$/, /\.tsbuildinfo$/, /(^|\/)\.package-lock\.json$/];
 const MAX_FILE = 30 * 1024 * 1024;

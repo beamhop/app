@@ -3,7 +3,7 @@
 // Synchronous variants (execSync, spawnSync, execFileSync) cannot be provided: just-bash is asynchronous and the
 // worker has no way to block (no SharedArrayBuffer / Atomics.wait). They fail and every call is recorded.
 import { Buffer } from 'buffer';
-import { Bash } from 'just-bash/browser';
+import { Bash, getCommandNames } from 'just-bash/browser';
 
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
 const shQuote = (s) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${String(s).replace(/'/g, `'\\''`)}'`);
@@ -35,7 +35,10 @@ export function createChildProcess({ vfs, fs, EventEmitter, stream, process, tra
   };
   let bash = null, bashInitMs = null;
   const getBash = () => {
-    if (!bash) { const t = host.performance.now(); bash = new Bash({ fs: fsAdapter, cwd: process.cwd(), env: { ...process.env }, defenseInDepth: false }); bashInitMs = host.performance.now() - t; log.bashInitMs = bashInitMs; }
+    if (!bash) { const t = host.performance.now();
+      // just-bash resolves commands through $PATH on the file system it is given; publish its built-ins as stub files.
+      const stub = new TextEncoder().encode('#!/bin/bash\n# just-bash built-in\n');
+      for (const dir of ['/usr/bin', '/bin']) { vfs.mkdir(dir, { recursive: true }); for (const name of getCommandNames()) if (!vfs.tryLookup(dir + '/' + name)) vfs.writeFile(dir + '/' + name, stub, { mode: 0o755 }); } bash = new Bash({ fs: fsAdapter, cwd: process.cwd(), env: { ...process.env }, defenseInDepth: false }); bashInitMs = host.performance.now() - t; log.bashInitMs = bashInitMs; }
     return bash;
   };
 
