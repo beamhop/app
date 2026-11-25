@@ -20,7 +20,7 @@ const page = await browser.newPage();
 page.on('console', (m) => console.error('[browser]', m.text().slice(0, 2000)));
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
 await page.goto(`http://127.0.0.1:${stat.port}/`);
-const cfg = scenario(harness, { mockPort: mock.port, proxyPort: proxy.port, relayPort: relay.port, variant: flags.includes('--ses') ? 'ses' : 'plain', netMode: flags.includes('--tunnel') ? 'tunnel' : 'bridge', args, timeoutMs: Number(process.env.TIMEOUT || 30000) });
+const cfg = scenario(harness, { mockPort: mock.port, proxyPort: proxy.port, relayPort: relay.port, variant: flags.includes('--ses') ? 'ses' : 'plain', lockdownOptions: process.env.LOCKDOWN ? JSON.parse(process.env.LOCKDOWN) : undefined, sesBuild: process.env.SESBUILD, netMode: flags.includes('--tunnel') ? 'tunnel' : 'bridge', args, timeoutMs: Number(process.env.TIMEOUT || 30000) });
 if (process.env.LIVE) cfg.debugLive = true;
 if (process.env.TRACE) cfg.trace = Number(process.env.TRACE);
 if (process.env.PATCH) cfg.debugPatches = JSON.parse((await import('node:fs')).readFileSync(process.env.PATCH, 'utf8'));

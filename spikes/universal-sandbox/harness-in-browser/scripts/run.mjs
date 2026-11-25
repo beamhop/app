@@ -10,6 +10,7 @@ import { startStatic } from '../servers/static.mjs';
 import { startCorsProxy } from '../servers/cors-proxy.mjs';
 import { startRelay } from '../servers/ws-relay.mjs';
 import { scenario } from './scenarios.mjs';
+import { connectSampler, freePort } from './heap-sampler.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'dist/build-manifest.json'), 'utf8'));
@@ -20,8 +21,9 @@ const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 const mb = (x) => (x == null ? null : Math.round((x / 1048576) * 10) / 10);
 
 const [mock, stat, proxy, relay] = await Promise.all([startMock(), startStatic({ dir: path.join(root, 'dist/web') }), startCorsProxy(), startRelay()]);
-// --enable-precise-memory-info only un-buckets performance.memory; it does not enable SharedArrayBuffer or isolation.
-const browser = await chromium.launch({ args: ['--enable-precise-memory-info'] });
+const debugPort = await freePort();
+// The debugging port is used only by the heap sampler (scripts/heap-sampler.mjs); it does not change isolation.
+const browser = await chromium.launch({ args: ['--remote-debugging-port=' + debugPort] });
 const page = await browser.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -41,7 +43,6 @@ async function runOne(harness, opts = {}) {
     summary: {
       exit: rep.exit, timedOut: out.timedOut, fatal: out.fatal || out.workerError || null,
       ms: { imageFetch: r1(m.images?.[0]?.fetchMs), imageMount: r1(m.images?.[0]?.mountMs), booted: r1(m.tBooted), firstOutput: r1(Math.min(m.tFirstStdout ?? Infinity, m.tFirstStderr ?? Infinity)), firstStdout: r1(m.tFirstStdout), exit: r1(m.tExit), moduleEval: r1(rep.loader?.evalMs) },
-      heapMB: { afterImages: mb(m.heapAfterImages), afterLoad: mb(m.heapAfterLoad), atFirstOutput: mb(m.heapAtFirstOutput), atExit: mb(m.heapAtExit) },
       modules: rep.loader && { esm: rep.loader.esm, cjs: rep.loader.cjs, json: rep.loader.json, evalMB: mb(rep.loader.evalBytes), missingEsm: [...new Set(rep.loader.missingEsm)] },
     },
   };
@@ -98,7 +99,6 @@ for (const h of HARNESSES) {
       stderrFirstLines: last.r.out.stderr.split('\n').filter(Boolean).slice(0, 6).map((l) => l.slice(0, 200)),
       medianMs: Object.fromEntries(Object.keys(last.r.summary.ms).map((k) => [k, median(runs.map((x) => x.r.summary.ms[k]))])),
       minMaxExitMs: [Math.min(...runs.map((x) => x.r.summary.ms.exit ?? Infinity)), Math.max(...runs.map((x) => x.r.summary.ms.exit ?? -Infinity))],
-      medianHeapMB: Object.fromEntries(Object.keys(last.r.summary.heapMB).map((k) => [k, median(runs.map((x) => x.r.summary.heapMB[k]))])),
       modules: last.r.summary.modules,
       network: opts.netMode === 'bridge'
         ? { proxyRequests: last.r.proxyLog.length, mockRequests: last.r.mockLog.length, relayConnections: last.r.relayLog.length, socketsOpenedByHarness: last.r.rep.net?.sockets, viaEmulatedFetch: last.r.rep.net?.requests.filter((q) => q.via === 'proxied-fetch').length, streaming: (last.r.rep.net?.requests || []).filter((q) => q.chunks > 1).slice(-1).map((q) => ({ chunks: q.chunks, firstChunkMs: r1(q.tFirstChunk), endMs: r1(q.tEnd) }))[0] ?? null, proxyChunksDownLastRequest: last.r.proxyLog.at(-1)?.chunksDown }
@@ -110,6 +110,20 @@ for (const h of HARNESSES) {
   const p = H.turn['plain+bridge'].medianMs, s = H.turn['ses+bridge'].medianMs;
   H.sesSlowdown = { turnExitMs: { plain: p.exit, ses: s.exit, ratio: r1(s.exit / p.exit) }, firstOutputMs: { plain: p.firstOutput, ses: s.firstOutput, ratio: r1(s.firstOutput / p.firstOutput) }, moduleEvalMs: { plain: p.moduleEval, ses: s.moduleEval, ratio: r1(s.moduleEval / p.moduleEval) } };
 }
+
+// ---- heap (separate pass so that sampling does not disturb the timings above) ----
+log('heap pass');
+try {
+  const sampler = await connectSampler(debugPort, `http://127.0.0.1:${stat.port}/`);
+  for (const h of HARNESSES) {
+    const H = results.harnesses[h];
+    const a = await sampler.during(() => runOne(h, { args: ['--version'] }));
+    const b = await sampler.during(() => runOne(h, { variant: 'plain', netMode: 'bridge' }));
+    const c = await sampler.during(() => runOne(h, { variant: 'ses', netMode: 'bridge' }));
+    H.workerHeap = { method: 'CDP Runtime.getHeapUsage on the worker, sampled every ~40 ms; V8 heap only (the image ArrayBuffer is backing store, reported separately when the browser exposes it)', loadOnly_version: a.heap, fullTurn_plain: b.heap, fullTurn_ses: c.heap };
+  }
+  sampler.close();
+} catch (e) { results.heapError = String(e && e.stack || e).slice(0, 400); }
 
 // ---- Hardened JS extras ----
 log('ses probes');

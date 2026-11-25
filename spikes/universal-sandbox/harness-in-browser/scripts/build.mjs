@@ -50,7 +50,7 @@ const HARNESSES = {
   // gemini: the bundle directory holds several generations of 17 MB chunks; only the import closure of the entry is precompiled.
   gemini: { dir: 'harnesses/gemini', mount: '/opt/gemini', entries: ['node_modules/@google/gemini-cli/bundle/gemini.js'], precompileDirs: [],
     // reached at run time through import() calls the build-time tracer cannot see (computed specifiers)
-    extraEsm: [/\/bundle\/(tree-sitter|liteRtServerManager)[^/]*\.js$/] },
+    extraEsm: [/\/bundle\/(tree-sitter[^/]*|liteRtServerManager-WTEPPKAQ)\.js$/] },
   // claude: @anthropic-ai/claude-code@latest is a native-binary launcher; 2.1.112 is the last release that shipped cli.js.
   claude: { dir: 'harnesses/claude-js', mount: '/opt/claude', entries: ['node_modules/@anthropic-ai/claude-code/cli.js'], precompileDirs: [] },
 };
