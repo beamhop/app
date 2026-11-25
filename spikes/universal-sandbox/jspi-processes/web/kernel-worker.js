@@ -221,6 +221,23 @@ const cmds = {
     return r;
   },
 
+  // Baseline for placement (b): plain JS MessageChannel round trip kernel worker <-> another
+  // worker, sequential (send, await reply, send ...). No wasm, no JSPI.
+  async msgRoundTrip({ n = 20000 } = {}) {
+    const w = new Worker(new URL('./proc-worker.js', import.meta.url), { type: 'module' });
+    const mc = new MessageChannel();
+    w.postMessage({ type: 'echo', port: mc.port2 }, [mc.port2]);
+    let resolve;
+    mc.port1.onmessage = () => resolve();
+    const rt = () => new Promise((r) => { resolve = r; mc.port1.postMessage(['nop', 1]); });
+    for (let i = 0; i < 200; i++) await rt();
+    const t0 = now();
+    for (let i = 0; i < n; i++) await rt();
+    const ms = now() - t0;
+    w.terminate();
+    return { n, usPerRoundTrip: +((ms * 1000) / n).toFixed(2) };
+  },
+
   async waitchild() {
     const out = k.memFile();
     const p = k.spawn('parent', ['producer', '3'], { fds: [k.nullFile(), out, out] });
@@ -330,6 +347,8 @@ const cmds = {
     const p = k.pipe(4096);
     const err = k.memFile();
     const w = p.w.open();
+    const hr = p.r.open();
+    setTimeout(() => release(hr), 0);
     if (variant !== 'promising-suspended') p.w.write(enc.encode('hello'), 0, 5); // data ready: fd_read will not block
     const proc = k.spawn('crash', [mode], { fds: [p.r, err, err], noStart: true });
     if (variant === 'raw') {

@@ -394,6 +394,7 @@
           const m = e instanceof SyntaxError && /\((SES_[A-Z_]+)\)/.exec(e.message);
           if (!m) throw e;
           censored.push({ file: name, code: m[1] });
+          if (opts.noEvade) throw e;
           return compartment.evaluate(src, evade);
         }
       };

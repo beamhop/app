@@ -1,6 +1,6 @@
 {
   "meta": {
-    "date": "2026-11-25T10:25:09.345Z",
+    "date": "2026-11-25T10:28:25.710Z",
     "chromium": "158.0.8127.36",
     "node": "v22.23.5",
     "host": {
@@ -18,7 +18,8 @@
     "benchRuns": 1,
     "caveat": "headless Chromium in a cloud container (not a phone); profile dir on the container tmpfs/overlay disk",
     "flags": "Playwright flags minus --disable-popup-blocking, with ThirdPartyStoragePartitioning left at its Chromium default (enabled)",
-    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36"
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/158.0.8127.36 Safari/537.36",
+    "browserKilledExternallyRetries": 0
   },
   "finalCsp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'",
   "playwrightStockFlags": [
@@ -26,273 +27,293 @@
     "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
     "--disable-popup-blocking"
   ],
-  "8_bridge": {
-    "median": {
-      "smallMs": {
-        "n": 5000,
-        "min": 0,
-        "median": 0,
-        "p95": 0.1,
-        "p99": 0.2,
-        "max": 2.8,
-        "mean": 0.051
-      },
-      "smallAvgMicroseconds": 51,
-      "transfer1MBMs": {
-        "n": 1000,
-        "min": 0,
-        "median": 0,
-        "p95": 0.1,
-        "p99": 0.2,
-        "max": 5.2,
-        "mean": 0.058
-      },
-      "transfer1MBAvgMicroseconds": 58,
-      "transfer1MBIntact": true,
-      "copy1MBMs": {
-        "n": 300,
-        "min": 0.8,
-        "median": 1.1,
-        "p95": 2,
-        "p99": 5.4,
-        "max": 6.3,
-        "mean": 1.243
-      },
-      "pipelinedRpcPerSec": 97276
-    },
-    "runs": [
-      {
-        "smallMs": {
-          "n": 5000,
-          "min": 0,
-          "median": 0,
-          "p95": 0.1,
-          "p99": 0.2,
-          "max": 2.8,
-          "mean": 0.051
-        },
-        "smallAvgMicroseconds": 51,
-        "transfer1MBMs": {
-          "n": 1000,
-          "min": 0,
-          "median": 0,
-          "p95": 0.1,
-          "p99": 0.2,
-          "max": 5.2,
-          "mean": 0.058
-        },
-        "transfer1MBAvgMicroseconds": 58,
-        "transfer1MBIntact": true,
-        "copy1MBMs": {
-          "n": 300,
-          "min": 0.8,
-          "median": 1.1,
-          "p95": 2,
-          "p99": 5.4,
-          "max": 6.3,
-          "mean": 1.243
-        },
-        "pipelinedRpcPerSec": 97276
-      }
-    ],
-    "note": "A page -> MessagePort (transferred through the B frame into the B worker) -> echo -> A page. performance.now() resolution is 0.1 ms here, so sub-0.1 ms medians read as 0 or 0.1; use mean."
-  },
-  "6_service_worker_preview": {
-    "registerAndFirstLoad": {
-      "alreadyRegistered": false,
-      "registerMs": 13,
-      "stateRightAfterRegister": "installing",
-      "earlyPreview": {
-        "loadMs": 13.2,
-        "swStateAtLoad": "activated",
-        "title": "preview",
-        "text": "loading",
-        "href": "http://127.0.0.1:8102/preview/mc-early/index.html"
-      },
-      "activatedMs": 27.3,
-      "scope": "http://127.0.0.1:8102/preview/",
-      "kernelPageControlled": false
-    },
-    "connect": {
-      "source": "memory"
-    },
-    "messageChannel_run1": {
-      "iframeLoadMs": 7.1,
-      "type": "preview-result",
-      "id": "mc-1",
-      "kind": "bench",
-      "first": {
-        "hello": "from the kernel worker",
-        "n": 2,
-        "source": "memory"
-      },
-      "controlled": true,
-      "origin": "http://127.0.0.1:8102",
-      "parentReach": "object",
-      "opfs": "accessible",
-      "nav": {
-        "responseStartMs": 1.6999999997206032,
-        "domContentLoadedMs": 6.2999999998137355,
-        "workerStartMs": 1
-      },
-      "latencyMs": {
-        "n": 300,
-        "min": 0.8,
-        "median": 1.1,
-        "p95": 1.7,
-        "p99": 5.6,
-        "max": 6,
-        "mean": 1.222
+  "7_egress": {
+    "worker_scriptServedWithCsp": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-csp/importscripts' failed to load",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-csp/import",
+        "sendBeacon": "navigator.sendBeacon is not available in workers",
+        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-csp/worker.js' cannot be accessed from origin 'http://127.0.0.1:",
+        "eval-works": "eval -> 2"
       }
     },
-    "messageChannel_run2": {
-      "iframeLoadMs": 8.3,
-      "type": "preview-result",
-      "id": "mc-2",
-      "kind": "bench",
-      "first": {
-        "hello": "from the kernel worker",
-        "n": 303,
-        "source": "memory"
-      },
-      "controlled": true,
-      "origin": "http://127.0.0.1:8102",
-      "parentReach": "object",
-      "opfs": "accessible",
-      "nav": {
-        "responseStartMs": 2.5,
-        "domContentLoadedMs": 8,
-        "workerStartMs": 1.6000000000931323
-      },
-      "latencyMs": {
-        "n": 300,
-        "min": 0.8,
-        "median": 1.3,
-        "p95": 1.8,
-        "p99": 3.3,
-        "max": 4.5,
-        "mean": 1.31
+    "worker_scriptServedWithoutCsp": {
+      "reachedAttacker": [
+        "fetch",
+        "fetch-nocors",
+        "xhr",
+        "websocket",
+        "sse",
+        "importscripts",
+        "import"
+      ],
+      "tcpConnectionsToAttacker": 4,
+      "clientSideOutcome": {
+        "fetch": "ok status 200",
+        "fetch-nocors": "ok (opaque)",
+        "xhr": "ok status 200",
+        "websocket": "open",
+        "eventsource": "message",
+        "importScripts": "imported, ran=1",
+        "dynamic-import": "imported",
+        "sendBeacon": "navigator.sendBeacon is not available in workers",
+        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-nocsp/worker.js' cannot be accessed from origin 'http://127.0.0.",
+        "eval-works": "eval -> 2"
       }
     },
-    "broadcastChannel_run1": {
-      "iframeLoadMs": 18.1,
-      "type": "preview-result",
-      "id": "bc-1",
-      "kind": "bench",
-      "first": {
-        "hello": "from the kernel worker",
-        "n": 604,
-        "source": "memory"
-      },
-      "controlled": true,
-      "origin": "http://127.0.0.1:8102",
-      "parentReach": "object",
-      "opfs": "accessible",
-      "nav": {
-        "responseStartMs": 2.7999999998137355,
-        "domContentLoadedMs": 17.5,
-        "workerStartMs": 1.599999999627471
-      },
-      "latencyMs": {
-        "n": 300,
-        "min": 0.9,
-        "median": 1.3,
-        "p95": 2.2,
-        "p99": 4.3,
-        "max": 6.9,
-        "mean": 1.414
+    "worker_blobUrl": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-blob/importscripts' failed to loa",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-blob/import",
+        "sendBeacon": "navigator.sendBeacon is not available in workers",
+        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-blob/worker.js' cannot be accessed from origin 'http://127.0.0.1",
+        "eval-works": "eval -> 2"
       }
     },
-    "broadcastChannel_run2": {
-      "iframeLoadMs": 8.9,
-      "type": "preview-result",
-      "id": "bc-2",
-      "kind": "bench",
-      "first": {
-        "hello": "from the kernel worker",
-        "n": 905,
-        "source": "memory"
-      },
-      "controlled": true,
-      "origin": "http://127.0.0.1:8102",
-      "parentReach": "object",
-      "opfs": "accessible",
-      "nav": {
-        "responseStartMs": 2.1000000000931323,
-        "domContentLoadedMs": 7.899999999906868,
-        "workerStartMs": 1.1000000000931323
-      },
-      "latencyMs": {
-        "n": 300,
-        "min": 0.9,
-        "median": 1.2,
-        "p95": 1.5,
-        "p99": 2.1,
-        "max": 2.8,
-        "mean": 1.22
+    "serviceWorker": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "websocket": "error event",
+        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/sw/importscripts' failed to load."
       }
     },
-    "baseline_networkFetchToStaticServerMs": {
-      "n": 300,
-      "min": 1.3,
-      "median": 1.7,
-      "p95": 2.2,
-      "p99": 5.5,
-      "max": 7.9,
-      "mean": 1.785
+    "kernelDocument": {
+      "reachedAttacker": [
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc/import",
+        "script-tag": "error event",
+        "image": "error event",
+        "css-background": "inserted",
+        "stylesheet-link": "error event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "error event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
+      }
     },
-    "sandboxedOpaqueOriginPreview": {
-      "result": {
-        "iframeLoadMs": 7.2,
-        "timeout": true,
-        "peek": {
-          "unreadable": "TypeError: Cannot read properties of null (reading 'title')"
-        }
+    "kernelDocument_preconnect": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": "inserted"
+    },
+    "previewPage_swAddsCsp": {
+      "reachedAttacker": [
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/preview-mc-csp-eg/import",
+        "script-tag": "error event",
+        "image": "error event",
+        "css-background": "inserted",
+        "stylesheet-link": "error event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "error event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
+      }
+    },
+    "previewPage_swOmitsCsp": {
+      "reachedAttacker": [
+        "fetch",
+        "fetch-nocors",
+        "xhr",
+        "websocket",
+        "sse",
+        "import",
+        "script",
+        "image",
+        "css-bg",
+        "css",
+        "beacon",
+        "iframe",
+        "object",
+        "video",
+        "prefetch",
+        "preload",
+        "form",
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 7,
+      "clientSideOutcome": {
+        "fetch": "ok status 200",
+        "fetch-nocors": "ok (opaque)",
+        "xhr": "ok status 200",
+        "websocket": "open",
+        "eventsource": "message",
+        "dynamic-import": "imported",
+        "script-tag": "load event",
+        "image": "load event",
+        "css-background": "inserted",
+        "stylesheet-link": "load event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "load event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
+      }
+    },
+    "kernelDocument_policyWithoutWebrtcDirective": {
+      "reachedAttacker": [
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc-nowebrtcdir/import",
+        "script-tag": "error event",
+        "image": "error event",
+        "css-background": "inserted",
+        "stylesheet-link": "error event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "error event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
       },
-      "swRequestsHandledDuring": 0
+      "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'"
     },
-    "afterServiceWorkerStopped": {
-      "swInstanceBefore": "pxuur5",
-      "swInstanceAfter": "jpxi05",
-      "restarted": true,
-      "portReRequestsFromSW": 1,
-      "preview": {
-        "iframeLoadMs": 23.7,
-        "type": "preview-result",
-        "id": "mc-3",
-        "kind": "bench",
-        "first": {
-          "hello": "from the kernel worker",
-          "n": 1206,
-          "source": "memory"
-        },
-        "controlled": true,
-        "origin": "http://127.0.0.1:8102",
-        "parentReach": "object",
-        "opfs": "accessible",
-        "nav": {
-          "responseStartMs": 14.399999999906868,
-          "domContentLoadedMs": 22.899999999906868,
-          "workerStartMs": 3.3999999999068677
-        },
-        "latencyMs": {
-          "n": 300,
-          "min": 0.9,
-          "median": 1.5,
-          "p95": 2.2,
-          "p99": 3.8,
-          "max": 5.2,
-          "mean": 1.591
-        }
+    "kernelDocument_policyPlusWebrtcBlock": {
+      "reachedAttacker": [
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/kernel-doc-webrtcblock/import",
+        "script-tag": "error event",
+        "image": "error event",
+        "css-background": "inserted",
+        "stylesheet-link": "error event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "error event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
+      },
+      "policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors http://localhost:8101; form-action 'none'; base-uri 'none'; webrtc 'block'"
+    },
+    "BASELINE_documentWithoutCsp": {
+      "reachedAttacker": [
+        "fetch",
+        "fetch-nocors",
+        "xhr",
+        "websocket",
+        "sse",
+        "import",
+        "script",
+        "image",
+        "css-bg",
+        "css",
+        "beacon",
+        "iframe",
+        "object",
+        "video",
+        "prefetch",
+        "preload",
+        "form",
+        "udp(stun)"
+      ],
+      "tcpConnectionsToAttacker": 7,
+      "clientSideOutcome": {
+        "fetch": "ok status 200",
+        "fetch-nocors": "ok (opaque)",
+        "xhr": "ok status 200",
+        "websocket": "open",
+        "eventsource": "message",
+        "dynamic-import": "imported",
+        "script-tag": "load event",
+        "image": "load event",
+        "css-background": "inserted",
+        "stylesheet-link": "load event",
+        "sendBeacon": "returned true",
+        "iframe-embed": "load event",
+        "object": "load event",
+        "video": "error event",
+        "link-prefetch": "inserted",
+        "link-preload": "inserted",
+        "form-submit": "submitted",
+        "webrtc-stun": "ice candidates: [host]"
+      }
+    },
+    "BASELINE_preconnect": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": "inserted"
+    },
+    "worker_cspScript_startedByNoCspDocument": {
+      "reachedAttacker": [],
+      "tcpConnectionsToAttacker": 0,
+      "clientSideOutcome": {
+        "fetch": "throws TypeError: Failed to fetch",
+        "fetch-nocors": "throws TypeError: Failed to fetch",
+        "xhr": "error event",
+        "websocket": "error event",
+        "eventsource": "error event",
+        "importScripts": "throws NetworkError: Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'http://localhost:8103/hit/worker-csp-nocspdoc/importscripts' faile",
+        "dynamic-import": "throws TypeError: Failed to fetch dynamically imported module: http://localhost:8103/hit/worker-csp-nocspdoc/import",
+        "sendBeacon": "navigator.sendBeacon is not available in workers",
+        "nested-worker": "throws SecurityError: Failed to construct 'Worker': Script at 'http://localhost:8103/hit/worker-csp-nocspdoc/worker.js' cannot be accessed from origin 'http://1",
+        "eval-works": "eval -> 2"
       }
     }
   },
-  "7_egress": {
-    "error": "browserContext.newPage: Target page, context or browser has been closed\n    at openA (/home/user/app/spikes/universal-sandbox/opfs-origin/run.js:68:32)\n    at /home/user/app/spikes/universal-sandbox/opfs-origin/run.js:258:24\n    at async section (/home/user/app/spikes/universal-sandbox/opfs-origin/run.js:91:21)\n    at async /home/user/app/spikes/universal-sandbox/opfs-origin/run.js:236:3"
-  },
   "consoleNotes": [
-    "[error] Framing 'http://127.0.0.1:8102/' violates the following Content Security Policy directive: \"frame-ancestors http://localhost:8101\". The request has been blocked.\n",
-    "[error] Failed to load resource: the server responded with a status of 404 ()",
     "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
     "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
     "[error] Connecting to 'http://localhost:8103/hit/kernel-doc/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
@@ -329,6 +350,44 @@
     "[error] Loading media from  'http://localhost:8103/hit/preview-mc-csp-eg/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallback. Th",
     "[error] Fetching content from 'http://localhost:8103/hit/preview-mc-csp-eg/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
     "[error] Connecting to 'http://localhost:8103/hit/preview-mc-csp-eg/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-    "[error] Sending form data to 'http://localhost:8103/hit/preview-mc-csp-eg/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n"
+    "[error] Sending form data to 'http://localhost:8103/hit/preview-mc-csp-eg/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-nowebrtcdir/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/kernel-doc-nowebrtcdir/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a ",
+    "[error] Loading media from  'http://localhost:8103/hit/kernel-doc-nowebrtcdir/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallbac",
+    "[error] Fetching content from 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Sending form data to 'http://localhost:8103/hit/kernel-doc-nowebrtcdir/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
+    "[error] Unrecognized Content-Security-Policy directive 'webrtc'.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/fetch?d=secret' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-webrtcblock/fetch?d=secret. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/fetch-nocors' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Fetch API cannot load http://localhost:8103/hit/kernel-doc-webrtcblock/fetch-nocors. Refused to connect because it violates the document's Content Security Policy.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/xhr' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'ws://localhost:8103/hit/kernel-doc-webrtcblock/websocket' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/sse' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-webrtcblock/import' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the script 'http://localhost:8103/hit/kernel-doc-webrtcblock/script' violates the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob:\". Note that 'script-src-elem' was not explicitl",
+    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-webrtcblock/image?d=secret' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the image 'http://localhost:8103/hit/kernel-doc-webrtcblock/css-bg' violates the following Content Security Policy directive: \"img-src 'self' data: blob:\". The action has been blocked.",
+    "[error] Loading the stylesheet 'http://localhost:8103/hit/kernel-doc-webrtcblock/css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/beacon' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Loading plugin data from 'http://localhost:8103/hit/kernel-doc-webrtcblock/object' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'object-src' was not explicitly set, so 'default-src' is used as a ",
+    "[error] Loading media from  'http://localhost:8103/hit/kernel-doc-webrtcblock/video' violates the following Content Security Policy directive: \"default-src 'none'\". Note that 'media-src' was not explicitly set, so 'default-src' is used as a fallbac",
+    "[error] Fetching content from 'http://localhost:8103/hit/kernel-doc-webrtcblock/prefetch' violates the following Content Security Policy directive: \"default-src 'none'\". The action has been blocked.",
+    "[error] Connecting to 'http://localhost:8103/hit/kernel-doc-webrtcblock/preload' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+    "[error] Sending form data to 'http://localhost:8103/hit/kernel-doc-webrtcblock/form' violates the following Content Security Policy directive: \"form-action 'none'\". The request has been blocked.\n",
+    "[warning] The resource http://localhost:8103/hit/baseline-doc/preload was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally"
   ]
 }

@@ -84,13 +84,46 @@ function medianOf(objs) {
     const other = srv.state.attackerLog.filter((e) => e.kind !== 'udp' && !e.url.includes(`/hit/${tag}/`)).map((e) => e.url);
     return { reached: [...new Set(reached)], ...(other.length ? { unexpectedOther: other } : {}) };
   };
+  // Other jobs on this shared machine occasionally SIGTERM every Chromium process (exit code 143,
+  // seen repeatedly while developing this spike). A section that dies that way is re-run from scratch
+  // in a fresh browser on the same profile directory.
+  let ctxAlive = false;
+  let main = null;
+  let browserKills = 0;
+  const ensureMain = async () => {
+    if (!ctxAlive) {
+      ctx = await launch(profileDir);
+      ctxAlive = true;
+      const c = ctx;
+      c.on('close', () => { if (c === ctx) ctxAlive = false; });
+      main = null;
+    }
+    if (!main || main.page.isClosed()) main = await openA();
+  };
   const section = async (name, fn) => {
     if (ONLY && !ONLY.has(name)) return;
     const t = Date.now();
     note(`== ${name} ...`);
-    try { R[name] = await fn(); } catch (e) { R[name] = { error: String((e && e.stack) || e).slice(0, 1500) }; note(`   FAILED: ${String(e).slice(0, 300)}`); }
+    for (let attempt = 1; ; attempt++) {
+      try { await ensureMain(); R[name] = await fn(); break; } catch (e) {
+        const msg = String((e && e.stack) || e);
+        if (/has been closed|Target closed|Target crashed|browser has disconnected/i.test(msg) && attempt < 5) {
+          browserKills++;
+          note(`   browser went away during ${name} (attempt ${attempt}); restarting the section`);
+          try { await ctx.close(); } catch (e2) { /* already gone */ }
+          ctxAlive = false;
+          await sleep(500);
+          continue;
+        }
+        R[name] = { error: msg.slice(0, 1500) };
+        note(`   FAILED: ${msg.slice(0, 300)}`);
+        break;
+      }
+    }
     note(`   ${name} done in ${((Date.now() - t) / 1000).toFixed(1)}s`);
   };
+  // inner try/catch blocks must not swallow a dead browser
+  const alive = (e) => { if (/has been closed|browser has disconnected/i.test(String(e))) throw e; };
   const headersOf = (url) => new Promise((res) => http.get(url, (r) => { r.resume(); res(r.headers); }));
 
   R.meta = {
@@ -102,9 +135,8 @@ function medianOf(objs) {
     benchRuns: BENCH_RUNS,
     caveat: 'headless Chromium in a cloud container (not a phone); profile dir on the container tmpfs/overlay disk',
   };
-  ctx = await launch(profileDir);
+  await ensureMain();
   R.meta.flags = process.env.PW_DEFAULT_FLAGS ? 'Playwright stock flags' : 'Playwright flags minus --disable-popup-blocking, with ThirdPartyStoragePartitioning left at its Chromium default (enabled)';
-  let main = await openA();
   R.meta.userAgent = await main.page.evaluate(() => navigator.userAgent);
   if (!R.meta.chromium) R.meta.chromium = R.meta.userAgent.match(/Chrome\/([\d.]+)/)[1];
 
@@ -197,6 +229,7 @@ function medianOf(objs) {
 
   // ------------------------------------------------------------------ 8
   await section('8_bridge', async () => {
+    await call(main.frame, 'sqliteInit');
     await main.page.evaluate(() => window.A.connectBridge());
     const runs = [];
     for (let i = 0; i < BENCH_RUNS; i++) runs.push(await main.page.evaluate(() => window.A.benchBridge()));
@@ -207,6 +240,7 @@ function medianOf(objs) {
   await section('6_service_worker_preview', async () => {
     const out = {};
     const f = main.frame;
+    await call(f, 'sqliteInit'); // previews are served out of the SQLite toy filesystem
     out.registerAndFirstLoad = await f.evaluate(() => window.spike.registerSWRacy());
     out.connect = await f.evaluate(() => window.spike.connectPreview());
     out.messageChannel_run1 = await f.evaluate(() => window.spike.openPreview('mc-1'));
@@ -236,11 +270,14 @@ function medianOf(objs) {
   await section('7_egress', async () => {
     const out = {};
     const f = main.frame;
+    await call(f, 'sqliteInit');
+    await f.evaluate(() => window.spike.registerSW());
+    await f.evaluate(() => window.spike.connectPreview());
     const run = async (label, tag, fn) => {
       clearLog();
       const tcp0 = srv.state.tcpConnections;
       let r;
-      try { r = await fn(); } catch (e) { r = { error: String(e).slice(0, 300) }; }
+      try { r = await fn(); } catch (e) { if (/has been closed/.test(String(e))) throw e; r = { error: String(e).slice(0, 300) }; }
       const h = await hits(tag);
       const attempts = (r && r.out) || (r && r.r && r.r.out) || r;
       out[label] = { reachedAttacker: h.reached, ...(h.unexpectedOther ? { unexpectedOther: h.unexpectedOther } : {}), tcpConnectionsToAttacker: srv.state.tcpConnections - tcp0, clientSideOutcome: attempts };
@@ -254,6 +291,15 @@ function medianOf(objs) {
     await run('kernelDocument_preconnect', 'kernel-doc-preconnect', () => f.evaluate(() => runPreconnect()));
     await run('previewPage_swAddsCsp', 'preview-mc-csp-eg', () => f.evaluate(() => window.spike.openPreview('mc-csp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
     await run('previewPage_swOmitsCsp', 'preview-mc-nocsp-eg', () => f.evaluate(() => window.spike.openPreview('mc-nocsp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
+    // WebRTC is not governed by connect-src. Compare the policy with and without the "webrtc 'block'" directive.
+    for (const [label, tag, csp] of [['kernelDocument_policyWithoutWebrtcDirective', 'kernel-doc-nowebrtcdir', DEFAULT_B_CSP.replace("; webrtc 'block'", '')], ['kernelDocument_policyPlusWebrtcBlock', 'kernel-doc-webrtcblock', DEFAULT_B_CSP.replace("; webrtc 'block'", '') + "; webrtc 'block'"]]) {
+      srv.setBCsp(csp);
+      const w = await openA();
+      await run(label, tag, () => w.frame.evaluate((t) => window.spike.docEgress(t), tag));
+      out[label].policy = csp;
+      await w.page.close();
+      srv.setBCsp(null);
+    }
     // Harness validation: the same attempts from a B document served WITHOUT any CSP must reach the attacker.
     const base = await openA('path=/nocsp/kernel.html');
     await run('BASELINE_documentWithoutCsp', 'baseline-doc', () => base.frame.evaluate(() => window.spike.docEgress('baseline-doc')));
@@ -266,6 +312,7 @@ function medianOf(objs) {
   // ------------------------------------------------------------------ 4
   await section('4_persistence', async () => {
     const out = {};
+    await call(main.frame, 'sqliteInit');
     out.persistInIframe = await main.frame.evaluate(() => window.spike.persist());
     out.written = await call(main.frame, 'persistWrite', { token: 'ctx1' });
     out.estimateBeforeReload = await main.frame.evaluate(() => navigator.storage.estimate());
@@ -279,8 +326,8 @@ function medianOf(objs) {
     await call(main.frame, 'persistWrite', { token: 'after-reload' });
     // (b) whole browser closed, new browser process + context on the same user-data dir
     await ctx.close();
-    ctx = await launch(profileDir);
-    main = await openA();
+    ctxAlive = false;
+    await ensureMain();
     out.initAfterBrowserRestart = await call(main.frame, 'sqliteInit');
     out.afterBrowserRestart = await call(main.frame, 'persistRead');
     out.afterBrowserRestart_storage = await main.frame.evaluate(() => window.spike.listStorage());
@@ -357,12 +404,12 @@ function medianOf(objs) {
         const fn = await openA(v.query);
         const init = await call(fn.frame, 'sqliteInit', { poolName: 'fn-check' });
         const env = await call(fn.frame, 'env');
-        let sw; try { sw = await fn.frame.evaluate(() => window.spike.registerSW()); } catch (e) { sw = { error: String(e).slice(0, 200) }; }
+        let sw; try { sw = await fn.frame.evaluate(() => window.spike.registerSW()); } catch (e) { alive(e); sw = { error: String(e).slice(0, 200) }; }
         let prev = null;
         if (!sw.error) { await fn.frame.evaluate(() => window.spike.connectPreview({ useSqlite: false })); prev = await fn.frame.evaluate(() => window.spike.openPreview('mc-fn', 'index.html', { timeout: 8000 })); }
         o.kernelStillWorks = { opfsSahPool: !init.poolError, poolError: init.poolError, syncAccessHandle: env.hasCreateSyncAccessHandle, serviceWorker: sw, previewServedBySw: !!(prev && prev.first), previewMedianMs: prev && prev.latencyMs && prev.latencyMs.median, origin: await fn.frame.evaluate(() => self.origin) };
         await fn.page.close();
-      } catch (e) { o.kernelStillWorks = { error: String(e).slice(0, 300) }; }
+      } catch (e) { alive(e); o.kernelStillWorks = { error: String(e).slice(0, 300) }; }
       for (const [kind, activated] of kinds) {
         const label = kind + (activated ? ' (user click)' : ' (no user activation)');
         const tag = `nav-${vname}-${kind}${activated ? '-act' : ''}`;
@@ -371,12 +418,12 @@ function medianOf(objs) {
         const pagesBefore = new Set(ctx.pages());
         let client;
         try {
-          if (activated) { await t.frame.evaluate(([k, tg]) => window.spike.arm(k, tg), [kind, tag]); await t.frame.click('#act'); await sleep(100); try { client = await t.frame.evaluate(() => window.spike.armedResult); } catch (e) { client = 'frame gone'; } }
+          if (activated) { await t.frame.evaluate(([k, tg]) => window.spike.arm(k, tg), [kind, tag]); await t.frame.click('#act'); await sleep(100); try { client = await t.frame.evaluate(() => window.spike.armedResult); } catch (e) { alive(e); client = 'frame gone'; } }
           else client = await t.frame.evaluate(([k, tg]) => window.spike.navAction(k, tg), [kind, tag]);
-        } catch (e) { client = 'evaluate failed: ' + String(e).slice(0, 120); }
+        } catch (e) { alive(e); client = 'evaluate failed: ' + String(e).slice(0, 120); }
         const h = await hits(tag, 800);
         const popups = ctx.pages().filter((p) => !pagesBefore.has(p));
-        let frameUrl = null; try { frameUrl = t.page.frames().find((fr) => fr !== t.page.mainFrame()).url(); } catch (e) { /* */ }
+        let frameUrl = null; try { frameUrl = t.page.frames().find((fr) => fr !== t.page.mainFrame()).url(); } catch (e) { alive(e); }
         o[label] = { reachedAttacker: h.reached.length > 0, clientSideOutcome: client, topPageUrlAfter: t.page.url(), kernelFrameUrlAfter: frameUrl, popupsOpened: popups.length };
         for (const p of popups) await p.close().catch(() => {});
         await t.page.close().catch(() => {});
@@ -399,7 +446,7 @@ function medianOf(objs) {
             await t.frame.evaluate(() => window.spike.registerSW());
             await t.frame.evaluate(() => window.spike.connectPreview({ useSqlite: false }));
             client = (await t.frame.evaluate(([i, k]) => window.spike.openPreview(i, 'nav.html?kind=' + k, { kind: 'nav', keep: true, timeout: 5000 }), [id, kind])).r;
-          } catch (e) { client = 'failed: ' + String(e).slice(0, 160); }
+          } catch (e) { alive(e); client = 'failed: ' + String(e).slice(0, 160); }
           const h = await hits('preview-' + id, 800);
           const popups = ctx.pages().filter((p) => !pagesBefore.has(p));
           pv[`${vname} / preview ${idBase.replace('mc-', '').replace('-nav', '').replace('nav', 'sw-adds-csp')} / ${kind}`] = { reachedAttacker: h.reached.length > 0, clientSideOutcome: client, topPageUrlAfter: t.page.url(), popupsOpened: popups.length };
@@ -449,13 +496,13 @@ function medianOf(objs) {
       try {
         const init = await call(t.frame, 'sqliteInit', { poolName: 'fn-check' });
         o.sqliteInit = init.poolError || (init.sqliteVersion ? 'ok' : JSON.stringify(init).slice(0, 200));
-      } catch (e) { o.sqliteInit = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
+      } catch (e) { alive(e); o.sqliteInit = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
       try {
         await t.frame.evaluate(() => window.spike.registerSW());
         await t.frame.evaluate(() => window.spike.connectPreview({ useSqlite: false }));
         const p = await t.frame.evaluate(() => window.spike.openPreview('mc-min', 'index.html', { timeout: 8000 }));
         o.swPreview = p.first ? 'ok' : JSON.stringify(p).slice(0, 200);
-      } catch (e) { o.swPreview = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
+      } catch (e) { alive(e); o.swPreview = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
       await t.page.close();
       return o;
     };
@@ -471,7 +518,7 @@ function medianOf(objs) {
     return out;
   });
 
-  await ctx.close();
+  if (ctxAlive) await ctx.close();
 
   // ------------------------------------------------------------------ extra: user blocks third-party cookies
   await section('extra_thirdPartyCookiesBlocked', async () => {
@@ -486,12 +533,12 @@ function medianOf(objs) {
         o.thirdPartyCookieWritable = await t.frame.evaluate(() => { document.cookie = 'probe=1; SameSite=None; Secure; Path=/'; return document.cookie.includes('probe=1'); });
         const d = await t.frame.evaluate(() => window.spike.docEnv());
         o.docEnv = { cookieEnabled: d.cookieEnabled, hasStorageAccess: d.hasStorageAccess, ownOpfsEntries: d.ownOpfsEntries, ownIndexedDBDatabases: d.ownIndexedDBDatabases, ownLocalStorageKeys: d.ownLocalStorageKeys, storageEstimate: d.storageEstimate };
-        try { const init = await call(t.frame, 'sqliteInit'); o.sqliteSahPool = init.poolError || 'ok'; } catch (e) { o.sqliteSahPool = 'FAILED: ' + String(e.message).split('\n')[0]; }
-        try { o.rawSyncAccessHandle = await call(t.frame, 'holdHandle'); } catch (e) { o.rawSyncAccessHandle = 'FAILED: ' + String(e.message).split('\n')[0]; }
-        try { o.serviceWorker = await t.frame.evaluate(() => window.spike.registerSW()); } catch (e) { o.serviceWorker = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
-        try { o.webLocks = await t.frame.evaluate(() => window.spike.elect()); } catch (e) { o.webLocks = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
-        try { o.broadcastChannel = await t.frame.evaluate(() => { new BroadcastChannel('x').close(); return 'constructible'; }); } catch (e) { o.broadcastChannel = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
-      } catch (e) { o.error = String(e).slice(0, 400); }
+        try { const init = await call(t.frame, 'sqliteInit'); o.sqliteSahPool = init.poolError || 'ok'; } catch (e) { alive(e); o.sqliteSahPool = 'FAILED: ' + String(e.message).split('\n')[0]; }
+        try { o.rawSyncAccessHandle = await call(t.frame, 'holdHandle'); } catch (e) { alive(e); o.rawSyncAccessHandle = 'FAILED: ' + String(e.message).split('\n')[0]; }
+        try { o.serviceWorker = await t.frame.evaluate(() => window.spike.registerSW()); } catch (e) { alive(e); o.serviceWorker = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
+        try { o.webLocks = await t.frame.evaluate(() => window.spike.elect()); } catch (e) { alive(e); o.webLocks = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
+        try { o.broadcastChannel = await t.frame.evaluate(() => { new BroadcastChannel('x').close(); return 'constructible'; }); } catch (e) { alive(e); o.broadcastChannel = 'FAILED: ' + String(e.message).split('\n')[0].slice(0, 200); }
+      } catch (e) { alive(e); o.error = String(e).slice(0, 400); }
       await c.close();
       fs.rmSync(dir, { recursive: true, force: true });
     };
@@ -501,6 +548,7 @@ function medianOf(objs) {
     return out;
   });
 
+  R.meta.browserKilledExternallyRetries = browserKills;
   R.consoleNotes = [...new Set(consoleNotes)].slice(0, 120);
   await srv.close();
   fs.rmSync(profileDir, { recursive: true, force: true });

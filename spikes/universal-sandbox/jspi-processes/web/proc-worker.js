@@ -4,6 +4,11 @@
 const enc = new TextEncoder();
 
 self.onmessage = async ({ data }) => {
+  if (data.type === 'echo') {
+    // baseline for the benchmark: plain JS message echo, no wasm, no JSPI
+    data.port.onmessage = (ev) => data.port.postMessage(ev.data);
+    return;
+  }
   if (data.type !== 'run') return;
   const { module, args, env, port } = data;
   let pending = null;

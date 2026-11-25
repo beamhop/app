@@ -42,7 +42,7 @@ exports.numericGlobals = {
   setup() { return {}; },
   run() {
     let acc = 0;
-    for (let i = 0; i < 6000000; i++) {
+    for (let i = 0; i < 2000000; i++) {
       acc = (acc + Math.imul(i, 31) + Math.floor(Math.sqrt(i)) + (Number.isInteger(acc) ? 1 : 0)) | 0;
       if (Array.isArray(acc)) acc = 0;
     }

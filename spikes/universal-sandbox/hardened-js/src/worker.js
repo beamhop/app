@@ -77,8 +77,8 @@ const commands = {
 
   // ---- compatibility ------------------------------------------------------------------
   compatList() { return guest().require('/app/compat.js').list; },
-  async compat({ test, profile, alwaysEvade }) {
-    const g = guest({ profile, alwaysEvade });
+  async compat({ test, profile, alwaysEvade, noEvade }) {
+    const g = guest({ profile, alwaysEvade, noEvade });
     const t0 = performance.now();
     try {
       const detail = await g.require('/app/compat.js').run(test);
@@ -222,9 +222,7 @@ const commands = {
   },
 
   // ---- ESM experiments ------------------------------------------------------------------------
-  esmCandidates() {
-    // all ESM source files of a few ESM-only packages
-    const pkgs = ['chalk', 'uuid', 'marked', 'nanoid', 'commander', 'chai', 'zod'];
+  esmCandidates({ pkgs }) {
     const out = {};
     for (const [file] of vfs.cjs) { const m = /^\/node_modules\/([^/]+)\//.exec(file); if (m && pkgs.includes(m[1])) (out[m[1]] = out[m[1]] || []).push(file); }
     return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { files: v.length, bytes: v.reduce((a, f) => a + vfs.internal.read(f).length, 0) }]));
