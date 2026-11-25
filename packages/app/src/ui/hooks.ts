@@ -17,6 +17,8 @@ export function useMedia(q: string) {
   return m
 }
 export const useDesktop = () => useMedia('(min-width: 900px)')
+/** Enter sends on devices with a mouse or trackpad (so a physical keyboard), whatever the window width. */
+export const useEnterSends = () => useMedia('(any-hover: hover) and (any-pointer: fine)')
 
 export function useHash() {
   const [h, setH] = useState(location.hash)

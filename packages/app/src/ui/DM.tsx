@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useDesktop, useStore, go } from './hooks'
+import { useDesktop, useEnterSends, useStore, go } from './hooks'
 import { Avatar, TopBar, clock } from './components'
 import { Icon } from './icons'
 import { Markdown } from './Markdown'
@@ -9,6 +9,7 @@ export function DMScreen({ identity, peer }: { identity: string; peer: string })
   const s = useStore()
   const c = s.client
   const desktop = useDesktop()
+  const enterSends = useEnterSends()
   // A DM with my agent is stored under the agent's identity; show it from my side.
   const agent = s.agentByPk(identity) ?? s.agentByPk(peer)
   const me = s.pk
@@ -100,7 +101,7 @@ export function DMScreen({ identity, peer }: { identity: string; peer: string })
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && desktop) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && enterSends) {
                   e.preventDefault()
                   send()
                 }

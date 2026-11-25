@@ -38,3 +38,29 @@ test('a message typed while an edit awaits slow relays is sent as a new message'
   await expect(page.locator('.msg').getByText('fixed message')).toBeVisible()
   await expect(page.locator('.msg').filter({ hasText: 'a new message' }).getByText('(edited)')).toHaveCount(0)
 })
+
+test('Enter sends in a narrow desktop window, and adds a line on a phone', async ({ browser }) => {
+  for (const [opts, sends] of [
+    [{ viewport: { width: 600, height: 800 } }, true],
+    [{ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, false],
+  ] as const) {
+    const ctx = await browser.newContext(opts)
+    const page = await ctx.newPage()
+    await page.goto(`./?relay=${encodeURIComponent(RELAY)}#/`)
+    await page.getByRole('button', { name: 'Hop a Room' }).click()
+    await page.getByPlaceholder('Your name').fill('Solo')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByText('Invite your crew.')).toBeVisible()
+    await page.keyboard.press('Escape')
+    const box = page.getByPlaceholder('Message')
+    await box.fill('hello')
+    await box.press('Enter')
+    if (sends) {
+      await expect(box).toHaveValue('')
+      await expect(page.locator('.msg').getByText('hello')).toBeVisible()
+    } else {
+      await expect(box).toHaveValue('hello\n')
+    }
+    await ctx.close()
+  }
+})

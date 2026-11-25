@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { downloadDecrypted, uploadEncrypted, isAdmin, type Decoded, type FileRef, type RoomState } from '@beamhop/shared'
-import { useDesktop, useMedia, useStore, go, copyText } from './hooks'
+import { useDesktop, useEnterSends, useMedia, useStore, go, copyText } from './hooks'
 import { Avatar, RoomAvatar, Sheet, clock } from './components'
 import { Icon } from './icons'
 import { Markdown, type MentionName } from './Markdown'
@@ -753,7 +753,7 @@ function Composer({
 }) {
   const s = useStore()
   const c = s.client
-  const desktop = useDesktop()
+  const enterSends = useEnterSends()
   const draftKey = 'bh-draft-' + roomId
   const [text, setText] = useState(() => localStorage.getItem(draftKey) ?? '')
   const textRef = useRef(text)
@@ -952,7 +952,7 @@ function Composer({
                 return
               }
             }
-            if (e.key === 'Enter' && !e.shiftKey && desktop) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && enterSends) {
               e.preventDefault()
               send()
             }
