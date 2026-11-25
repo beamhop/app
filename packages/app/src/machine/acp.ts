@@ -31,6 +31,8 @@ export class HarnessAgent {
     readonly agentId: string,
     readonly harness: HarnessId,
     private env: Record<string, string>,
+    /** Model id to select in each new session; empty keeps the harness's default. */
+    private model = '',
   ) {
     this.ready = this.start()
     this.ready.catch(() => {})
@@ -119,6 +121,7 @@ export class HarnessAgent {
     if (!s) {
       t.onStatus('Starting…')
       s = await this.ctx.buildSession(machine.workDir(this.agentId)).start()
+      if (this.model) await this.selectModel(s, this.model)
       this.sessions.set(t.session, s)
     }
     this.turnAllow = t.allowTools
@@ -140,6 +143,25 @@ export class HarnessAgent {
     return text
   }
 
+  /** The models this harness offers, from a throwaway session. */
+  async listModels(): Promise<HarnessModel[]> {
+    await this.ready
+    if (this.stopped) throw new Error(this.stopped)
+    const s = await this.ctx.buildSession(machine.workDir(this.agentId)).start()
+    try {
+      return sessionModels(s.newSessionResponse).list
+    } finally {
+      s.dispose?.()
+    }
+  }
+
+  private async selectModel(s: any, id: string) {
+    const m = sessionModels(s.newSessionResponse)
+    if (m.current === id || !m.list.some((x) => x.id === id)) return
+    if (m.configId) await this.ctx.request('session/set_config_option', { sessionId: s.sessionId, configId: m.configId, value: id })
+    else await this.ctx.request('session/set_model', { sessionId: s.sessionId, modelId: id })
+  }
+
   close() {
     this.stopped ||= 'closed'
     this.closeConn?.()
@@ -150,4 +172,22 @@ export class HarnessAgent {
   hasSession(key: string) {
     return this.sessions.has(key)
   }
+}
+
+export interface HarnessModel {
+  id: string
+  name?: string
+  description?: string
+}
+
+/** Models from a `session/new` response: the `model` config option, or the older `models` field. */
+function sessionModels(r: any): { list: HarnessModel[]; current?: string; configId?: string } {
+  const opt = (r?.configOptions ?? []).find((o: any) => o.category === 'model' && o.type === 'select')
+  if (opt) {
+    const flat = (opt.options ?? []).flatMap((o: any) => (Array.isArray(o.options) ? o.options : [o]))
+    return { list: flat.map((o: any) => ({ id: o.value, name: o.name, description: o.description ?? undefined })), current: opt.currentValue, configId: opt.id }
+  }
+  const m = r?.models
+  if (m?.availableModels) return { list: m.availableModels.map((x: any) => ({ id: x.modelId, name: x.name, description: x.description ?? undefined })), current: m.currentModelId }
+  return { list: [] }
 }

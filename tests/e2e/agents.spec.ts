@@ -50,7 +50,8 @@ test('agent answers mentions it missed while offline, and runs Python', async ({
   await alice.getByRole('button', { name: /Other \(OpenAI-compatible\)/ }).click()
   await alice.getByPlaceholder('https://my-server.example/v1').fill('http://localhost:7790/v1')
   await alice.locator('.card').getByRole('button', { name: 'Save' }).click()
-  await alice.getByPlaceholder('model id').fill('mock-model')
+  await alice.getByLabel('Search models').fill('mock-model')
+  await alice.getByLabel('Search models').press('Enter')
   await alice.getByRole('button', { name: 'Create & add' }).click()
   await expect(bob.locator('.system-line').getByText(/Helper joined/)).toBeVisible({ timeout: 15000 })
 

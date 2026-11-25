@@ -5,8 +5,8 @@ import type { Store } from '../core/store'
 import type { AgentDef, Usage } from '../core/types'
 import { kv } from '../core/kv'
 import { canRun, fxProviderOptions } from './providers'
-import { HARNESSES } from '@beamhop/shared'
-import { HarnessAgent } from '../machine/acp'
+import { HARNESSES, type HarnessId } from '@beamhop/shared'
+import { HarnessAgent, type HarnessModel } from '../machine/acp'
 import { machine, machineSupported } from '../machine/machine'
 import { makeTools } from './tools'
 
@@ -119,10 +119,28 @@ export class AgentRunner {
     return h
   }
 
+  /** Starts `harness` in the machine just long enough to ask which models it offers. */
+  async listHarnessModels(harness: HarnessId, customCommand = ''): Promise<HarnessModel[]> {
+    const sup = machineSupported()
+    if (!sup.ok) throw new Error(sup.why)
+    await machine.ensure()
+    if (harness === 'custom') await machine.writeFile('/root/.beamhop/custom-agent', `#!/bin/sh\n${customCommand}\n`)
+    const env: Record<string, string> = {}
+    const k = HARNESSES[harness].keyEnv
+    const key = k ? await machine.harnessKey(harness) : ''
+    if (k && key) env[k.name] = key
+    const a = new HarnessAgent('models-' + harness, harness, env)
+    try {
+      return await a.listModels()
+    } finally {
+      a.close()
+    }
+  }
+
   private async harnessFor(def: AgentDef): Promise<HarnessAgent> {
     const harness = def.harness ?? 'claude'
     const key = HARNESSES[harness].keyEnv ? await machine.harnessKey(harness) : ''
-    const sig = JSON.stringify([harness, key, def.customCommand ?? ''])
+    const sig = JSON.stringify([harness, key, def.customCommand ?? '', def.model ?? ''])
     const cur = this.harnesses.get(def.id)
     if (cur && cur.sig === sig && cur.agent.alive) return cur.agent
     cur?.agent.close()
@@ -130,7 +148,7 @@ export class AgentRunner {
     const env: Record<string, string> = {}
     const k = HARNESSES[harness].keyEnv
     if (k && key) env[k.name] = key
-    const agent = new HarnessAgent(def.id, harness, env)
+    const agent = new HarnessAgent(def.id, harness, env, def.model ?? '')
     this.harnesses.set(def.id, { agent, sig })
     await agent.init()
     return agent

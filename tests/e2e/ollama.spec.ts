@@ -78,7 +78,8 @@ test('Ollama: with the Companion extension, a server that refuses the page is re
 
     // The agent's own model calls go the same way.
     await page.locator('.field input').first().fill('Llama')
-    await page.getByPlaceholder('model id').fill('mock-model')
+    await page.getByLabel('Search models').fill('mock-model')
+    await page.getByLabel('Search models').press('Enter')
     await page.getByRole('button', { name: 'Create & add' }).click()
     await expect(page.locator('.system-line').getByText('Llama joined as your agent')).toBeVisible({ timeout: 15_000 })
     await page.getByPlaceholder('Message').fill('@Llama hello through the extension')

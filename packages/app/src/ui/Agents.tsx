@@ -13,6 +13,8 @@ import type { Usage } from '../core/types'
 import { ExtensionHelp } from './Settings'
 import { testLocalServer } from '../agents/localServer'
 import { AgentMachineCard, HarnessSetup } from './Machine'
+import { ModelPicker, type ModelOption } from './ModelPicker'
+import { machine } from '../machine/machine'
 import { appBase, bridgeCommand } from './Invite'
 import { CopyBox } from './components'
 import { copyText } from './hooks'
@@ -96,6 +98,10 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
   const [perHour, setPerHour] = useState(existing?.caps.perHour ?? DEFAULT_CAPS.perHour)
   const [maxHops, setMaxHops] = useState(existing?.caps.maxHops ?? DEFAULT_CAPS.maxHops)
   const [models, setModels] = useState<string[]>(providerInfo(provider).models)
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [harnessModel, setHarnessModel] = useState(existing?.runtime === 'machine' ? existing.model : '')
+  const [harnessModels, setHarnessModels] = useState<{ harness: HarnessId; list: ModelOption[] } | null>(null)
+  const [harnessModelsState, setHarnessModelsState] = useState<{ loading?: boolean; error?: string }>({})
   const [usage, setUsage] = useState<Usage | null>(null)
   const [credsTick, setCredsTick] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -104,11 +110,28 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
   useEffect(() => {
     let live = true
     setModels(providerInfo(provider).models)
-    listModels(provider).then((l) => live && l.length && setModels(l))
+    setModelsLoading(true)
+    listModels(provider)
+      .then((l) => live && l.length && setModels(l))
+      .finally(() => live && setModelsLoading(false))
     return () => {
       live = false
     }
   }, [provider, credsTick])
+  const loadHarnessModels = async (h: HarnessId) => {
+    setHarnessModelsState({ loading: true })
+    try {
+      const list = await s.runner.listHarnessModels(h, customCommand.trim())
+      setHarnessModels({ harness: h, list })
+      setHarnessModelsState(list.length ? {} : { error: `${HARNESSES[h].label} didn’t list any models. Sign in first, or type a model id.` })
+    } catch (e: any) {
+      setHarnessModelsState({ error: e?.message ?? String(e) })
+    }
+  }
+  // List the harness's models once the machine is up; booting it is left to the button.
+  useEffect(() => {
+    if (runtime === 'machine' && machine.state === 'ready' && harnessModels?.harness !== harness) loadHarnessModels(harness)
+  }, [runtime, harness])
   useEffect(() => {
     if (existing) kv.get<Usage>('usage:' + existing.id).then((u) => setUsage(u ?? null))
   }, [existing])
@@ -138,7 +161,7 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
         harness: runtime === 'machine' ? harness : undefined,
         customCommand: runtime === 'machine' && harness === 'custom' ? customCommand.trim() : undefined,
         provider,
-        model: runtime === 'machine' ? (existing?.model ?? '') : model.trim(),
+        model: runtime === 'machine' ? harnessModel.trim() : model.trim(),
         instructions,
         tools: { web, sandbox },
         mode,
@@ -156,7 +179,7 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
           const others = { ...st!, agents: Object.fromEntries(Object.entries(st!.agents).filter(([pk]) => pk !== existing.pk)) }
           // only when the user actually renamed it; a room may have given it a numbered name
           const name = patch.name === existing.name ? undefined : uniqueName(others, patch.name)
-          const roomModel = runtime === 'machine' ? HARNESSES[harness].label : patch.model
+          const roomModel = runtime === 'machine' ? HARNESSES[harness].label + (patch.model ? ` · ${patch.model}` : '') : patch.model
           await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: roomModel, ...(name ? { name } : {}) }).catch(() => {})
         }
         s.toast('Saved')
@@ -227,7 +250,14 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
               <div className="section-title">Agent</div>
               <div className="provider-grid" style={{ marginBottom: 10 }}>
                 {HARNESS_ORDER.map((hid) => (
-                  <button key={hid} className={`provider ${harness === hid ? 'on' : ''}`} onClick={() => setHarness(hid)}>
+                  <button
+                    key={hid}
+                    className={`provider ${harness === hid ? 'on' : ''}`}
+                    onClick={() => {
+                      if (hid !== harness) setHarnessModel('')
+                      setHarness(hid)
+                    }}
+                  >
                     <div className="t">{HARNESSES[hid].label}</div>
                     <div className="d">{HARNESSES[hid].blurb}</div>
                   </button>
@@ -244,6 +274,44 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
           )}
 
           {runtime === 'machine' && <HarnessSetup harness={harness} customCommand={customCommand} key={harness} />}
+          {runtime === 'machine' && (
+            <div className="field">
+              <label>Model</label>
+              {harnessModels?.harness === harness || harnessModelsState.loading ? (
+                <ModelPicker
+                  models={harnessModels?.harness === harness ? harnessModels.list : []}
+                  value={harnessModel}
+                  onChange={setHarnessModel}
+                  loading={harnessModelsState.loading}
+                  error={harnessModelsState.error}
+                  allowDefault
+                  emptyLabel={`${HARNESSES[harness].label}’s default`}
+                />
+              ) : (
+                <>
+                  <div className="hint">
+                    {harnessModel ? (
+                      <>
+                        Selected: <span className="mono">{harnessModel}</span>.{' '}
+                      </>
+                    ) : (
+                      <>Uses {HARNESSES[harness].label}’s default model. </>
+                    )}
+                    Sign in to {HARNESSES[harness].label} above, then list the models your plan offers.
+                  </div>
+                  {harnessModelsState.error && <div className="hint">{harnessModelsState.error}</div>}
+                  <button className="btn small" type="button" onClick={() => loadHarnessModels(harness)}>
+                    {machine.state === 'ready' ? 'List models' : 'Start the machine and list models'}
+                  </button>
+                </>
+              )}
+              {harnessModels?.harness === harness && !harnessModelsState.loading && (
+                <button className="btn small" type="button" style={{ alignSelf: 'flex-start' }} onClick={() => loadHarnessModels(harness)}>
+                  Refresh models
+                </button>
+              )}
+            </div>
+          )}
           {runtime === 'machine' && existing?.runtime === 'machine' && <AgentMachineCard def={existing} />}
 
           {runtime === 'computer' && <BridgeCommand roomId={roomId} harness={harness} customCommand={customCommand} />}
@@ -276,12 +344,14 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
 
           <div className="field">
             <label>Model</label>
-            <input className="input" list="bh-models" value={model} onChange={(e) => setModel(e.target.value)} placeholder={provider === 'gateway' ? 'Default model' : 'model id'} />
-            <datalist id="bh-models">
-              {models.slice(0, 300).map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+            <ModelPicker
+              key={provider}
+              models={models.map((id) => ({ id }))}
+              value={model}
+              onChange={setModel}
+              loading={modelsLoading}
+              allowDefault={provider === 'gateway'}
+            />
           </div>
 
           </>

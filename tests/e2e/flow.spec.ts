@@ -43,7 +43,8 @@ test('create room, invite, lobby, admit, chat, browser agent replies', async ({ 
   await alice.getByRole('button', { name: /Other \(OpenAI-compatible\)/ }).click()
   await alice.getByPlaceholder('https://my-server.example/v1').fill('http://localhost:7790/v1')
   await alice.locator('.card').getByRole('button', { name: 'Save' }).click()
-  await alice.getByPlaceholder('model id').fill('mock-model')
+  await alice.getByLabel('Search models').fill('mock-model')
+  await alice.getByLabel('Search models').press('Enter')
   await alice.getByRole('button', { name: 'Create & add' }).click()
   await expect(alice.locator('.system-line').getByText('Echo joined as your agent')).toBeVisible({ timeout: 15000 })
 
