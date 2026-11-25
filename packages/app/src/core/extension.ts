@@ -145,3 +145,5 @@ export function extCaptureRedirect(url: string, redirectPrefix: string): Promise
 
 /** Fetch with the extension when it's there, otherwise directly. */
 export const smartFetch = (input: string, init: RequestInit = {}) => (extensionVersion() ? extFetch(input, init) : fetch(input, init))
+
+;(globalThis as any).__beamhopExt = { extFetch, detectExtension, extensionVersion }

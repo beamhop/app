@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 const RELAY = 'ws://localhost:7777'
-const open = (p: Page, hash = '') => p.goto(`/?relay=${encodeURIComponent(RELAY)}#/${hash}`)
+const open = (p: Page, hash = '') => p.goto(`./?relay=${encodeURIComponent(RELAY)}#/${hash}`)
 
 test('create room, invite, lobby, admit, chat, browser agent replies', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -18,7 +18,7 @@ test('create room, invite, lobby, admit, chat, browser agent replies', async ({ 
   expect(link).toContain('#/join/')
 
   // Bob opens the invite
-  await bob.goto(link.replace(/^https?:\/\/[^/]+\/(\?[^#]*)?/, `/?relay=${encodeURIComponent(RELAY)}`))
+  await bob.goto(link.replace(/^https?:\/\/[^/]+\/(app\/)?(\?[^#]*)?/, `./?relay=${encodeURIComponent(RELAY)}`))
   await expect(bob.getByText('You’re invited to')).toBeVisible()
   await bob.getByPlaceholder('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Ask to join' }).click()
@@ -38,7 +38,7 @@ test('create room, invite, lobby, admit, chat, browser agent replies', async ({ 
   // Alice creates a browser agent on a local OpenAI-compatible server and adds it to the room
   const roomUrl = alice.url()
   const roomId = roomUrl.match(/#\/r\/([0-9a-f]+)/)![1]
-  await alice.goto(`/?relay=${encodeURIComponent(RELAY)}#/agents/new/${roomId}`)
+  await alice.goto(`./?relay=${encodeURIComponent(RELAY)}#/agents/new/${roomId}`)
   await alice.locator('.field input').first().fill('Echo')
   await alice.getByRole('button', { name: /Other \(OpenAI-compatible\)/ }).click()
   await alice.getByPlaceholder('https://my-server.example/v1').fill('http://localhost:7790/v1')

@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "npm run dev -w @beamhop/app",
     "build": "npm run build -w @beamhop/app && npm run build -w @beamhop/extension && npm run build -w @beamhop/bridge",
+    "dist": "npm run build && node tools/assemble-dist.mjs",
     "typecheck": "tsc -p packages/shared && tsc -p packages/app && tsc -p packages/bridge",
     "test": "vitest run",
     "e2e": "playwright test --trace off",

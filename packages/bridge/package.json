@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "build": "node build.mjs" },
-  "dependencies": {
-    "@beamhop/shared": "*",
-    "nostr-tools": "2.26.1",
-    "@modelcontextprotocol/sdk": "1.32.2",
-    "@agentclientprotocol/sdk": "2.12.0"
+  "scripts": {
+    "build": "node build.mjs"
   },
-  "devDependencies": { "esbuild": "0.28.2", "@types/node": "^22" }
+  "dependencies": {
+    "@agentclientprotocol/sdk": "2.12.0",
+    "@beamhop/shared": "*",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "nostr-tools": "2.26.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "esbuild": "0.28.2"
+  }
 }
