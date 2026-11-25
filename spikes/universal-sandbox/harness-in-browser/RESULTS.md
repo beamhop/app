@@ -196,8 +196,9 @@ The worker never contacts the mock directly; the mock sends no CORS headers.
 pi does not use `fetch`, so plain mode also needed a socket-level bridge: `net.Socket` (and `tls.connect`)
 parses the HTTP/1.1 request the harness writes, replays it through the proxy with `fetch`, and feeds a
 synthesized chunked HTTP/1.1 response back into the socket as the body arrives. undici is unaware. Streaming
-is preserved: for pi's final-answer request the socket received 11 body chunks, the first 3.5-5 ms after the
-request and the last about 155 ms later (the mock paces its output at 15 ms per token). Request bodies are
+is preserved: for pi's final-answer request the socket received 11 body chunks, the first 4-5 ms after the
+request was written and the last about 155 ms later (the mock paces its output at 15 ms per token; the end
+time is from the SES run, the plain run's last request ended by cancellation and has no end time). Request bodies are
 buffered, not streamed. The proxy forces `accept-encoding: identity`, because the worker has no brotli
 decoder. The proxy sees plaintext.
 
@@ -210,8 +211,16 @@ of my own over the same socket (4 connections each). All three harnesses pass th
 Only plain TCP to the mock is proven. `tls.connect` in tunnel mode fails with an explicit error. Real use
 needs TLS inside the worker; I would try a WebCrypto-based TLS 1.3 client such as `subtls` first (small, no
 wasm) and rustls compiled to wasm as the fallback. Neither was built or tested. TCP half-close is not
-expressible over a WebSocket. Neither proxy has an allow-list wired up in the spike (both take an `allow`
-callback).
+expressible over a WebSocket. Both proxies are started with an allow-list containing only the mock.
+
+**Disclosure: a real endpoint was contacted during development.** Before the allow-list was added, Claude
+Code 2.1.112, in the runs under SES, sent `GET https://api.anthropic.com/api/claude_code/organizations/metrics_enabled`
+through the CORS proxy (its own background check, despite `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`); it
+carried the dummy key `mock-key` and was answered 401. I estimate about 15 such requests over the
+development and measurement runs. No model request left the machine. With the allow-list the proxy refuses
+it (recorded in `results.json` as `destinationsDeniedByProxy`), and the results in this file are from a run
+with the allow-list in place. A real system needs destination policy in the proxy from the start: harnesses
+phone home on their own.
 
 ## Hardened JS (ses 2.3.0)
 
@@ -245,11 +254,11 @@ Slowdown, medians of 5 (plain to SES):
 
 | | pi | gemini | claude (turn fails under SES; timings for reference) |
 |---|---|---|---|
-| Module evaluation, ms | 82 to 107 (1.3x) | 274 to 344 (1.3x) | 293 to 384 (1.3x) |
-| Time to first output, ms | 513 to 594 (1.2x) | 1063 to 1248 (1.2x) | 1552 to 1849 (1.2x) |
-| Full turn, ms | 965 to 1060 (1.1x) | 1575 to 1743 (1.1x) | 1567 to 1884 (1.2x) |
-| Peak worker JS heap in a turn, MB | 27.9 to 38.2 | 81.7 to 140.8 | 61.5 to 137.6 |
-| `lockdown()` itself, ms | 48 | 54 | 33 |
+| Module evaluation, ms | 87 to 113 (1.3x) | 251 to 347 (1.4x) | 295 to 408 (1.4x) |
+| Time to first output, ms | 571 to 638 (1.1x) | 1075 to 1177 (1.1x) | 1544 to 1843 (1.2x) |
+| Full turn, ms | 1040 to 1109 (1.1x) | 1573 to 1657 (1.1x) | 1567 to 1855 (1.2x) |
+| Peak worker JS heap in a turn, MB | 27.2 to 39.1 | 81.8 to 140.7 | 61.7 to 124.3 |
+| `lockdown()` itself, ms | 41 | 36 | 51 |
 
 These turns are dominated by load and by the mock's pacing (about 0.4 s of deliberate token delays per
 turn), so they say little about steady-state compute under SES.
@@ -268,19 +277,19 @@ mounted, harness started. Times are ms since the page asked for the run, medians
 | Image: files / directories | 6 806 / 1 483 | 827 / 104 | 30 / 29 |
 | Image size (of which ESM compile cache) | 77.7 MB (10.3) | 143.9 MB (18.1) | 80.0 MB (13.8) |
 | Image size, gzip (what the worker downloads) | 18.3 MB | 30.0 MB | 30.6 MB |
-| Image fetch + gunzip, localhost | 181 | 300 | 244 |
-| Image mount | 30 | 6 | 2 |
-| Emulation layer booted | 297 | 399 | 347 |
-| `--version`: first output (cold start to first harness output) | 501 | 991 | 843 |
-| Turn: first output | 513 | 1 063 (stderr), 1 574 (stdout) | 1 552 |
-| Turn: process exit (min-max of 5) | 965 (953-1 014) | 1 575 (1 463-1 714) | 1 567 (1 511-1 646) |
-| Module evaluation inside that | 82 (5.6 MB source) | 274 (17 MB) | 293 (13.1 MB) |
-| Worker JS heap, `--version`, peak used | 21.7 MB | 64.6 MB | 39.2 MB |
-| Worker JS heap, full turn, peak used / total | 27.9 / 37.7 MB | 81.7 / 97.0 MB | 61.5 / 70.5 MB |
-| ArrayBuffer backing store (mostly the mounted image) | 82.6 MB | 155.6 MB | 92.3 MB |
+| Image fetch + gunzip, localhost | 194 | 312 | 246 |
+| Image mount | 32 | 7 | 2 |
+| Emulation layer booted | 313 | 423 | 332 |
+| `--version`: first output (cold start to first harness output) | 525 | 1 021 | 844 |
+| Turn: first output | 571 | 1 075 (stderr), 1 572 (stdout) | 1 544 |
+| Turn: process exit (min-max of 5) | 1 040 (994-1 105) | 1 573 (1 488-1 609) | 1 567 (1 459-1 590) |
+| Module evaluation inside that | 87 (5.6 MB source) | 251 (17 MB) | 295 (13.1 MB) |
+| Worker JS heap, `--version`, peak used | 21.8 MB | 62.5 MB | 39.2 MB |
+| Worker JS heap, full turn, peak used / total | 27.2 / 37.7 MB | 81.8 / 98.8 MB | 61.7 / 69.8 MB |
+| ArrayBuffer backing store (mostly the mounted image) | 82.6 MB | 164.5 MB | 92.3 MB |
 
-Reference: the same pi turn on real Node.js v22.23.5 against the same mock, direct connection, takes 660 ms
-(3 runs: 634-677), so the browser run is about 1.5x that, including the image download.
+Reference: the same pi turn on real Node.js v22.23.5 against the same mock, direct connection, takes 646 ms
+(3 runs: 612-668), so the browser run is about 1.6x that, including the image download.
 
 Heap method: `performance.memory` does not exist in workers and `measureUserAgentSpecificMemory()` is
 undefined without cross-origin isolation, so the driver samples `Runtime.getHeapUsage` on the worker target
@@ -314,7 +323,7 @@ tools. The ones that matter are "run this shell command and give me its output n
 ## Surprises
 
 1. **Three different unmodified harnesses completed a full turn**, and the turn costs about 1-1.6 s cold,
-   within 1.5x of native Node for pi.
+   about 1.6x native Node for pi.
 2. **The current Claude Code is not JavaScript on disk.** Neither are Codex and opencode. Of the five
    harnesses named in the brief, only pi and Gemini CLI currently publish something this approach can run.
 3. **pi brings its own HTTP stack** and replaces `globalThis.fetch`. Shimming `fetch` is not enough; the
@@ -372,9 +381,9 @@ tools. The ones that matter are "run this shell command and give me its output n
 6. **Put the HTTP bridge at the socket layer**, not only at `fetch`, so harnesses with their own HTTP client
    work through a plain proxy; and plan for in-worker TLS if the blind tunnel is to be the default.
 7. **Hardened JS is not free and not turnkey**: a patched SES, hand-picked endowments, one harness that
-   fails in a way I could not resolve, 1.3x module evaluation time and 1.4-2.2x peak heap. If its
+   fails in a way I could not resolve, 1.3-1.4x module evaluation time and 1.4-2.0x peak heap. If its
    purpose is per-process global isolation (several Node programs in one worker), a lighter mechanism may be
    enough; if its purpose is confinement, the endowment surface needs its own review.
-8. **Images are large in memory** (78-144 MB held as one ArrayBuffer, on top of 28-82 MB of JS heap).
+8. **Images are large in memory** (78-144 MB held as one ArrayBuffer, on top of 27-82 MB of JS heap).
    Lazy or chunked loading and dropping unused files (other platforms' binaries, unused chunk generations)
    would matter on small devices; that was not measured here.

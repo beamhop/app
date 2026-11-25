@@ -31,16 +31,18 @@ Settled in the two design interviews. Rows marked *changed* differ from revision
 
 ## The six harnesses
 
-Packaging is from memory and is being checked by the prototype; treat it as unverified.
+Packaging as found on the npm registry by the prototype, November 2026.
 
-| Harness | Kind | Route |
-|---|---|---|
-| pi | JavaScript on Node | Unmodified on the Node layer. First target. |
-| gemini | JavaScript on Node | Unmodified on the Node layer. |
-| claude | JavaScript bundle, with native helpers such as ripgrep | Unmodified on the Node layer; helpers replaced by wasm builds on `PATH`. |
-| fx | Already has a browser build | Runs as a wasm guest. |
-| opencode | Bun-compiled binary using Bun APIs | Run from source on the Node layer with a Bun shim, or a maintained build. |
-| codex | Native Rust binary | A maintained wasm build, or its headless protocol behind a port. Hardest. |
+| Harness | How it is published | Route | Status |
+|---|---|---|---|
+| pi (`@earendil-works/pi-coding-agent`) | JavaScript | Unmodified on the Node layer | Full turn demonstrated |
+| gemini (`@google/gemini-cli`) | JavaScript | Unmodified on the Node layer | Full turn demonstrated |
+| claude (`@anthropic-ai/claude-code`) | Current releases are a launcher for a 402 MB native executable. 2.1.112 is the last JavaScript release. | Open decision: pin the old JavaScript release, or treat as native | 2.1.112 full turn demonstrated; current release cannot run |
+| fx | Has a browser build | Wasm guest | Not prototyped |
+| opencode (`opencode-ai`) | Launcher with per-platform packages (native, by package layout) | Run from source with a Bun shim, or a maintained build | Not prototyped |
+| codex (`@openai/codex`) | Launcher with per-platform packages (native, by package layout) | A maintained wasm build | Not prototyped; hardest |
+
+Native distribution is the main threat to "unmodified": of the five third-party harnesses, only pi and gemini currently publish JavaScript.
 
 ## Architecture
 
@@ -184,6 +186,32 @@ Code and full numbers: `spikes/universal-sandbox/jspi-processes/RESULTS.md`.
 
 Both were cancelled when the design changed. Their partial code is in `spikes/universal-sandbox/` and is unfinished and unreviewed.
 
-### A harness in a tab (running)
+### A harness in a tab (done)
 
-Pending.
+Code, the full list of Node behaviours that had to be matched, and all numbers: `spikes/universal-sandbox/harness-in-browser/RESULTS.md`. Model calls went to a scripted mock server; no real provider was used for a turn.
+
+Unmodified pi 1.6.0, Gemini CLI 0.71.1 and Claude Code 2.1.112 each completed a full agent turn in one worker with no SharedArrayBuffer: write a file with the harness's own tool, run a shell command that reads it back, return a final answer. Each passed 5 of 5 runs through a plain CORS proxy and through a blind WebSocket-to-TCP tunnel.
+
+| | pi | gemini | claude 2.1.112 |
+|---|---|---|---|
+| Image, gzip | 18.3 MB | 30.0 MB | 30.6 MB |
+| Cold start to first output | 525 ms | 1,021 ms | 844 ms |
+| Full turn, cold | 1,040 ms | 1,573 ms | 1,567 ms |
+| Peak JS heap in turn | 27 MB | 82 MB | 62 MB |
+
+The same pi turn on real Node took 646 ms. The mounted image adds 83 to 165 MB as one buffer on top of the heap; storage on disk would remove that.
+
+What this used: a purpose-written Node emulation (almostnode failed on pi's first statements; Nodepod needs SharedArrayBuffer for synchronous behaviour and has a Commons Clause licence), `just-bash` as the shell, and ES modules transformed ahead of time on the build machine.
+
+Findings that change the design:
+
+- **Hardened JS is not viable as the wall.** pi and gemini ran under it only with a patched copy of SES and extra endowments; Claude Code's shell tool fails under every setting tried. The cost was 1.1 to 1.2 times on a turn. Recommendation: plain JavaScript with the browser origin as the wall, one origin per workspace.
+- **Synchronous child processes.** Seen at run time only in Claude Code (three harmless `which` probes). A static scan finds 8 call sites in pi and 35 in gemini, mostly probes for optional tools; pi has one synchronous run-a-command helper that matters.
+- **`AsyncLocalStorage`** cannot be implemented correctly in a browser. gemini and claude use it; an approximation passed single-conversation runs and would be wrong under concurrent tool calls.
+- **The HTTP bridge belongs at the socket layer.** pi bypasses `fetch` with its own HTTP client over `net.Socket`.
+- **A harness cannot be killed or pre-empted** while it shares the kernel's thread; `process.exit()` cannot unwind a stack.
+- **Exact Node failure behaviour mattered more than API breadth.**
+- **An in-worker module transformer is required** for anything installed at run time.
+- **The proxy needs a destination policy from the start.** During development, before one was added, Claude Code sent about 15 telemetry-settings requests to `api.anthropic.com` through the proxy with a dummy key (answered 401).
+
+Not attempted: interactive terminal mode, real provider logins, TLS inside the worker, more than one Node process, SQLite storage, phones.
