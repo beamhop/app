@@ -34,6 +34,11 @@ export function boot(config) {
   const timers = process.__timers;
   const util = makeUtil({ Buffer, process });
   const fs = createFs({ vfs, process, stream, EventEmitter, track });
+  const trace = [];
+  if (config.trace) {
+    const wrap = (obj, label) => { for (const k of Object.keys(obj)) { const f = obj[k]; if (typeof f !== 'function' || /^[A-Z]/.test(k)) continue; obj[k] = function (...a) { if (trace.length > 400) trace.splice(0, 200); trace.push(label + k + ' ' + (typeof a[0] === 'string' || typeof a[0] === 'number' ? a[0] : '')); return f.apply(this, a); }; Object.assign(obj[k], f); } };
+    wrap(fs, 'fs.'); wrap(fs.promises, 'fsp.');
+  }
   const netMods = createNet({ EventEmitter, stream, process, track, host, config });
   const cp = createChildProcess({ vfs, fs, EventEmitter, stream, process, track, host, path, util });
   const evaluate = config.evaluate;
@@ -52,7 +57,13 @@ export function boot(config) {
   builtins['readline/promises'] = builtins.readline.promises;
   stream.promises ??= builtins['stream/promises'];
 
-  const loader = createLoader({ vfs, esmCache, builtins, process, evaluate, globalsForModules: {}, track, path });
+  if (config.trace) {
+    const wrap = (obj, label) => { for (const k of Object.keys(obj)) { let f; try { f = obj[k]; } catch { continue; } if (typeof f !== 'function' || /^[A-Z]/.test(k)) continue; try { obj[k] = function (...a) { if (trace.length > 400) trace.splice(0, 200); trace.push(label + k + ' ' + (typeof a[0] === 'string' || typeof a[0] === 'number' ? String(a[0]).slice(0, 100) : '')); return f.apply(this, a); }; Object.assign(obj[k], f); } catch {} } };
+    for (const name of ['os', 'child_process', 'readline', 'tty', 'dns', 'net', 'tls', 'http', 'https', 'crypto', 'zlib', 'worker_threads', 'v8', 'vm', 'async_hooks', 'perf_hooks', 'timers']) if (builtins[name]) wrap(builtins[name], name + '.');
+    for (const ev of ['on', 'once', 'resume', 'pause', 'read', 'setEncoding']) { const f = process.stdin[ev]; process.stdin[ev] = function (...a) { trace.push('stdin.' + ev + ' ' + (typeof a[0] === 'string' ? a[0] : '')); return f.apply(this, a); }; }
+    const pon = process.on; process.on = function (...a) { trace.push('process.on ' + String(a[0])); return pon.apply(this, a); };
+  }
+  const loader = createLoader({ vfs, esmCache, builtins, process, evaluate, globalsForModules: {}, track, path, debugPatches: config.debugPatches });
   builtins.module = loader.moduleBuiltin;
   process.__getBuiltin = (id) => loader.getBuiltin(id);
   process.mainModule = undefined;
@@ -72,7 +83,7 @@ export function boot(config) {
   const t = { boot: host.performance.now() };
   return {
     process, fs, vfs, loader, usage, host, installFailures,
-    netLog: netMods.log, cpLog: cp.log,
+    netLog: netMods.log, cpLog: cp.log, trace,
     run(entry) {
       t.runStart = host.performance.now();
       let p;

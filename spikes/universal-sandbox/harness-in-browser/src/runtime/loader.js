@@ -9,7 +9,7 @@ const decoder = new TextDecoder();
 // Identifiers shadowed inside every module so a worker global never leaks into "Node" code.
 const SHADOWED = ['self', 'window', 'document', 'importScripts', 'WorkerGlobalScope', 'DedicatedWorkerGlobalScope', 'location', 'postMessage', 'onmessage', 'close'];
 
-export function createLoader({ vfs, esmCache, builtins, process, evaluate, globalsForModules, track, path }) {
+export function createLoader({ vfs, esmCache, builtins, process, evaluate, globalsForModules, track, path, debugPatches }) {
   const cjsCache = Object.create(null); // filename -> module
   const esmRecords = new Map(); // filename -> record
   const pkgCache = new Map();
@@ -245,7 +245,8 @@ export function createLoader({ vfs, esmCache, builtins, process, evaluate, globa
     const _context = { id: url, meta, import: (spec) => dynamicImportFrom(file)(spec) };
     let declared = false;
     const System = { register(deps, declare) { declared = true; rec.deps = deps; const d = declare(_export, _context); rec.setters = d.setters || []; rec.execute = d.execute || (() => {}); } };
-    const code = decoder.decode(cached);
+    let code = decoder.decode(cached);
+    if (debugPatches) for (const [suffix, from, to] of debugPatches) if (file.endsWith(suffix)) code = code.split(from).join(to); // development aid only; never set by the spike runner
     const fn = timedEval(`(function (System, require, ${wrapperParams}) {${code}\n})`, file);
     // `require` is not defined in ESM; bundles that need it create their own via createRequire.
     fn.call(undefined, System, undefined, ...shadowArgs, ...injectedValues);

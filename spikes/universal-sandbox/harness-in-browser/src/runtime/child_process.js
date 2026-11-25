@@ -92,6 +92,17 @@ export function createChildProcess({ vfs, fs, EventEmitter, stream, process, tra
     child.stdout = mkOut(1); child.stderr = mkOut(2);
     child.stdio = [child.stdin, child.stdout, child.stderr];
     child.spawnfile = command; child.spawnargs = [command, ...args];
+    // Decide ENOENT before 'spawn', as Node does: no 'spawn' event, 'error' then 'close', pid undefined.
+    const baseName = path.basename(command);
+    const envPath = String((options.env || process.env).PATH || '/usr/bin:/bin').split(':');
+    const resolvable = options.shell || SHELLS.has(baseName) || (command.includes('/') ? !!vfs.tryLookup(command.startsWith('/') ? command : path.resolve(options.cwd || process.cwd(), command)) : builtinNames.has(command) || envPath.some((d) => d && vfs.tryLookup(d + '/' + command)));
+    if (!resolvable) {
+      rec.enoent = true; child.pid = undefined;
+      const e = Object.assign(new Error(`spawn ${command} ENOENT`), { code: 'ENOENT', errno: -2, syscall: 'spawn ' + command, path: command, spawnargs: args });
+      process.__ref();
+      host.setTimeout(() => { child.emit('error', e); for (const st of [child.stdin, child.stdout, child.stderr]) if (st) st.destroy(); host.setTimeout(() => { child.emit('close', -2, null); process.__unref(); }, 0); }, 0);
+      return child;
+    }
     const script = toScript(command, args, options);
     process.__ref();
     let started = false;
@@ -114,7 +125,7 @@ export function createChildProcess({ vfs, fs, EventEmitter, stream, process, tra
         rec.enoent = true;
         const e = Object.assign(new Error(`spawn ${command} ENOENT`), { code: 'ENOENT', errno: -2, syscall: 'spawn ' + command, path: command, spawnargs: args });
         child.emit('error', e); child.stdout && child.stdout.push(null); child.stderr && child.stderr.push(null);
-        process.__unref();
+        host.setTimeout(() => { child.emit('close', -2, null); process.__unref(); }, 0);
         return;
       }
       const emitOut = (s, text, parentStream, i) => {

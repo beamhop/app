@@ -87,7 +87,7 @@ async function run(cfg, pageT0) {
     const r = {
       metrics: m, final, exit: m.exit ?? null, liveHandles: rt ? rt.process.__liveHandles() : null,
       loader: rt && { ...rt.loader.stats, evalMs: +rt.loader.stats.evalMs.toFixed(1) }, usage: rt && rt.usage, net: rt && rt.netLog, childProcess: rt && rt.cpLog, installFailures: rt && rt.installFailures, ses: sesInfo,
-      vfsAtEnd: vfs.count(), fsChecks: {}, liveLog: cfg.debugLive && rt ? rt.process.__liveLog : undefined,
+      vfsAtEnd: vfs.count(), fsChecks: {}, trace: rt && cfg.trace ? rt.trace.slice(-cfg.trace) : undefined, liveLog: cfg.debugLive && rt ? rt.process.__liveLog : undefined,
     };
     for (const p of cfg.readBack || []) { const n = vfs.tryLookup(p); r.fsChecks[p] = n && n.kind === 'file' ? new TextDecoder().decode(n.data.subarray(0, 4096)) : n ? '<' + n.kind + '>' : null; }
     if (cfg.listDirs) { r.dirs = {}; for (const d of cfg.listDirs) { try { r.dirs[d] = vfs.readdir(d).map(([n]) => n); } catch { r.dirs[d] = null; } } }
@@ -96,7 +96,7 @@ async function run(cfg, pageT0) {
   self.__report = report;
 
   rt = boot({
-    vfs, esmCache, evaluate, guestGlobal, argv: ['node', cfg.entry, ...(cfg.args || [])], env: { ...cfg.env }, cwd: cfg.cwd, net: cfg.net,
+    vfs, esmCache, evaluate, guestGlobal, trace: cfg.trace, debugPatches: cfg.debugPatches, argv: ['node', cfg.entry, ...(cfg.args || [])], env: { ...cfg.env }, cwd: cfg.cwd, net: cfg.net,
     onStdout: (s) => { if (m.tFirstStdout == null) { m.tFirstStdout = now(); m.heapAtFirstOutput = heap(); } outBuf += s; schedule(); },
     onStderr: (s) => { if (m.tFirstStderr == null) m.tFirstStderr = now(); errBuf += s; schedule(); },
     onExit: (code, reason) => {
@@ -107,6 +107,7 @@ async function run(cfg, pageT0) {
   });
   self.addEventListener('unhandledrejection', (e) => { e.preventDefault(); rt.process.__unhandledRejection(e.reason, e.promise); });
   self.addEventListener('error', (e) => { e.preventDefault(); rt.process.__uncaught(e.error || new Error(e.message)); });
+  if (cfg.keepAlive) rt.process.__ref();
   m.tBooted = now();
   m.heapAfterBoot = heap();
   if (cfg.stdin != null) rt.process.__pushStdin(cfg.stdin);

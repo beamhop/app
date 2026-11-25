@@ -25,7 +25,7 @@ export function scenario(harness, { mockPort, proxyPort, relayPort, variant = 'p
   if (harness === 'gemini') return {
     ...base, entry: ENTRY.gemini,
     args: args || ['-p', PROMPT, '--yolo', '--output-format', 'json'],
-    env: { HOME: '/home/user', PATH: '/usr/local/bin:/usr/bin:/bin', USER: 'user', SHELL: '/bin/bash', LANG: 'C.UTF-8', TERM: 'dumb', GEMINI_API_KEY: 'mock-key', GOOGLE_GEMINI_BASE_URL: mock, GEMINI_CLI_NO_RELAUNCH: 'true', NO_COLOR: '1', GEMINI_TELEMETRY_ENABLED: 'false' },
+    env: { HOME: '/home/user', PATH: '/usr/local/bin:/usr/bin:/bin', USER: 'user', SHELL: '/bin/bash', LANG: 'C.UTF-8', TERM: 'dumb', GEMINI_API_KEY: 'mock-key', GOOGLE_GEMINI_BASE_URL: mock, GEMINI_CLI_NO_RELAUNCH: 'true', GEMINI_CLI_TRUST_WORKSPACE: 'true', NO_COLOR: '1', GEMINI_TELEMETRY_ENABLED: 'false' },
     files: { '/home/user/.gemini/settings.json': JSON.stringify({ security: { auth: { selectedType: 'gemini-api-key' } }, general: { disableAutoUpdate: true, disableUpdateNag: true }, privacy: { usageStatisticsEnabled: false }, telemetry: { enabled: false } }) },
   };
   if (harness === 'claude') return {
