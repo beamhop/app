@@ -7,10 +7,10 @@ export const ENTRY = {
   gemini: '/opt/gemini/node_modules/@google/gemini-cli/bundle/gemini.js',
   claude: '/opt/claude/node_modules/@anthropic-ai/claude-code/cli.js',
 };
-export function scenario(harness, { mockPort, proxyPort, relayPort, variant = 'plain', netMode = 'bridge', args = null, timeoutMs = 60000, lockdownOptions, sesEvaluateOptions }) {
+export function scenario(harness, { mockPort, proxyPort, relayPort, variant = 'plain', netMode = 'bridge', args = null, timeoutMs = 60000, lockdownOptions, sesEvaluateOptions, sesBuild, sesExtraGlobals }) {
   const mock = `http://127.0.0.1:${mockPort}`;
   const base = {
-    variant, timeoutMs, lockdownOptions, sesEvaluateOptions,
+    variant, timeoutMs, lockdownOptions, sesEvaluateOptions, sesBuild, sesExtraGlobals,
     images: [{ url: `${harness}.img` }],
     cwd: '/work',
     net: { mode: netMode, proxyUrl: `http://127.0.0.1:${proxyPort}`, relayUrl: `ws://127.0.0.1:${relayPort}` },

@@ -48,7 +48,9 @@ console.error(`[build] runtime bundle ${(fs.statSync(path.join(web, 'worker.js')
 const HARNESSES = {
   pi: { dir: 'harnesses/pi', mount: '/opt/pi', entries: ['node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'], precompileDirs: ['node_modules/@earendil-works/pi-coding-agent/dist/bundle'] },
   // gemini: the bundle directory holds several generations of 17 MB chunks; only the import closure of the entry is precompiled.
-  gemini: { dir: 'harnesses/gemini', mount: '/opt/gemini', entries: ['node_modules/@google/gemini-cli/bundle/gemini.js'], precompileDirs: [] },
+  gemini: { dir: 'harnesses/gemini', mount: '/opt/gemini', entries: ['node_modules/@google/gemini-cli/bundle/gemini.js'], precompileDirs: [],
+    // reached at run time through import() calls the build-time tracer cannot see (computed specifiers)
+    extraEsm: [/\/bundle\/(tree-sitter|liteRtServerManager)[^/]*\.js$/] },
   // claude: @anthropic-ai/claude-code@latest is a native-binary launcher; 2.1.112 is the last release that shipped cli.js.
   claude: { dir: 'harnesses/claude-js', mount: '/opt/claude', entries: ['node_modules/@anthropic-ai/claude-code/cli.js'], precompileDirs: [] },
 };
@@ -61,7 +63,7 @@ class Pool {
   _next() { while (this.idle.length && this.queue.length) { const w = this.idle.pop(), job = this.queue.shift(), id = ++this.id; this.pending.set(id, job); w.postMessage({ id, code: job.code, filename: job.filename }); } }
   close() { for (const w of this.workers) w.terminate(); }
 }
-const pool = new Pool(4);
+const pool = new Pool(Number(process.env.BABEL_WORKERS || 2)); // 17 MB minified chunks need ~2 GB per Babel worker
 const BABEL_VERSION = JSON.parse(fs.readFileSync(path.join(root, 'node_modules/@babel/core/package.json'), 'utf8')).version;
 async function toSystem(code, filename, stat) {
   const key = crypto.createHash('sha1').update(BABEL_VERSION + '\0v2\0' + code).digest('hex');
@@ -112,6 +114,7 @@ async function buildImage(name, spec) {
   const enqueue = (p) => { if (!done.has(p)) { done.add(p); queue.push(p); } };
   for (const e of spec.entries) enqueue(vfs.realpath(spec.mount + '/' + e));
   for (const d of spec.precompileDirs) for (const f of files) if (f.rel.startsWith('/' + d + '/') && /\.m?js$/.test(f.rel) && isEsmFile(spec.mount + f.rel)) enqueue(spec.mount + f.rel);
+  for (const re of spec.extraEsm || []) for (const f of files) if (re.test(f.rel) && isEsmFile(spec.mount + f.rel)) enqueue(spec.mount + f.rel);
   const active = new Set();
   const handle = async (p) => {
     if (!isEsmFile(p)) return;

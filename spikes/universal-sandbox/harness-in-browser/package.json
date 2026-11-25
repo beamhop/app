@@ -7,7 +7,7 @@
   "scripts": {
     "install:harnesses": "node scripts/install-harnesses.mjs",
     "build": "node scripts/build.mjs",
-    "spike": "node scripts/install-harnesses.mjs && node scripts/build.mjs && node scripts/run.mjs",
+    "spike": "node scripts/install-harnesses.mjs && node scripts/build.mjs && node scripts/scan-sync.mjs && node scripts/run.mjs",
     "spike:run": "node scripts/run.mjs",
     "native": "node scripts/native-baseline.mjs"
   },
