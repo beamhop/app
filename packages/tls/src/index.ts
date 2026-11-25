@@ -153,13 +153,19 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
   // All ciphertext goes through this chain so records reach the transport in the order the
   // engine produced them, whoever triggered them (handshake, write, key update, alert).
   let chain: Promise<void> = Promise.resolve()
+  let inflight = 0
   const send = (): Promise<void> => {
     const out = conn?.take_tls()
     if (!out || out.length === 0) return chain
-    const next = chain.then(() => {
-      if (destroyed) throw failure ?? new TlsError('closed')
-      return transport.write(out)
-    })
+    inflight++
+    const next = chain
+      .then(() => {
+        if (destroyed) throw failure ?? new TlsError('closed')
+        return transport.write(out)
+      })
+      .finally(() => {
+        inflight--
+      })
     chain = next.catch(() => {})
     return next
   }
@@ -219,7 +225,10 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
   let writeDone = false // end() called
   /** Application data that arrived in the same flight as the end of the handshake. */
   let pending: Uint8Array | undefined = conn.take_plain()
+  /** An engine error to report once the plaintext that preceded it has been read. */
+  let deferred: TlsError | undefined
 
+  const asTlsError = (e: unknown): TlsError => (e instanceof TlsError ? e : new TlsError('transport', e instanceof Error ? e.message : String(e), { cause: e }))
   const fail = (err: TlsError) => {
     failure ??= err
     if (!readDone) {
@@ -234,6 +243,8 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
     if (writeDone) void chain.then(destroy)
   }
 
+  // highWaterMark 0: pull runs only while a read is pending, so the transport is read exactly
+  // as fast as the application consumes plaintext.
   const readable = new ReadableStream<Uint8Array>(
     {
       start(c) {
@@ -247,12 +258,14 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
             pending = undefined
             return
           }
-          if (conn?.peer_closed()) return finishRead()
+          if (deferred) return fail(deferred)
+          if (!conn) return
+          if (conn.peer_closed()) return finishRead()
           let res: ReadableStreamReadResult<Uint8Array>
           try {
             res = await rd.read()
           } catch (e) {
-            return fail(new TlsError('transport', e instanceof Error ? e.message : String(e), { cause: e }))
+            return fail(asTlsError(e))
           }
           if (readDone || !conn) return
           if (res.done) {
@@ -261,18 +274,12 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
           }
           const cls = conn.feed(res.value, nowSecs())
           pending = conn.take_plain()
-          send().catch((e) => fail(e instanceof TlsError ? e : new TlsError('transport', String(e), { cause: e })))
           if (cls !== 0) {
-            // Records before the bad one were authenticated: deliver them, then error.
-            const err = engineError(cls, false)
-            if (pending.length > 0) controller.enqueue(pending)
-            pending = undefined
-            failure ??= err
-            // Let the alert go out before tearing down; the next pull reports the error.
-            await chain
-            if (controller.desiredSize !== null && controller.desiredSize > 0) return fail(err)
-            failAfterDrain = err
-            return
+            // Records before the bad one were authenticated: deliver them first, then error.
+            deferred = engineError(cls, false)
+            await send().catch(() => {}) // our alert, best effort
+          } else {
+            send().catch((e) => fail(asTlsError(e)))
           }
         }
       },
@@ -283,58 +290,27 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
     },
     { highWaterMark: 0 },
   )
-  let failAfterDrain: TlsError | undefined
-  // With highWaterMark 0, pull runs once per pending read; wrap it so a deferred error is
-  // reported on the read after the last good chunk.
-  const src = readable
-  const outReadable = failAfterDrainStream()
-  function failAfterDrainStream(): ReadableStream<Uint8Array> {
-    const r = src.getReader()
-    return new ReadableStream<Uint8Array>(
-      {
-        async pull(c) {
-          if (failAfterDrain) {
-            const err = failAfterDrain
-            failAfterDrain = undefined
-            fail(err)
-          }
-          try {
-            const { done, value } = await r.read()
-            if (done) c.close()
-            else c.enqueue(value)
-          } catch (e) {
-            c.error(e)
-          }
-        },
-        cancel(reason) {
-          return r.cancel(reason)
-        },
-      },
-      { highWaterMark: 0 },
-    )
-  }
 
   const socket: TlsSocket = {
-    readable: outReadable,
+    readable,
     alpn,
     protocolVersion,
     cipherSuite,
     async write(bytes) {
-      for (let off = 0; off < bytes.length || off === 0; off += WRITE_CHUNK) {
-        if (!conn || writeDone) throw failure ?? new TlsError('closed')
-        if (!conn.write(bytes.subarray(off, off + WRITE_CHUNK))) throw failure ?? new TlsError('closed')
+      let off = 0
+      do {
+        if (!conn || writeDone || !conn.write(bytes.subarray(off, off + WRITE_CHUNK))) throw failure ?? new TlsError('closed')
         try {
           await send()
         } catch (e) {
-          const err = e instanceof TlsError ? e : new TlsError('transport', e instanceof Error ? e.message : String(e), { cause: e })
-          fail(err)
-          throw failure ?? err
+          fail(asTlsError(e))
+          throw failure
         }
-        if (bytes.length === 0) break
-      }
+        off += WRITE_CHUNK
+      } while (off < bytes.length)
     },
     async end() {
-      if (writeDone) return
+      if (writeDone && !failure) return
       if (!conn) throw failure ?? new TlsError('closed')
       writeDone = true
       conn.send_close_notify()
@@ -342,9 +318,8 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
         await send()
         transport.end()
       } catch (e) {
-        const err = e instanceof TlsError ? e : new TlsError('transport', e instanceof Error ? e.message : String(e), { cause: e })
-        fail(err)
-        throw failure ?? err
+        fail(asTlsError(e))
+        throw failure
       }
       if (readDone) destroy()
     },
@@ -352,13 +327,16 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
       if (destroyed) return
       failure ??= new TlsError('closed')
       if (conn && !writeDone) {
-        // Best effort: hand close_notify to the transport synchronously if nothing is queued.
+        // Best-effort close_notify. send() queues it behind any write still in flight; if the
+        // transport is stalled it is simply dropped when the transport closes.
         writeDone = true
         conn.send_close_notify()
         const out = conn.take_tls()
-        try {
-          void Promise.resolve(transport.write(out)).catch(() => {})
-        } catch {}
+        if (inflight === 0) {
+          try {
+            void Promise.resolve(transport.write(out)).catch(() => {})
+          } catch {}
+        }
       }
       if (!readDone) {
         readDone = true
