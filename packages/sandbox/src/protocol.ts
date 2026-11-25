@@ -15,7 +15,11 @@ export type Bytes = Uint8Array
 // ---------------------------------------------------------------- app → machine requests
 
 export type AppRequest =
-  | { op: 'boot'; workspaceId: string; env?: Record<string, string> }
+  /**
+   * `net` selects how the machine's sockets leave it for this boot: 'tunnel' (raw TCP as `sock.*`, the default),
+   * 'http' (HTTP exchanges as `http.*`; sockets carry HTTP only) or 'none'.
+   */
+  | { op: 'boot'; workspaceId: string; env?: Record<string, string>; net?: 'tunnel' | 'http' | 'none' }
   /** Mount a read-only image (see image.ts) at a path. `source` is a URL the frame may fetch from its own origin, or bytes. */
   | { op: 'mount'; at: string; source: string | ArrayBuffer }
   | { op: 'spawn'; argv: string[]; env?: Record<string, string>; cwd?: string; stdin?: 'pipe' | 'none' }
@@ -69,7 +73,12 @@ export interface NetResults {
   'http.open': { ok: true; status: number; headers: [string, string][] } | { ok: false; code: string; message: string }
 }
 
-/** Either direction, after the matching open succeeded. */
+/**
+ * Either direction. `sock.*` events flow only after the matching `sock.open` succeeded. For HTTP, the machine sends
+ * the request body (when `hasBody`) as `http.body` events followed by one `http.end`, right after the `http.open`
+ * request and before its result; the response body then flows app -> machine after the result. `http.abort` from
+ * the machine cancels the exchange. Response bodies must be delivered decoded (no content-encoding left to undo).
+ */
 export type NetEvent =
   | { ev: 'sock.data'; sid: number; data: Bytes }
   | { ev: 'sock.end'; sid: number }
