@@ -188,7 +188,9 @@ export function createMachine(options: MachineOptions): Machine {
     channel = new Channel(port1, { request: (req) => handleNetRequest(req as NetRequest), event: (event) => handleEvent(event as MachineEvent | NetEvent) })
     iframe.contentWindow!.postMessage({ bh: 'machine-init', v: MACHINE_PROTOCOL, port: port2 } satisfies MachineInit, frameOrigin, [port2])
     lastBeat = performance.now()
+    const late = status === 'unresponsive' // the watchdog gave up on the handshake before the frame had loaded
     status = 'running'
+    if (late) options.watchdog?.onResponsive?.()
     resolveReady()
   }
   addEventListener('message', onWindowMessage)
@@ -303,8 +305,12 @@ export function createMachine(options: MachineOptions): Machine {
       let body: Uint8Array | null = null
       if (req.hasBody) {
         const chunks: Uint8Array[] = []
-        await new Promise<void>((done) => httpBodies.set(rid, { chunks, done }))
+        await new Promise<void>((done) => {
+          httpBodies.set(rid, { chunks, done })
+          abort.signal.addEventListener('abort', () => done(), { once: true })
+        })
         httpBodies.delete(rid)
+        if (abort.signal.aborted) throw new NetFailure('aborted', 'the machine aborted the request')
         body = chunks.length === 1 ? chunks[0] : new Uint8Array(await new Blob(chunks as BlobPart[]).arrayBuffer())
       }
       const res = await options.net.openHttp({ url: req.url, method: req.method, headers: req.headers, body, signal: abort.signal })

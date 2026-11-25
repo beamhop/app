@@ -14,7 +14,7 @@
     "build": "node scripts/build.mjs",
     "build:image": "node scripts/build-image.mjs",
     "typecheck": "tsc -p .",
-    "test": "vitest run --root ../.. packages/sandbox",
+    "test": "BH_TEST_PENDING=1 vitest run --root ../.. packages/sandbox",
     "e2e": "node test/e2e/run.mjs"
   },
   "dependencies": {

@@ -157,7 +157,10 @@ for (let round = 1; round <= repeat; round++) {
       assert.equal(r.pageSab, 'undefined')
       // the frame was served with the documented CSP and without isolation headers, and nothing violated it
       assert.ok(frameHeaders.length >= 3 && frameHeaders.every((h) => h.csp === CSP && !h.coop && !h.coep), 'CSP on every machine-origin response')
-      assert.deepEqual(pageErrors.filter((e) => !/Content Security Policy|ERR_BLOCKED_BY_CSP|status of 502/.test(e)), [])
+      // The worker saw exactly one CSP violation, the probe's deliberate direct fetch; the page saw no errors
+      // except the failed proxy request for the refused destination (http mode).
+      assert.deepEqual(probe.violations, [`connect-src ${config.mockUrl}/v1/models`])
+      assert.deepEqual(pageErrors.filter((e) => !/status of 502/.test(e)), [])
       // node-exit logs, one per Node process: `pi --version`, the turn, the probe. The turn loads the most modules.
       const exits = r.logs.filter((l) => l.includes('node-exit')).map((l) => JSON.parse(l.replace(/^.*?node-exit /, '')))
       const stats = exits.sort((a, b) => b.esm - a.esm)[0]

@@ -115,13 +115,15 @@ const scenarios = {
       await machine.spawn(
         ['node', '-e', `
           const real = (0, eval)('this')
+          const violations = []
+          real.addEventListener('securitypolicyviolation', (e) => violations.push(e.violatedDirective + ' ' + e.blockedURI))
           const direct = async (fn) => { try { await fn(); return 'reached' } catch (e) { return 'blocked: ' + (e && e.name) } }
           Promise.all([
             direct(() => real.fetch(${JSON.stringify(cfg.mockUrl + '/v1/models')})),
             fetch('http://example.com/').then((r) => 'reached ' + r.status, (e) => 'refused: ' + ((e.cause && e.cause.message) || e.message)),
           ]).then(([directFetch, outside]) => console.log(JSON.stringify({
             crossOriginIsolated: real.crossOriginIsolated, sharedArrayBuffer: typeof real.SharedArrayBuffer, workerScope: typeof real.WorkerGlobalScope,
-            directFetch, outside, guestSeesSelf: typeof self, browserOnly: [/native code/.test(String(real.WebSocket)), typeof real.XMLHttpRequest, typeof real.indexedDB].join(), origin: real.location.origin,
+            directFetch, violations, outside, guestSeesSelf: typeof self, browserOnly: [/native code/.test(String(real.WebSocket)), typeof real.XMLHttpRequest, typeof real.indexedDB].join(), origin: real.location.origin,
           })))
         `],
         { stdin: 'none' },
