@@ -1,0 +1,5 @@
+node_modules
+wasm/target
+e2e/.out
+*.pem
+*.key
