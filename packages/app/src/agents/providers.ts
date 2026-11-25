@@ -1,5 +1,6 @@
 import { extFetch, extensionVersion } from '../core/extension'
 import { kv } from '../core/kv'
+import { localServerFetch, testLocalServer } from './localServer'
 import { makeCopilotFetch, refreshCopilot, listCopilotModels, type CopilotCreds } from './copilot'
 import { makeGeminiFetch, refreshGemini, GEMINI_MODELS, type GeminiCreds } from './gemini'
 
@@ -39,7 +40,7 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: 'openai', label: 'OpenAI API', group: 'key', blurb: 'GPT models with your OpenAI API key.', keyUrl: 'https://platform.openai.com/api-keys', models: ['gpt-5', 'gpt-5-mini', 'gpt-4.1'], defaultModel: 'gpt-5-mini' },
   { id: 'gemini-key', label: 'Gemini API', group: 'key', blurb: 'Gemini with a Google AI Studio key.', keyUrl: 'https://aistudio.google.com/apikey', models: GEMINI_MODELS, defaultModel: 'gemini-2.5-flash' },
   { id: 'gateway', label: 'Vercel AI Gateway', group: 'key', blurb: 'Any AI Gateway model, with web search.', keyUrl: 'https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys', models: ['anthropic/claude-sonnet-4.5', 'openai/gpt-5', 'google/gemini-2.5-pro'], defaultModel: 'anthropic/claude-sonnet-4.5' },
-  { id: 'ollama', label: 'Ollama (local)', group: 'local', blurb: 'Models on this computer. Start Ollama with OLLAMA_ORIGINS=* so the browser may reach it.', models: ['llama3.2', 'qwen2.5-coder', 'gpt-oss:20b'], defaultModel: 'llama3.2' },
+  { id: 'ollama', label: 'Ollama (local)', group: 'local', blurb: 'Models on this computer or your network. Ollama must allow this site: start it with OLLAMA_ORIGINS=https://beamhop.github.io (or *).', models: ['llama3.2', 'qwen2.5-coder', 'gpt-oss:20b'], defaultModel: 'llama3.2' },
   { id: 'custom', label: 'Other (OpenAI-compatible)', group: 'local', blurb: 'Any server that speaks the OpenAI Chat Completions API and allows browser requests.', models: [], defaultModel: '' },
 ]
 
@@ -83,7 +84,9 @@ export const onCredsChange = (f: (id: ProviderId) => void) => {
 
 export async function hasCreds(id: ProviderId) {
   const c: any = await getCreds(id)
-  if (!c) return id === 'ollama'
+  // Ollama needs no key: it runs with the default address or the one saved for it.
+  if (id === 'ollama') return true
+  if (!c) return false
   if (id === 'custom') return !!c.baseUrl
   if (id === 'chatgpt') return !!c.accessToken
   if (id === 'copilot') return !!c.githubToken
@@ -135,10 +138,14 @@ export async function fxProviderOptions(id: ProviderId, model: string): Promise<
       return { provider: { name: 'geminikey', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', modelDefaults: DEFAULTS }, model, credentials: key }
     case 'gateway':
       return { apiKey: c.apiKey, ...(model ? { model } : {}) }
-    case 'ollama':
-      return { provider: { name: 'ollama', baseUrl: (c.baseUrl || 'http://localhost:11434') .replace(/\/$/, '') + '/v1', modelDefaults: DEFAULTS }, model }
-    case 'custom':
-      return { provider: { name: 'custom', baseUrl: String(c.baseUrl).replace(/\/$/, ''), modelDefaults: DEFAULTS }, model, ...(c.apiKey ? { credentials: key } : {}) }
+    case 'ollama': {
+      const base = (c.baseUrl || 'http://localhost:11434').replace(/\/$/, '')
+      return { provider: { name: 'ollama', baseUrl: base + '/v1', modelDefaults: DEFAULTS }, model, fetch: localServerFetch('ollama', base) }
+    }
+    case 'custom': {
+      const base = String(c.baseUrl).replace(/\/$/, '')
+      return { provider: { name: 'custom', baseUrl: base, modelDefaults: DEFAULTS }, model, fetch: localServerFetch('custom', base), ...(c.apiKey ? { credentials: key } : {}) }
+    }
     case 'chatgpt':
       return {
         provider: 'codex',
@@ -205,13 +212,10 @@ export async function listModels(id: ProviderId): Promise<string[]> {
         const j = await get('https://generativelanguage.googleapis.com/v1beta/openai/models', { authorization: `Bearer ${c.apiKey}` })
         return (j.data ?? []).map((m: any) => String(m.id).replace(/^models\//, '')).filter((x: string) => x.startsWith('gemini'))
       }
-      case 'ollama': {
-        const j = await get((c.baseUrl || 'http://localhost:11434').replace(/\/$/, '') + '/v1/models')
-        return (j.data ?? []).map((m: any) => m.id)
-      }
+      case 'ollama':
       case 'custom': {
-        const j = await get(String(c.baseUrl).replace(/\/$/, '') + '/models', c.apiKey ? { authorization: `Bearer ${c.apiKey}` } : {})
-        return (j.data ?? []).map((m: any) => m.id)
+        const l = await testLocalServer(id, id === 'ollama' ? c.baseUrl || 'http://localhost:11434' : String(c.baseUrl), c.apiKey)
+        return l.length ? l : info.models
       }
       case 'copilot': {
         const cc = await refreshCopilot(c)
