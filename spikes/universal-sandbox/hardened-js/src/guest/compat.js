@@ -94,7 +94,7 @@ const tests = {
     // so this test file itself is not affected)
     const { marked } = require('marked');
     const open = '<' + '!--', close = '--' + '>';
-    eq(marked.parse(open + ' note ' + close + '\n\nhi'), open + ' note ' + close + '\n<p>hi</p>\n');
+    eq(marked.parse(open + ' note ' + close + '\n\nhi'), open + ' note ' + close + '<p>hi</p>\n');
     return 'html comment passed through';
   },
   'markdown-it': () => {

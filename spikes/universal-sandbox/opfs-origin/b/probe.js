@@ -1,7 +1,9 @@
 'use strict';
 // Capability probes used to show what each CSP relaxation buys. The runner reloads this page under
-// policy variants with one token removed at a time.
-window.probe = async () => {
+// policy variants with one token removed at a time. The probes run on their own at load: code run
+// through DevTools/Playwright evaluate() is exempt from the CSP eval check, which would hide the effect
+// of removing 'unsafe-eval'.
+const probe = async () => {
   const out = {};
   const T = (p, ms = 2000) => Promise.race([p, new Promise((r) => setTimeout(() => r('blocked: timeout'), ms))]);
   const rec = async (name, fn) => { try { out[name] = await T(fn()); } catch (e) { out[name] = 'blocked: ' + e.name; } };
@@ -34,9 +36,13 @@ window.probe = async () => {
     f.onload = () => { let r; try { r = f.contentDocument && f.contentDocument.body && f.contentDocument.body.textContent.includes('static file') ? 'ok' : (f.contentDocument && f.contentDocument.body && f.contentDocument.body.textContent.includes('blobframe') ? 'ok' : 'blocked: empty/err doc'); } catch (e) { r = 'blocked: ' + e.name; } res(r); };
     document.body.appendChild(f);
   });
-  await rec('iframe(self)', () => frame('/hello.json'));
+  // note: a same-origin frame is refused under "frame-ancestors <A>" because B itself is then an ancestor
+  await rec('iframe(self static file)', () => frame('/hello.json'));
   await rec('iframe(blob:)', () => frame(URL.createObjectURL(new Blob(['<!doctype html><body>blobframe</body>'], { type: 'text/html' }))));
   await rec('serviceWorker.register', async () => { const r = await navigator.serviceWorker.register('/sw.js', { scope: '/preview/' }); return 'ok ' + r.scope; });
   await rec('opfs.getDirectory', async () => { await navigator.storage.getDirectory(); return 'ok'; });
   return out;
 };
+
+window.probeResult = null;
+window.addEventListener('load', async () => { try { window.probeResult = await probe(); } catch (e) { window.probeResult = { error: String(e) }; } });

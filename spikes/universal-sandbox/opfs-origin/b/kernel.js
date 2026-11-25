@@ -287,6 +287,16 @@ spike.blobWorkerEgress = async (tag) => {
   return runWorker(new Worker(url), tag);
 };
 spike.docEgress = (tag) => runDocEgress(tag);
+// a blob: document in a nested frame (allowed by "frame-src blob:"): does it inherit the policy?
+spike.blobDocEgress = async (tag) => {
+  const js = URL.createObjectURL(new Blob([`runDocEgress(${JSON.stringify(tag)}).then((r) => parent.postMessage({ type: 'preview-result', id: ${JSON.stringify(tag)}, kind: 'egress', r }, '*'));`], { type: 'text/javascript' }));
+  const html = URL.createObjectURL(new Blob([`<!doctype html><script src="${location.origin}/egress-lib.js"></script><script src="${js}"></script>`], { type: 'text/html' }));
+  const result = new Promise((resolve) => previewWaiters.set(tag + ':egress', { resolve, frame: null }));
+  const p = loadFrame(html);
+  previewWaiters.get(tag + ':egress').frame = document.getElementById('previews').lastElementChild;
+  await p;
+  return Promise.race([result, new Promise((r) => setTimeout(() => r({ timeout: true }), 60000))]);
+};
 
 // navigation-style egress; "armed" variants run from a real click (user activation)
 spike.navAction = (kind, tag) => {

@@ -1,13 +1,13 @@
 {
   "meta": {
-    "date": "2026-11-25T10:31:01.309Z",
+    "date": "2026-11-25T10:31:36.765Z",
     "caveat": "headless Chromium in a cloud container (not a phone, not Safari, not Firefox); numbers are indicative only",
     "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
     "cores": 4,
     "memGB": 15.7,
     "node": "v22.23.5",
-    "repsPerMeasurement": 3,
-    "quick": true,
+    "repsPerMeasurement": 7,
+    "quick": false,
     "chromium": "158.0.8127.36"
   },
   "served": {
@@ -35,48 +35,48 @@
   "programs": {
     "producer": {
       "bytes": 69251,
-      "compileMs": 0.8,
-      "fetchMs": 2.1
+      "compileMs": 0.4,
+      "fetchMs": 3.1
     },
     "upper": {
       "bytes": 63366,
       "compileMs": 0.4,
-      "fetchMs": 2
+      "fetchMs": 1.8
     },
     "count": {
       "bytes": 55560,
-      "compileMs": 0.3,
-      "fetchMs": 1.9
+      "compileMs": 0.4,
+      "fetchMs": 1.8
     },
     "spin": {
       "bytes": 55940,
-      "compileMs": 0.3,
-      "fetchMs": 2.1
+      "compileMs": 0.4,
+      "fetchMs": 2.4
     },
     "pingpong": {
       "bytes": 42895,
-      "compileMs": 0.3,
-      "fetchMs": 1.4
+      "compileMs": 0.5,
+      "fetchMs": 2.1
     },
     "hog": {
       "bytes": 53807,
-      "compileMs": 0.3,
-      "fetchMs": 2.3
+      "compileMs": 0.5,
+      "fetchMs": 2.2
     },
     "crash": {
       "bytes": 61248,
-      "compileMs": 0.3,
-      "fetchMs": 1.5
+      "compileMs": 0.5,
+      "fetchMs": 1.8
     },
     "parent": {
       "bytes": 54202,
-      "compileMs": 0.5,
-      "fetchMs": 1.5
+      "compileMs": 0.4,
+      "fetchMs": 1.9
     },
     "reentrant": {
       "bytes": 248,
-      "compileMs": 0.1,
-      "fetchMs": 1.5
+      "compileMs": 0.4,
+      "fetchMs": 2.2
     },
     "spinImports": [
       "wasi_snapshot_preview1.args_sizes_get",
@@ -119,9 +119,9 @@
         0
       ],
       "stderr": "",
-      "ms": 131,
+      "ms": 127,
       "bytesPerStage": 11400000,
-      "throughputMBps": 87,
+      "throughputMBps": 89.8,
       "syscalls": 413592,
       "kernelBlocks": 8370,
       "jspiSuspendingCalls": 8370,
@@ -152,7 +152,7 @@
         0
       ],
       "stderr": "",
-      "ms": 24.1,
+      "ms": 24.2,
       "bytesPerStage": 57000,
       "throughputMBps": 2.4,
       "syscalls": 2051,
@@ -185,9 +185,9 @@
         0
       ],
       "stderr": "",
-      "ms": 166.3,
+      "ms": 155,
       "bytesPerStage": 11400000,
-      "throughputMBps": 68.6,
+      "throughputMBps": 73.5,
       "syscalls": 604217,
       "kernelBlocks": 4214,
       "jspiSuspendingCalls": 604217,
@@ -212,101 +212,141 @@
       "calc_no_syscall_baseline": {
         "median": 2.5,
         "samples": [
-          2.8,
+          2.6,
+          2.47,
+          2.47,
           2.5,
-          2.5
+          2.5,
+          2.57,
+          2.53
         ]
       },
       "nop_plain_import": {
-        "median": 18.3,
+        "median": 17.87,
         "samples": [
-          18.3,
-          18.5,
-          17.9
+          17.87,
+          17.53,
+          20.8,
+          20.5,
+          22.23,
+          17.73,
+          17.73
         ]
       },
       "nop_Suspending_import_returning_number": {
-        "median": 97.7,
+        "median": 97.17,
         "samples": [
-          97.7,
-          98.5,
-          96.7
+          97.17,
+          94.67,
+          95.87,
+          95.5,
+          97.6,
+          104.4,
+          99.77
         ]
       },
       "nop_Suspending_import_returning_resolved_promise": {
-        "median": 99.7,
+        "median": 101.97,
         "samples": [
-          110.1,
-          99.7,
-          96.7
+          102.6,
+          98.37,
+          95.37,
+          95.53,
+          105.37,
+          101.97,
+          102.13
         ]
       },
       "clock_time_get_plain_import": {
-        "median": 155.9,
+        "median": 161.17,
         "samples": [
-          153.3,
-          176.8,
-          155.9
+          168.1,
+          149.3,
+          161.17,
+          162.17,
+          150.1,
+          156.33,
+          177.3
         ]
       },
       "fd_write_1byte_null_via_shim": {
-        "median": 29.7,
+        "median": 29.33,
         "samples": [
-          29.7,
-          27.8,
-          38.6
+          28.87,
+          30.03,
+          28.77,
+          28.9,
+          29.67,
+          29.33,
+          35.3
         ]
       },
       "fd_write_1byte_null_direct_Suspending": {
-        "median": 101.8,
+        "median": 110.23,
         "samples": [
-          109.3,
-          101.8,
-          99.2
+          113.5,
+          102.6,
+          110.23,
+          108.93,
+          114.23,
+          110.23,
+          100.37
         ]
       }
     },
     "a_context_switch_ns": {
       "pingpong_shim": {
-        "median": 428,
+        "median": 405,
         "samples": [
-          428,
-          485,
-          408
+          409,
+          420,
+          433,
+          401,
+          390,
+          404,
+          405
         ],
         "lastRun": {
           "kernelBlocks": 400001,
           "processSwitches": 400001,
           "syscalls": 800001,
-          "ms": 163.3
+          "ms": 162.2
         }
       },
       "pingpong_no_shim": {
-        "median": 448,
+        "median": 454,
         "samples": [
-          455,
-          448,
-          426
+          527,
+          521,
+          477,
+          453,
+          454,
+          447,
+          437
         ],
         "lastRun": {
           "kernelBlocks": 400001,
           "processSwitches": 400001,
           "syscalls": 800001,
-          "ms": 170.5
+          "ms": 175
         }
       }
     },
     "a_pipeline_MBps": {
       "pipe4k_line_buffered_shim": {
-        "median": 158.1,
+        "median": 157.5,
         "samples": [
-          166.9,
-          158.1,
-          156.4
+          141.6,
+          130.3,
+          129,
+          163.3,
+          160.8,
+          167.6,
+          157.5
         ],
         "lastRun": {
           "ok": true,
-          "ms": 72.9,
+          "ms": 72.4,
           "syscalls": 413567,
           "kernelBlocks": 8346,
           "jspiSuspendingCalls": 8346,
@@ -321,15 +361,19 @@
         }
       },
       "pipe4k_line_buffered_no_shim": {
-        "median": 63.7,
+        "median": 73.4,
         "samples": [
-          63.7,
-          68.8,
-          60
+          73.2,
+          72.5,
+          74.9,
+          74.6,
+          73.4,
+          70.5,
+          73.8
         ],
         "lastRun": {
           "ok": true,
-          "ms": 189.9,
+          "ms": 154.4,
           "syscalls": 604217,
           "kernelBlocks": 4214,
           "jspiSuspendingCalls": 604217,
@@ -344,15 +388,19 @@
         }
       },
       "pipe4k_64k_guest_buffers_shim": {
-        "median": 244.1,
+        "median": 291.6,
         "samples": [
-          233.6,
-          244.1,
-          275.4
+          266.4,
+          256.8,
+          291.6,
+          299.2,
+          308.1,
+          270.8,
+          299.2
         ],
         "lastRun": {
           "ok": true,
-          "ms": 41.4,
+          "ms": 38.1,
           "syscalls": 18431,
           "kernelBlocks": 8920,
           "jspiSuspendingCalls": 8920,
@@ -367,15 +415,19 @@
         }
       },
       "pipe64k_line_buffered_shim": {
-        "median": 143,
+        "median": 155.5,
         "samples": [
-          107,
-          143,
-          166.4
+          174.3,
+          175.9,
+          141.4,
+          143.8,
+          106.3,
+          155.5,
+          164.5
         ],
         "lastRun": {
           "ok": true,
-          "ms": 68.5,
+          "ms": 69.3,
           "syscalls": 402053,
           "kernelBlocks": 519,
           "jspiSuspendingCalls": 519,
@@ -390,15 +442,19 @@
         }
       },
       "pipe4k_line_buffered_shim_timeslice8ms": {
-        "median": 145.8,
+        "median": 144.7,
         "samples": [
-          144.1,
-          148.1,
-          145.8
+          144.7,
+          153.8,
+          143.6,
+          153.2,
+          132.7,
+          151.2,
+          133.8
         ],
         "lastRun": {
           "ok": true,
-          "ms": 78.2,
+          "ms": 85.2,
           "syscalls": 413567,
           "kernelBlocks": 8346,
           "jspiSuspendingCalls": 8346,
@@ -415,107 +471,155 @@
     },
     "b_syscall_us": {
       "raw_js_MessageChannel_round_trip_baseline": {
-        "median": 57.62,
+        "median": 55.62,
         "samples": [
-          57.62,
-          64.48,
-          56
+          57.69,
+          61.85,
+          60.13,
+          55.62,
+          51.21,
+          52.3,
+          34.13
         ]
       },
       "nop": {
-        "median": 64.12,
+        "median": 51.85,
         "samples": [
-          56.44,
-          64.12,
-          65.74
+          68.58,
+          39.9,
+          52.33,
+          57.82,
+          51.85,
+          27.78,
+          48.59
         ]
       },
       "clock_time_get": {
-        "median": 60.08,
+        "median": 37.64,
         "samples": [
-          70.36,
-          60.08,
-          55.54
+          15.35,
+          36.09,
+          37.64,
+          55.27,
+          48.12,
+          39.13,
+          23.14
         ]
       },
       "fd_write_1byte_null": {
-        "median": 58.72,
+        "median": 45.18,
         "samples": [
-          56.56,
-          58.72,
-          60.2
+          45.18,
+          40.94,
+          45.13,
+          52.98,
+          58.58,
+          54.59,
+          36.01
         ]
       }
     },
     "b_pipeline_MBps": {
-      "median": 0.5,
+      "median": 0.6,
       "samples": [
+        0.4,
+        0.6,
+        0.6,
         0.5,
-        0.5,
-        0.5
+        0.6,
+        0.6,
+        0.6
       ],
       "lastRun": {
         "ok": true,
-        "ms": 538.4,
-        "syscalls": 15013,
-        "lines": 5000
+        "ms": 1812.8,
+        "syscalls": 58991,
+        "lines": 20000
       }
     },
     "spawn": {
       "a_instantiateOnlyUs": {
-        "median": 160.5,
+        "median": 137.5,
         "samples": [
-          247,
-          144.5,
-          160.5
+          450.5,
+          192.5,
+          126.5,
+          169.5,
+          137,
+          137.5,
+          115.5
         ]
       },
       "a_spawnRunExitUs": {
-        "median": 185.5,
+        "median": 153.5,
         "samples": [
-          185.5,
-          141.5,
-          218
+          244.5,
+          189.5,
+          113,
+          212.5,
+          103,
+          153.5,
+          112.5
         ]
       },
       "rawInstantiateTinyModuleUs": {
-        "median": 47,
+        "median": 72.5,
         "samples": [
-          52,
-          42,
-          47
+          61,
+          46.5,
+          102.5,
+          72.5,
+          44.5,
+          88,
+          83
         ]
       },
       "b_coldWorkerInstantiatedMs": {
-        "median": 7,
+        "median": 11.6,
         "samples": [
-          7,
-          7.4,
-          6.6
+          8.8,
+          12.7,
+          11.6,
+          11.9,
+          11.8,
+          9.8,
+          9.8
         ]
       },
       "b_coldWorkerSpawnRunExitMs": {
-        "median": 7.6,
+        "median": 12.3,
         "samples": [
-          7.6,
-          8.2,
-          7.3
+          9.4,
+          13.2,
+          12.3,
+          13,
+          12.9,
+          10.7,
+          11.1
         ]
       },
       "b_warmWorkerInstantiatedMs": {
-        "median": 0.1,
+        "median": 0.2,
         "samples": [
-          0.2,
           0.1,
-          0.1
+          0.1,
+          0.3,
+          0.2,
+          0.3,
+          0.2,
+          0.2
         ]
       },
       "b_warmWorkerSpawnRunExitMs": {
-        "median": 0.4,
+        "median": 0.6,
         "samples": [
-          0.5,
-          0.4,
-          0.4
+          0.2,
+          0.2,
+          0.8,
+          0.7,
+          0.7,
+          0.6,
+          0.6
         ]
       },
       "note": "a_* in microseconds per process (batch of 200), b_* in milliseconds; all from an already compiled WebAssembly.Module"
@@ -524,34 +628,34 @@
   "responsiveness": {
     "pipeline_1M_lines_no_timeslice": {
       "pipelineOk": true,
-      "pipelineMs": 340.2,
-      "throughputMBps": 167.5,
+      "pipelineMs": 388.7,
+      "throughputMBps": 146.6,
       "macrotaskYields": 0,
-      "pingsSent": 68,
-      "pongsReceivedDuringOrAfter": 68,
-      "maxPongLatencyMs": 336.5
+      "pingsSent": 77,
+      "pongsReceivedDuringOrAfter": 77,
+      "maxPongLatencyMs": 384.4
     },
     "pipeline_1M_lines_timeslice_8ms": {
       "pipelineOk": true,
-      "pipelineMs": 444.7,
-      "throughputMBps": 128.2,
-      "macrotaskYields": 89,
-      "pingsSent": 88,
-      "pongsReceivedDuringOrAfter": 88,
-      "maxPongLatencyMs": 8.5
+      "pipelineMs": 367,
+      "throughputMBps": 155.3,
+      "macrotaskYields": 77,
+      "pingsSent": 73,
+      "pongsReceivedDuringOrAfter": 73,
+      "maxPongLatencyMs": 8.2
     },
     "placement_b_burner_killed_by_kernel": {
       "result": {
         "exitCode": 137,
         "state": "killed",
-        "kernelTimerLateByMs": 0.2,
+        "kernelTimerLateByMs": 0.3,
         "pipelineAfterOk": true,
         "liveProcs": 0
       },
       "pings": 62,
       "pongsReceived": 62,
-      "maxPongLatencyMs": 1.9,
-      "commandMs": 311.9
+      "maxPongLatencyMs": 4,
+      "commandMs": 313.9
     }
   },
   "kill": {
@@ -600,7 +704,7 @@
       "upperStackUnwoundByRejection": true,
       "producerError": "RuntimeError: unreachable",
       "producerStderr": "thread 'main' (1) panicked at src/bin/producer.rs:18:84:\ncalled `Result::unwrap()` on an `Err` value: Os { code: 64, kind: BrokenPipe, message: \"Broken pipe\" }\nnote: run with `RUST_BACKTRACE=1` enviro",
-      "countOutput": "lines=9000 bytes=513000 fnv=78a8c5f9",
+      "countOutput": "lines=8000 bytes=456000 fnv=441249e5",
       "liveProcsAfter": 0
     }
   },
@@ -630,7 +734,7 @@
       "error": "RangeError: Maximum call stack size exceeded",
       "stderr": "crash: read 5 bytes, now overflow",
       "fdsClosed": true,
-      "ms": 0.8
+      "ms": 1
     },
     "bystander": {
       "exitCode": 0,
@@ -644,8 +748,8 @@
       "shim": true,
       "liveSuspendedProcesses": 124,
       "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
-      "spawnMs": 35,
-      "usPerSpawn": 280,
+      "spawnMs": 49,
+      "usPerSpawn": 391,
       "resumeAllAndExitMs": 2,
       "allExitedZero": true,
       "liveProcsAfter": 0,
@@ -656,8 +760,8 @@
       "shim": false,
       "liveSuspendedProcesses": 124,
       "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
-      "spawnMs": 31,
-      "usPerSpawn": 249,
+      "spawnMs": 29,
+      "usPerSpawn": 233,
       "resumeAllAndExitMs": 2,
       "allExitedZero": true,
       "liveProcsAfter": 0,
@@ -715,50 +819,50 @@
     "rounds": [
       {
         "spawned20": true,
-        "liveMB": 525,
-        "afterKillMB": 525
+        "liveMB": 445,
+        "afterKillMB": 442
       },
       {
         "spawned20": true,
-        "liveMB": 846,
-        "afterKillMB": 846
+        "liveMB": 763,
+        "afterKillMB": 762
       },
       {
         "spawned20": true,
-        "liveMB": 1167,
-        "afterKillMB": 1167
+        "liveMB": 1082,
+        "afterKillMB": 1083
       },
       {
         "spawned20": true,
-        "liveMB": 1487,
-        "afterKillMB": 1486
+        "liveMB": 1226,
+        "afterKillMB": 440
       },
       {
         "spawned20": true,
-        "liveMB": 1742,
-        "afterKillMB": 524
+        "liveMB": 761,
+        "afterKillMB": 761
       },
       {
         "spawned20": true,
-        "liveMB": 845,
-        "afterKillMB": 845
+        "liveMB": 1081,
+        "afterKillMB": 1081
       },
       {
         "spawned20": true,
-        "liveMB": 1165,
-        "afterKillMB": 1165
+        "liveMB": 1401,
+        "afterKillMB": 1401
       },
       {
         "spawned20": true,
-        "liveMB": 1486,
-        "afterKillMB": 1486
+        "liveMB": 1724,
+        "afterKillMB": 1722
       }
     ],
-    "baselineMB": 205,
-    "after3sIdleMB": 1486,
+    "baselineMB": 124,
+    "after3sIdleMB": 1722,
     "finalizedSoFar": {
-      "instance": 80,
-      "memory": 80
+      "instance": 60,
+      "memory": 60
     },
     "maxLiveProcessesRightAfter": 125
   },
@@ -770,10 +874,10 @@
     "hangDetectedAfterMs": 1000,
     "lostInFlightCommands": 1,
     "terminateCallMs": 0,
-    "newWorkerBootMs": 12.6,
-    "reloadAndCompileProgramsMs": 27.4,
+    "newWorkerBootMs": 11.8,
+    "reloadAndCompileProgramsMs": 26.2,
     "pipelineAfterRestartOk": true,
-    "totalMs": 1057,
+    "totalMs": 1061,
     "note": "all kernel state (pipes, files, every other process) died with the worker"
   },
   "memoryWithExposeGc": {
@@ -793,9 +897,9 @@
       },
       "gcExposed": true
     },
-    "baselineMB": 184,
-    "maxLiveProcessesAtStart": 75,
-    "live20HogsMB": 512,
+    "baselineMB": 104,
+    "maxLiveProcessesAtStart": 74,
+    "live20HogsMB": 431,
     "after20NormalExits": {
       "gcExposed": true,
       "finalized": {
@@ -803,7 +907,7 @@
         "memory": 20
       }
     },
-    "after20NormalExitsMB": 191,
+    "after20NormalExitsMB": 110,
     "after20KilledByUnwind": {
       "gcExposed": true,
       "finalized": {
@@ -811,7 +915,7 @@
         "memory": 40
       }
     },
-    "after20KilledByUnwindMB": 192,
+    "after20KilledByUnwindMB": 110,
     "after20KilledByDroppingPromise": {
       "gcExposed": true,
       "finalized": {
@@ -819,8 +923,8 @@
         "memory": 40
       }
     },
-    "after20KilledByDroppingPromiseMB": 512,
-    "maxLiveProcessesAtEnd": 55
+    "after20KilledByDroppingPromiseMB": 431,
+    "maxLiveProcessesAtEnd": 54
   },
   "oobWithEnforcedBoundsChecks": {
     "note": "separate browser launched with --js-flags=--wasm-enforce-bounds-checks",
@@ -853,8 +957,8 @@
       "shim": true,
       "liveSuspendedProcesses": 125,
       "firstError": "RangeError: WebAssembly.Instance(): Out of memory: Cannot allocate Wasm memory for new instance",
-      "spawnMs": 30,
-      "usPerSpawn": 236,
+      "spawnMs": 34,
+      "usPerSpawn": 275,
       "resumeAllAndExitMs": 2,
       "allExitedZero": true,
       "liveProcsAfter": 0,

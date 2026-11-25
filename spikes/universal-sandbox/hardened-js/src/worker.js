@@ -295,8 +295,9 @@ const commands = {
           name: 'esm-guest',
           globals: { console: g.globalThis.console, process: g.process, Date: self.Date, Math: self.Math },
           // module sources go through the same censorship; there is no per-module evade flag,
-          // so replicate SES's evade transforms as compartment-level transforms
-          transforms: [(src) => src.replace(/<!--/g, '< ! --').replace(/-->/g, '-- >'), (src) => src.replace(/(^|[^.]|\.\.\.)\bimport(\s*(?:\(|\/[/*]))/g, '$1__import__$2')],
+          // so replicate SES's evade transforms via the (shim-specific) __shimTransforms__ option;
+          // the plain `transforms` option is not applied to module functors in ses 2.3.0
+          __shimTransforms__: [(src) => src.replace(/<!--/g, '< ! --').replace(/-->/g, '-- >'), (src) => src.replace(/(^|[^.]|\.\.\.)\bimport(\s*(?:\(|\/[/*]))/g, '$1__import__$2')],
           resolveHook: (spec, referrer) => esmResolver.resolve(spec, referrer, true),
           importNowHook: (full) => {
             let rec = records.get(full);

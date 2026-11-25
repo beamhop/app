@@ -253,6 +253,12 @@ function medianOf(objs) {
     const sb = await f.evaluate(() => window.spike.openPreview('mc-sbx', 'index.html', { sandbox: 'allow-scripts', timeout: 4000 }));
     const after = await f.evaluate(() => window.spike.swCall({ type: 'stats' }));
     out.sandboxedOpaqueOriginPreview = { result: sb, swRequestsHandledDuring: after.handled - before.handled };
+    // preview document served with B's own policy unchanged ("frame-ancestors <A>" only): refused, because
+    // the kernel frame (origin B) is one of its ancestors
+    const b2 = await f.evaluate(() => window.spike.swCall({ type: 'stats' }));
+    const sfa = await f.evaluate(() => window.spike.openPreview('mc-strictfa', 'index.html', { timeout: 3000 }));
+    const a2 = await f.evaluate(() => window.spike.swCall({ type: 'stats' }));
+    out.previewWithUnmodifiedFrameAncestors = { loaded: !!sfa.first, result: sfa, swRequestsHandledDuring: a2.handled - b2.handled };
     // kill the SW (as the browser does after ~30 s idle) and load a preview again
     const cdp = await ctx.newCDPSession(main.page);
     await cdp.send('ServiceWorker.enable');
@@ -288,6 +294,7 @@ function medianOf(objs) {
     await run('worker_blobUrl', 'worker-blob', () => f.evaluate(() => window.spike.blobWorkerEgress('worker-blob')));
     await run('serviceWorker', 'sw', () => f.evaluate(() => window.spike.swCall({ type: 'egress', tag: 'sw' })));
     await run('kernelDocument', 'kernel-doc', () => f.evaluate(() => window.spike.docEgress('kernel-doc')));
+    await run('blobUrlDocumentInNestedFrame', 'blob-doc', () => f.evaluate(() => window.spike.blobDocEgress('blob-doc')));
     await run('kernelDocument_preconnect', 'kernel-doc-preconnect', () => f.evaluate(() => runPreconnect()));
     await run('previewPage_swAddsCsp', 'preview-mc-csp-eg', () => f.evaluate(() => window.spike.openPreview('mc-csp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
     await run('previewPage_swOmitsCsp', 'preview-mc-nocsp-eg', () => f.evaluate(() => window.spike.openPreview('mc-nocsp-eg', 'egress.html', { kind: 'egress', timeout: 60000 })));
@@ -498,8 +505,8 @@ function medianOf(objs) {
       if (csp === DEFAULT_B_CSP && name !== 'full policy') throw new Error('variant did not change policy: ' + name);
       srv.setBCsp(csp);
       const t = await openA('path=/probe.html', { expectKernel: false });
-      await t.frame.waitForFunction(() => !!window.probe);
-      const r = await t.frame.evaluate(() => window.probe());
+      await t.frame.waitForFunction(() => !!window.probeResult, null, { timeout: 30000 });
+      const r = await t.frame.evaluate(() => window.probeResult);
       await t.page.close();
       if (!base) { base = r; out.probes[name] = r; } else {
         const diff = {};
