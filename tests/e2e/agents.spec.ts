@@ -71,3 +71,35 @@ test('agent answers mentions it missed while offline, and runs Python', async ({
   // the agent's second reply arrives after its owner is back
   await expect(bob.locator('.msg.agent')).toHaveCount(2, { timeout: 40000 })
 })
+
+test('gemini (Google account) agent runs in the browser engine, with a tool call', async ({ page }) => {
+  let calls = 0
+  await page.route('https://cloudcode-pa.googleapis.com/**', async (route) => {
+    calls++
+    const req = JSON.parse(route.request().postData() ?? '{}').request
+    const last = req.contents[req.contents.length - 1]
+    const part = last.parts[0].functionResponse
+      ? { text: 'The time is ' + last.parts[0].functionResponse.response.result }
+      : { functionCall: { name: 'get_time', args: {} }, thoughtSignature: 'sig' }
+    const chunk = { response: { candidates: [{ content: { role: 'model', parts: [part] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 3, totalTokenCount: 8 } } }
+    await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream', 'access-control-allow-origin': '*' }, body: 'data: ' + JSON.stringify(chunk) + '\r\n\r\n' })
+  })
+  await open(page)
+  const r = await page.evaluate(async () => {
+    const { createFxAgent } = await import(/* @vite-ignore */ '/@id/libfx/browser' as any)
+    const { makeGeminiFetch } = await import(/* @vite-ignore */ '/src/agents/gemini.ts' as any)
+    const agent = createFxAgent({
+      provider: { name: 'gemini', baseUrl: 'https://cloudcode-pa.googleapis.com/v1internal', modelDefaults: { contextWindow: 1000000, maxOutputTokens: 8192, supportsToolUse: true } },
+      model: 'gemini-2.5-flash',
+      fetch: makeGeminiFetch(async () => ({ accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, projectId: 'p' })),
+      tools: [{ name: 'get_time', description: 'time', inputSchema: { type: 'object', properties: {} }, idempotent: true, execute: async () => 'noon' }],
+    })
+    const turn = agent.session().prompt('what time is it?')
+    let text = ''
+    for await (const e of turn) if (e.type === 'text_delta') text += e.delta
+    const res = await turn.result
+    return { text, stop: res.stopReason, err: res.error?.message ?? null }
+  })
+  expect(r).toEqual({ text: 'The time is noon', stop: 'end_turn', err: null })
+  expect(calls).toBe(2)
+})

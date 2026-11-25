@@ -212,7 +212,9 @@ export function makeGeminiFetch(getCreds: () => Promise<GeminiCreds>) {
     if (!url.endsWith('/chat/completions')) {
       return new Response(JSON.stringify({ data: [] }), { headers: { 'content-type': 'application/json' } })
     }
-    const body = JSON.parse(String(init.body))
+    // libfx's WebAssembly engine sends the body as bytes; the native one as a string.
+    const raw: any = init.body
+    const body = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw))
     const creds = await getCreds()
     const req = { model: body.model, project: creds.projectId, user_prompt_id: crypto.randomUUID(), request: toGemini(body) }
     const res = await fetch(`${API}:streamGenerateContent?alt=sse`, {
