@@ -17,9 +17,10 @@ Settled in the two design interviews. Rows marked *changed* differ from revision
 | Interface | Both: headless into the room chat, and a real terminal. *New.* |
 | Phones | All harnesses on desktop browsers; best effort on phones, which can always drive a desktop-hosted machine remotely. *New.* |
 | Network | A proxy that anyone can host anywhere. Blind tunnel by default, plain CORS mode where raw connections are unavailable. *Changed.* |
-| JavaScript confinement | Undecided: prototype Hardened JS and plain JS behind the origin wall, then choose. *Changed.* |
+| JavaScript confinement | Plain JavaScript; the browser origin is the wall, one origin per workspace. Hardened JS was prototyped and rejected. *Changed.* |
 | Credentials and sharing | One shared machine. The host's harness logins live inside it; members the host grants can use them. *Changed.* |
-| Where the kernel lives | A second static origin, embedded as an iframe. Whether each workspace gets its own subdomain depends on the confinement choice. |
+| Where the kernel lives | Its own subdomain per workspace on a custom domain with wildcard subdomains, embedded as an iframe. This replaces the shared Cloudflare Pages origin. |
+| claude | Treated as a native harness; the old JavaScript release is not pinned. *New.* |
 | Mobile background | Pause and resume. No hand-off. |
 | Device parity | Same core everywhere; desktop may add extras. |
 | Build path | Assemble from existing open parts, then replace. |
@@ -37,12 +38,22 @@ Packaging as found on the npm registry by the prototype, November 2026.
 |---|---|---|---|
 | pi (`@earendil-works/pi-coding-agent`) | JavaScript | Unmodified on the Node layer | Full turn demonstrated |
 | gemini (`@google/gemini-cli`) | JavaScript | Unmodified on the Node layer | Full turn demonstrated |
-| claude (`@anthropic-ai/claude-code`) | Current releases are a launcher for a 402 MB native executable. 2.1.112 is the last JavaScript release. | Open decision: pin the old JavaScript release, or treat as native | 2.1.112 full turn demonstrated; current release cannot run |
+| claude (`@anthropic-ai/claude-code`) | Current releases are a launcher for a 402 MB native executable. 2.1.112 is the last JavaScript release. | Native (decided). No in-browser route yet; see below | Current release cannot run. 2.1.112 ran in the prototype but is not pinned |
 | fx | Has a browser build | Wasm guest | Not prototyped |
 | opencode (`opencode-ai`) | Launcher with per-platform packages (native, by package layout) | Run from source with a Bun shim, or a maintained build | Not prototyped |
 | codex (`@openai/codex`) | Launcher with per-platform packages (native, by package layout) | A maintained wasm build | Not prototyped; hardest |
 
 Native distribution is the main threat to "unmodified": of the five third-party harnesses, only pi and gemini currently publish JavaScript.
+
+### Native harnesses
+
+Three harnesses are native, and they do not have the same options.
+
+- **codex** is open source Rust. A wasm build maintained by Beamhop is possible in principle; its size is unknown.
+- **opencode** is open source TypeScript on Bun. It can run from source on the Node layer with Bun's APIs shimmed.
+- **claude** is closed source, so there is nothing to port. The only in-browser route is emulating the native executable, which means a 402 MB download and a JavaScript engine running inside an emulator. That is impractical on phones and unproven on desktop.
+
+Until that changes, claude runs on a desktop environment through the bridge and joins the room from there; browser and phone members use it remotely. The same fallback covers codex and opencode until their builds exist.
 
 ## Architecture
 
@@ -136,7 +147,7 @@ The machine is trusted the way a laptop is: the harness, the model's commands an
 | Threat | Control |
 |---|---|
 | Code on the machine reads Beamhop's Nostr keys | Keys exist only in origin A; the machine is a cross-site frame with message-port access only. |
-| One workspace reads another | Per-workspace encryption; per-workspace subdomain if the origin-wall option is chosen. |
+| One workspace reads another | Each workspace is a separate origin, so the browser separates their storage and service workers. Per-workspace encryption at rest as a second layer. |
 | Proxy operator reads tokens or prompts | Tunnel mode: TLS ends inside the machine. |
 | A stranger uses someone's proxy | Proxy access tokens and limits. |
 | A room member's message drives the host's harness | Only signers the host granted are delivered to the harness. |
@@ -154,7 +165,7 @@ Accepted, and to be stated in the app:
 2. **More harnesses.** gemini and claude unmodified; login flows; terminal view; wasm ripgrep and git.
 3. **Room sharing.** Grants, chat and terminal streams, tunnelled previews, pause state.
 4. **Real processes and tools.** JSPI process model in production, BusyBox, Python, build tools.
-5. **Native harnesses.** opencode on the Bun shim; codex build.
+5. **Native harnesses.** opencode on the Bun shim; codex wasm build; claude through the bridge until an in-browser route exists.
 6. **Bridge.** Same kernel under Node.
 
 ## Risks and unknowns
@@ -165,7 +176,8 @@ Accepted, and to be stated in the app:
 - **codex and opencode** need ports whose size is unknown.
 - **TLS in wasm** adds code size and a root store to maintain.
 - **Provider terms**, as above.
-- **Hardened JS** may not survive whole harnesses; undecided until prototyped.
+- **Wildcard hosting.** One origin per workspace needs a domain and a static host that serves wildcard subdomains; which host is not chosen.
+- **claude in the browser** has no workable route today.
 
 ## Prototype results
 
@@ -205,7 +217,7 @@ What this used: a purpose-written Node emulation (almostnode failed on pi's firs
 
 Findings that change the design:
 
-- **Hardened JS is not viable as the wall.** pi and gemini ran under it only with a patched copy of SES and extra endowments; Claude Code's shell tool fails under every setting tried. The cost was 1.1 to 1.2 times on a turn. Recommendation: plain JavaScript with the browser origin as the wall, one origin per workspace.
+- **Hardened JS is not viable as the wall.** pi and gemini ran under it only with a patched copy of SES and extra endowments; Claude Code's shell tool fails under every setting tried. The cost was 1.1 to 1.2 times on a turn. Decided: plain JavaScript with the browser origin as the wall, one origin per workspace.
 - **Synchronous child processes.** Seen at run time only in Claude Code (three harmless `which` probes). A static scan finds 8 call sites in pi and 35 in gemini, mostly probes for optional tools; pi has one synchronous run-a-command helper that matters.
 - **`AsyncLocalStorage`** cannot be implemented correctly in a browser. gemini and claude use it; an approximation passed single-conversation runs and would be wrong under concurrent tool calls.
 - **The HTTP bridge belongs at the socket layer.** pi bypasses `fetch` with its own HTTP client over `net.Socket`.
