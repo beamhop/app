@@ -126,9 +126,15 @@ async function start() {
       res.end(`<!doctype html><title>attacker embedder</title><iframe id="k" src="${ORIGIN_B}/kernel.html"></iframe>`);
       return;
     }
-    if (u.pathname.endsWith('.js') || u.pathname.endsWith('/import') || u.pathname.endsWith('/importscripts') || u.pathname.endsWith('/script')) {
+    if (u.pathname.endsWith('/import')) { res.writeHead(200, { ...cors, 'content-type': 'text/javascript' }); res.end('globalThis.__attackerScriptRan = 1; export {};'); return; }
+    if (u.pathname.endsWith('.js') || u.pathname.endsWith('/importscripts') || u.pathname.endsWith('/script')) {
       res.writeHead(200, { ...cors, 'content-type': 'text/javascript' });
-      res.end('globalThis.__attackerScriptRan = (globalThis.__attackerScriptRan||0)+1; export {};'.replace(u.pathname.endsWith('/import') ? '' : ' export {};', ''));
+      res.end('globalThis.__attackerScriptRan = 1;');
+      return;
+    }
+    if (u.pathname.endsWith('/image') || u.pathname.endsWith('/css-bg')) {
+      res.writeHead(200, { ...cors, 'content-type': 'image/gif' });
+      res.end(Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
       return;
     }
     if (u.pathname.endsWith('/css')) { res.writeHead(200, { ...cors, 'content-type': 'text/css' }); res.end('body{}'); return; }

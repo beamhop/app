@@ -107,7 +107,7 @@ class PipeWriteEnd {
     const pipe = this.pipe;
     if (pipe.readers === 0) return EPIPE;
     const space = pipe.cap - pipe.len;
-    if (space === 0) return BLOCK;
+    if (space === 0) { if (self.DBG) self.DBG.push("full"); return BLOCK; }
     const n = l < space ? l : space;
     const wpos = (pipe.rpos + pipe.len) % pipe.cap;
     const first = Math.min(n, pipe.cap - wpos);
