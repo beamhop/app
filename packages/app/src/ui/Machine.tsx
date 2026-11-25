@@ -6,6 +6,7 @@ import { useStore } from './hooks'
 import { Sheet, Switch } from './components'
 import { Icon } from './icons'
 import { machine, machineSupported, type MachineConfig } from '../machine/machine'
+import type { AgentDef } from '../core/types'
 
 /** Re-render when the machine's state changes. */
 function useMachine() {
@@ -116,8 +117,46 @@ export function HarnessSetup({ harness, customCommand }: { harness: HarnessId; c
   )
 }
 
-/** A terminal on the machine (xterm.js on a login shell's pty). Runs `command` first, if given. */
-export function TerminalSheet({ command, onClose }: { command?: string; onClose: () => void }) {
+/**
+ * The Linux machine an agent runs in, for its owner: status, the agent's folder, and a terminal
+ * there (to look at its files, run commands, or sign the harness in again).
+ */
+export function AgentMachineCard({ def }: { def: AgentDef }) {
+  const m = useMachine()
+  const sup = machineSupported()
+  const [term, setTerm] = useState<{ command?: string } | null>(null)
+  const h = HARNESSES[def.harness ?? 'claude']
+  const dir = machine.workDir(def.id)
+  return (
+    <div className="card stack">
+      <div>
+        <div style={{ fontWeight: 600 }}>Linux machine</div>
+        <div className="small muted">
+          {m.state === 'ready' ? 'Running' : m.state === 'booting' ? `${m.stage}…` : m.state === 'error' ? `Error: ${m.error}` : 'Off (starts when needed)'} · {def.name}’s files
+          are in <code>{dir}</code>
+        </div>
+      </div>
+      {!sup.ok && <div className="small warn-card">{sup.why}</div>}
+      <div className="row wrap" style={{ gap: 6 }}>
+        <button className="btn small" disabled={!sup.ok} onClick={() => setTerm({})}>
+          <Icon name="terminal" size={16} /> Open terminal
+        </button>
+        {h.login && (
+          <button className="btn small" disabled={!sup.ok} onClick={() => setTerm({ command: h.login })}>
+            <Icon name="key" size={16} /> Sign in to {h.label}
+          </button>
+        )}
+      </div>
+      {term && <TerminalSheet cwd={dir} command={term.command} title={`${def.name} · Linux machine`} onClose={() => setTerm(null)} />}
+    </div>
+  )
+}
+
+/**
+ * A terminal on the machine (xterm.js on a login shell's pty). Starts in `cwd` (created if missing)
+ * and runs `command` first, if given.
+ */
+export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }: { command?: string; cwd?: string; title?: string; onClose: () => void }) {
   const el = useRef<HTMLDivElement>(null)
   const [err, setErr] = useState('')
   useEffect(() => {
@@ -143,6 +182,7 @@ export function TerminalSheet({ command, onClose }: { command?: string; onClose:
         pty.resize(term.cols, term.rows)
       }
       window.addEventListener('resize', onResize)
+      if (cwd) pty.write(`mkdir -p '${cwd}' && cd '${cwd}' && clear\n`)
       if (command) pty.write(command + '\n')
       term.focus()
       cleanup = () => {
@@ -156,17 +196,22 @@ export function TerminalSheet({ command, onClose }: { command?: string; onClose:
       closed = true
       cleanup()
     }
-  }, [command])
+  }, [command, cwd])
   return (
     <Sheet onClose={onClose} className="terminal-sheet">
       <div className="row between">
-        <h3>Linux machine</h3>
+        <h3>{title}</h3>
         <button className="icon-btn" onClick={onClose} aria-label="Close">
           <Icon name="close" />
         </button>
       </div>
       <p className="hint" style={{ marginTop: 0 }}>
-        A shell in this browser’s machine. Sign-ins and files are kept on this device. Type <code>exit</code> or close this when you’re done.
+        A shell (as root) in this browser’s Linux machine{cwd ? (
+          <>
+            , in <code>{cwd}</code>
+          </>
+        ) : null}
+        . Sign-ins and files are kept on this device. Type <code>exit</code> or close this when you’re done.
       </p>
       {err && <div className="small warn-card">{err}</div>}
       <div ref={el} className="terminal" />

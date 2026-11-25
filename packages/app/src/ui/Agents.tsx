@@ -11,7 +11,7 @@ import { extCaptureRedirect, extFetch } from '../core/extension'
 import { kv } from '../core/kv'
 import type { Usage } from '../core/types'
 import { ExtensionHelp } from './Settings'
-import { HarnessSetup } from './Machine'
+import { AgentMachineCard, HarnessSetup } from './Machine'
 import { appBase, bridgeCommand } from './Invite'
 import { CopyBox } from './components'
 import { copyText } from './hooks'
@@ -243,6 +243,7 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
           )}
 
           {runtime === 'machine' && <HarnessSetup harness={harness} customCommand={customCommand} key={harness} />}
+          {runtime === 'machine' && existing?.runtime === 'machine' && <AgentMachineCard def={existing} />}
 
           {runtime === 'computer' && <BridgeCommand roomId={roomId} harness={harness} customCommand={customCommand} />}
 

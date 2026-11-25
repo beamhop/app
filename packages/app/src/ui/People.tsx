@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { HARNESSES } from '@beamhop/shared'
+import { AgentMachineCard } from './Machine'
 import { isAdmin, type AgentMode, type Instructors } from '@beamhop/shared'
 import { useStore, go } from './hooks'
 import { Avatar, Radio, TopBar } from './components'
@@ -200,7 +202,13 @@ export function AgentSettingsPanel({ roomId, agentPk, onBack }: { roomId: string
               {a.name} <span className="tag agent">Agent</span>
             </div>
             <div className="s">
-              {mine ? 'Your agent' : `${c.nameOf(roomId, a.owner)}’s agent`} · {a.kind === 'bridge' ? 'runs on a computer (bridge)' : def ? `${providerInfo(def.provider).label}${def.model ? ' · ' + def.model : ''}` : 'runs in a browser'}
+              {mine ? 'Your agent' : `${c.nameOf(roomId, a.owner)}’s agent`} · {a.kind === 'bridge'
+                ? 'runs on a computer (bridge)'
+                : def?.runtime === 'machine'
+                  ? `${HARNESSES[def.harness ?? 'claude'].label} · Linux machine`
+                  : def
+                    ? `${providerInfo(def.provider).label}${def.model ? ' · ' + def.model : ''}`
+                    : 'runs in a browser'}
             </div>
           </div>
         </div>
@@ -244,13 +252,18 @@ export function AgentSettingsPanel({ roomId, agentPk, onBack }: { roomId: string
                   )}
                   <div className="row wrap" style={{ marginTop: 10 }}>
                     <button className="btn small" onClick={() => go(`agents/${def.id}/${roomId}`)}>
-                      Model, instructions & tools
+                      {def.runtime === 'machine' ? 'Agent & instructions' : 'Model, instructions & tools'}
                     </button>
                     <button className="btn small" onClick={() => go(`dm/${def.pk}/${s.pk}`)}>
                       Chat privately
                     </button>
                   </div>
                 </div>
+                {def.runtime === 'machine' && (
+                  <div style={{ marginTop: 10 }}>
+                    <AgentMachineCard def={def} />
+                  </div>
+                )}
               </>
             )}
             <div className="row between" style={{ marginTop: 22 }}>

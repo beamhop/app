@@ -10,7 +10,7 @@ const ACP_AGENT = [
   `case "$l" in`,
   `*'"initialize"'*) echo "{\\"jsonrpc\\":\\"2.0\\",\\"id\\":$id,\\"result\\":{\\"protocolVersion\\":1,\\"agentCapabilities\\":{},\\"authMethods\\":[]}}";;`,
   `*'"session/new"'*) echo "{\\"jsonrpc\\":\\"2.0\\",\\"id\\":$id,\\"result\\":{\\"sessionId\\":\\"s1\\"}}";;`,
-  `*'"session/prompt"'*) echo "{\\"jsonrpc\\":\\"2.0\\",\\"method\\":\\"session/update\\",\\"params\\":{\\"sessionId\\":\\"s1\\",\\"update\\":{\\"sessionUpdate\\":\\"agent_message_chunk\\",\\"content\\":{\\"type\\":\\"text\\",\\"text\\":\\"machine pong from $(uname -m)\\"}}}}";`,
+  `*'"session/prompt"'*) date > last-turn.txt; echo "{\\"jsonrpc\\":\\"2.0\\",\\"method\\":\\"session/update\\",\\"params\\":{\\"sessionId\\":\\"s1\\",\\"update\\":{\\"sessionUpdate\\":\\"agent_message_chunk\\",\\"content\\":{\\"type\\":\\"text\\",\\"text\\":\\"machine pong from $(uname -m)\\"}}}}";`,
   `echo "{\\"jsonrpc\\":\\"2.0\\",\\"id\\":$id,\\"result\\":{\\"stopReason\\":\\"end_turn\\"}}";;`,
   `esac; done`,
 ].join(' ')
@@ -52,6 +52,19 @@ test('a harness in the Linux machine in the tab answers in the room', async ({ b
   await page.getByPlaceholder('Message').fill('@Tux again')
   await page.keyboard.press('Enter')
   await expect(page.locator('.msg.agent').getByText('machine pong from aarch64')).toHaveCount(2, { timeout: 60_000 })
+
+  // Its owner can open the agent's Linux machine from the room: a terminal in the agent's folder,
+  // where the file it wrote during its turn is.
+  await page.locator('.person').filter({ hasText: 'Tux' }).getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByText('Custom ACP agent · Linux machine').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Open terminal' }).click()
+  await expect(page.getByRole('heading', { name: 'Tux · Linux machine' })).toBeVisible()
+  const term = page.locator('.terminal')
+  await term.click()
+  await page.keyboard.type('echo "where=$(pwd)"; ls\n')
+  await expect(term.locator('.xterm-rows')).toContainText(/where=\/root\/beamhop\/[0-9a-f]+/, { timeout: 30_000 })
+  await expect(term.locator('.xterm-rows')).toContainText('last-turn.txt')
+  await page.keyboard.press('Escape')
 
   // The agent list shows where it runs.
   await page.goto(`./?relay=${encodeURIComponent(RELAY)}#/agents`)
