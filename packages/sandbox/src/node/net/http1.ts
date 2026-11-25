@@ -26,7 +26,7 @@ const ascii = (s: string): Uint8Array => {
 
 /** A growing byte buffer consumed from the front. */
 class ByteQueue {
-  private buf = new Uint8Array(0)
+  private buf: Uint8Array = new Uint8Array(0)
   get length(): number {
     return this.buf.length
   }

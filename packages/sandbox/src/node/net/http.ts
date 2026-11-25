@@ -58,8 +58,8 @@ export function createHttp({ core, stream, EventEmitter, net, Server, transportF
   class ClientRequest extends stream.Writable {
     constructor(defaultProtocol?: Dyn, args?: Dyn) {
       super()
-      let opts = {},
-        cb
+      let opts: Dyn = {}
+      let cb: Dyn
       if (typeof args[args.length - 1] === 'function') cb = args.pop()
       for (const a of args) {
         if (typeof a === 'string' || a instanceof URL) {
@@ -172,7 +172,7 @@ export function createHttp({ core, stream, EventEmitter, net, Server, transportF
     _final(cb?: Dyn) {
       this.finished = true
       cb()
-      const headers = []
+      const headers: [string, string][] = []
       for (const [, [k, v]] of this._headers) for (const one of [].concat(v)) headers.push([k, String(one)])
       live.ref()
       let released = false
@@ -197,7 +197,7 @@ export function createHttp({ core, stream, EventEmitter, net, Server, transportF
           msg.req = this
           this.res = msg
           for (const [k, v] of res.headers) {
-            if (k.startsWith('access-control-') || k.startsWith('x-sandbox-') || k === 'content-encoding') continue
+            if (k === 'content-encoding') continue
             msg.rawHeaders.push(k, v)
             if (k === 'set-cookie') (msg.headers[k] ||= []).push(v)
             else msg.headers[k] = k in msg.headers ? msg.headers[k] + ', ' + v : v
@@ -255,7 +255,7 @@ export function createHttp({ core, stream, EventEmitter, net, Server, transportF
     }
   }
   const mkHttp = (protocol?: Dyn) => {
-    const mod = {
+    const mod: Dyn = {
       request: (...args: Dyn[]) => new ClientRequest(protocol, args),
       get: (...args: Dyn[]) => {
         const r = new ClientRequest(protocol, args)
