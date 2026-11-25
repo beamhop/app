@@ -136,6 +136,9 @@ export function deferred<T = void>(): { promise: Promise<T>; resolve: (v: T) => 
 export function memoryInUse(): { heapUsed: number; arrayBuffers: number } {
   v8.setFlagsFromString('--expose-gc')
   const gc = vm.runInNewContext('gc') as () => void
+  // V8 frees ArrayBuffer backing stores in a sweep that the next collection finishes, so one gc()
+  // can still count tens of MB of dead Buffers in `arrayBuffers`. The second gc() completes it.
+  gc()
   gc()
   const { heapUsed, arrayBuffers } = process.memoryUsage()
   return { heapUsed, arrayBuffers }
