@@ -1,3 +1,4 @@
+import { machine } from '../machine/machine'
 import {
   BeamhopClient,
   DEFAULT_BLOSSOM,
@@ -69,6 +70,8 @@ export class Store {
     this.client.on('error', (e) => this.toast(e, 'error'))
     this.client.on('agent-joined', ({ name }) => this.toast(`${name} joined as your agent`))
     await this.client.start()
+    await machine.load()
+    machine.onChange(() => this.bump())
     this.runner = new AgentRunner(this)
     this.runner.start()
     onCredsChange((provider) => {
@@ -151,6 +154,9 @@ export class Store {
       pk: getPublicKey(sk),
       name: p.name || 'Agent',
       emoji: p.emoji || '🤖',
+      ...(p.runtime ? { runtime: p.runtime } : {}),
+      ...(p.harness ? { harness: p.harness } : {}),
+      ...(p.customCommand ? { customCommand: p.customCommand } : {}),
       provider: p.provider || 'openrouter',
       model: p.model ?? '',
       instructions: p.instructions ?? '',

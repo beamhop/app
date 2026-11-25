@@ -1,5 +1,7 @@
 # Universal sandbox design
 
+> **Update, November 2026: the app now ships a Linux machine built on [unkernel](https://github.com/pithings/unkernel)** (`packages/app/src/machine/`). unkernel is the Linux kernel compiled to WebAssembly with an emulated arm64 CPU, so the harnesses' official Linux builds run unmodified: Claude Code, Codex, Gemini CLI, OpenCode and fx were all run in a tab during evaluation, which covers the native harnesses this design had no route for. It boots in a dedicated worker with no SharedArrayBuffer or cross-origin isolation, keeps its disk in IndexedDB, and reaches the network through the Beamhop proxy's tunnel mode (or a Wisp server). The trade-off is speed: programs run on an emulated CPU. `packages/sandbox` (this design's own kernel and Node layer) remains the faster route for JavaScript harnesses and is not wired into the app. See the README's "Linux machine in the tab".
+
 Status: design, revision 2, November 2026. Revision 1 put the agent loop outside the sandbox; that was a misreading and is replaced here. Background research is in `reports/Browser agent sandbox options.md`. Only what is listed under "Prototype results" has been demonstrated, and only in headless Chromium.
 
 ## Goal

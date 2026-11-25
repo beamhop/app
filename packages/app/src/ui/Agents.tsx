@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DEFAULT_CAPS, uniqueName, type AgentMode, type Instructors } from '@beamhop/shared'
+import { DEFAULT_CAPS, HARNESSES, HARNESS_ORDER, agentInviteUrl, uniqueName, type AgentMode, type HarnessId, type Instructors } from '@beamhop/shared'
 import { useStore, go } from './hooks'
 import { Avatar, Radio, Switch, TopBar } from './components'
 import { Icon } from './icons'
@@ -11,6 +11,10 @@ import { extCaptureRedirect, extFetch } from '../core/extension'
 import { kv } from '../core/kv'
 import type { Usage } from '../core/types'
 import { ExtensionHelp } from './Settings'
+import { HarnessSetup } from './Machine'
+import { appBase, bridgeCommand } from './Invite'
+import { CopyBox } from './components'
+import { copyText } from './hooks'
 
 const EMOJIS = ['🤖', '🦊', '🦉', '🐙', '🧠', '🛰️', '🧪', '📚', '🎨', '🛠️', '🌱', '⚡️', '🐝', '🦄', '🧭', '🎧']
 
@@ -34,7 +38,7 @@ export function AgentsScreen() {
       <div className="scroll">
         <div className="center-col" style={{ paddingBottom: 60 }}>
           <p className="muted small" style={{ marginTop: 16 }}>
-            Browser agents run fx in this browser with your own sign-in. Add them to any room. Agents connected from a computer through the bridge show up in the rooms they joined.
+            Agents you create run in this browser: fx with your own sign-in, or a coding agent like Claude Code or Codex in a Linux machine inside the tab. Add them to any room. Agents connected from a computer through the bridge show up in the rooms they joined.
           </p>
           {agents.length === 0 ? (
             <div className="empty">
@@ -49,17 +53,18 @@ export function AgentsScreen() {
               {agents.map((a) => {
                 const p = providerInfo(a.provider)
                 const runs = s.runner.canRunHere(a)
+                const onMachine = a.runtime === 'machine'
                 return (
                   <button key={a.id} className="list-item" onClick={() => go(`agents/${a.id}`)}>
                     <Avatar pk={a.pk} name={a.name} emoji={a.emoji} agent />
                     <div className="main">
                       <div className="t">{a.name}</div>
                       <div className="s">
-                        {p.label}
-                        {a.model ? ` · ${a.model}` : ''}
+                        {onMachine ? `${HARNESSES[a.harness ?? 'claude'].label} · Linux machine` : p.label}
+                        {!onMachine && a.model ? ` · ${a.model}` : ''}
                       </div>
                     </div>
-                    {runs ? <span className="tag" style={{ color: 'var(--ok)' }}>Ready</span> : ready[a.id] && p.needsExtension ? <span className="tag warn">Needs extension</span> : <span className="tag warn">Sign in</span>}
+                    {runs ? <span className="tag" style={{ color: 'var(--ok)' }}>Ready</span> : onMachine ? <span className="tag warn">Set up</span> : ready[a.id] && p.needsExtension ? <span className="tag warn">Needs extension</span> : <span className="tag warn">Sign in</span>}
                   </button>
                 )
               })}
@@ -77,6 +82,9 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
   const existing = isNew ? undefined : s.agents.find((a) => a.id === id && !a.deleted)
   const [name, setName] = useState(existing?.name ?? 'Claude')
   const [emoji, setEmoji] = useState(existing?.emoji ?? '🤖')
+  const [runtime, setRuntime] = useState<'tab' | 'machine' | 'computer'>(existing?.runtime ?? 'tab')
+  const [harness, setHarness] = useState<HarnessId>(existing?.harness ?? 'claude')
+  const [customCommand, setCustomCommand] = useState(existing?.customCommand ?? '')
   const [provider, setProvider] = useState<ProviderId>(existing?.provider ?? 'openrouter')
   const [model, setModel] = useState(existing?.model ?? providerInfo('openrouter').defaultModel)
   const [instructions, setInstructions] = useState(existing?.instructions ?? '')
@@ -120,7 +128,22 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
   const save = async () => {
     setBusy(true)
     try {
-      const patch = { name: name.trim() || 'Agent', emoji, provider, model: model.trim(), instructions, tools: { web, sandbox }, mode, instructors, caps: { perHour, maxHops } }
+      if (runtime === 'computer') return go(roomId ? `r/${roomId}` : 'agents')
+      if (runtime === 'machine' && harness === 'custom' && !customCommand.trim()) throw new Error('Enter the command that starts your ACP agent.')
+      const patch = {
+        name: name.trim() || 'Agent',
+        emoji,
+        runtime,
+        harness: runtime === 'machine' ? harness : undefined,
+        customCommand: runtime === 'machine' && harness === 'custom' ? customCommand.trim() : undefined,
+        provider,
+        model: runtime === 'machine' ? (existing?.model ?? '') : model.trim(),
+        instructions,
+        tools: { web, sandbox },
+        mode,
+        instructors,
+        caps: { perHour, maxHops },
+      }
       if (existing) {
         await s.updateAgent(existing.id, patch)
         // keep room-visible metadata in sync
@@ -132,7 +155,8 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
           const others = { ...st!, agents: Object.fromEntries(Object.entries(st!.agents).filter(([pk]) => pk !== existing.pk)) }
           // only when the user actually renamed it; a room may have given it a numbered name
           const name = patch.name === existing.name ? undefined : uniqueName(others, patch.name)
-          await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: patch.model, ...(name ? { name } : {}) }).catch(() => {})
+          const roomModel = runtime === 'machine' ? HARNESSES[harness].label : patch.model
+          await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: roomModel, ...(name ? { name } : {}) }).catch(() => {})
         }
         s.toast('Saved')
         go(roomId ? `r/${roomId}/agent/${existing.pk}` : 'agents')
@@ -159,9 +183,9 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
 
   return (
     <div className="screen">
-      <TopBar title={isNew ? 'New browser agent' : existing!.name} onBack={() => go(roomId ? `r/${roomId}` : 'agents')}>
+      <TopBar title={isNew ? 'New agent' : existing!.name} onBack={() => go(roomId ? `r/${roomId}` : 'agents')}>
         <button className="btn small primary" onClick={save} disabled={busy}>
-          {isNew ? (roomId ? 'Create & add' : 'Create') : 'Save'}
+          {runtime === 'computer' ? 'Done' : isNew ? (roomId ? 'Create & add' : 'Create') : 'Save'}
         </button>
       </TopBar>
       <div className="scroll">
@@ -179,6 +203,51 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
             ))}
           </div>
 
+          <div className="section-title">Where it runs</div>
+          <div className="runtime-grid">
+            {(
+              [
+                ['tab', 'In this tab', 'fx in WebAssembly. Starts instantly, works on phones. Sign in with ChatGPT, Copilot, Gemini, OpenRouter or a key.'],
+                ['machine', 'Linux machine in this tab', 'Claude Code, Codex, Gemini CLI, OpenCode or fx, unmodified, in a Linux machine inside this browser. Nothing to install.'],
+                ['computer', 'On my computer', 'The same agents, run from a terminal on your computer through the Beamhop bridge.'],
+              ] as const
+            )
+              .filter(([k]) => !existing || k !== 'computer')
+              .map(([k, t, d]) => (
+                <button key={k} className={`provider ${runtime === k ? 'on' : ''}`} onClick={() => setRuntime(k)}>
+                  <div className="t">{t}</div>
+                  <div className="d">{d}</div>
+                </button>
+              ))}
+          </div>
+
+          {runtime !== 'tab' && (
+            <>
+              <div className="section-title">Agent</div>
+              <div className="provider-grid" style={{ marginBottom: 10 }}>
+                {HARNESS_ORDER.map((hid) => (
+                  <button key={hid} className={`provider ${harness === hid ? 'on' : ''}`} onClick={() => setHarness(hid)}>
+                    <div className="t">{HARNESSES[hid].label}</div>
+                    <div className="d">{HARNESSES[hid].blurb}</div>
+                  </button>
+                ))}
+              </div>
+              {harness === 'custom' && (
+                <div className="field">
+                  <label>Command</label>
+                  <input className="input mono" value={customCommand} onChange={(e) => setCustomCommand(e.target.value)} placeholder="my-agent --acp" />
+                  <div className="hint">Starts a program that speaks the Agent Client Protocol on stdin/stdout.</div>
+                </div>
+              )}
+            </>
+          )}
+
+          {runtime === 'machine' && <HarnessSetup harness={harness} customCommand={customCommand} key={harness} />}
+
+          {runtime === 'computer' && <BridgeCommand roomId={roomId} harness={harness} customCommand={customCommand} />}
+
+          {runtime === 'tab' && (
+          <>
           <div className="section-title">Model provider</div>
           {groups.map(([title, ids]) => (
             <div key={title} style={{ marginBottom: 10 }}>
@@ -212,11 +281,18 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
             </datalist>
           </div>
 
+          </>
+          )}
+
+          {runtime !== 'computer' && (
+          <>
           <div className="field">
             <label>Instructions</label>
             <textarea className="input" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="How should it behave? e.g. You are a concise senior engineer. Prefer code over prose." />
           </div>
 
+          {runtime === 'tab' && (
+          <>
           <div className="section-title">Tools</div>
           <div className="card stack">
             <div className="row between">
@@ -235,6 +311,8 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
             </div>
             <div className="small muted">It always gets the room’s recent messages for context.</div>
           </div>
+          </>
+          )}
 
           <div className="section-title">Defaults for new rooms</div>
           <Radio on={mode === 'mention'} title="Speaks when @mentioned" onClick={() => setMode('mention')} />
@@ -265,6 +343,9 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
             </div>
           </div>
 
+          </>
+          )}
+
           {existing && (
             <>
               <div className="section-title">Usage on this device</div>
@@ -290,6 +371,43 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
         </div>
       </div>
     </div>
+  )
+}
+
+/** The command that connects `harness` on the owner's computer to the room, through the bridge. */
+function BridgeCommand({ roomId, harness, customCommand }: { roomId?: string; harness: HarnessId; customCommand: string }) {
+  const s = useStore()
+  const inv = roomId ? s.client.agentInvite(roomId) : null
+  if (!inv)
+    return (
+      <div className="card small muted">
+        Agents on your computer join one room at a time through its agent link. Open a room, then Invite → Agent → New agent, to get the command for that room.
+      </div>
+    )
+  const link = agentInviteUrl(appBase(), inv)
+  const cmd = bridgeCommand(link, harness, customCommand)
+  return (
+    <>
+      <div className="code">
+        <div className="code-head">
+          <span>terminal</span>
+          <button className="btn small ghost" onClick={() => copyText(cmd)}>
+            Copy
+          </button>
+        </div>
+        <pre>
+          <code>{cmd}</code>
+        </pre>
+      </div>
+      <p className="hint">
+        Needs Node.js 22+ and {HARNESSES[harness].label} installed and signed in ({HARNESSES[harness].bridgeInstall}). Keep the terminal open while the agent should be online. It joins
+        the room as yours; you set when it speaks from the room.
+      </p>
+      <div className="label" style={{ margin: '10px 0 6px' }}>
+        Agent link
+      </div>
+      <CopyBox value={link} />
+    </>
   )
 }
 

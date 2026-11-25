@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MachineSettings } from './Machine'
 import { nip19 } from 'nostr-tools'
 import { DEFAULT_BLOSSOM, DEFAULT_RELAYS } from '@beamhop/shared'
 import { useStore, go, copyText } from './hooks'
@@ -150,6 +151,8 @@ export function SettingsScreen({ section }: { section?: string }) {
               </button>
             </div>
           </div>
+
+          <MachineSettings />
 
           <div className="section-title">File servers</div>
           <div className="card stack">

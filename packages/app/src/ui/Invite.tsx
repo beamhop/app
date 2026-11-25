@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react'
-import { agentInviteUrl, humanInviteUrl, isAdmin } from '@beamhop/shared'
+import { HARNESSES, HARNESS_ORDER, agentInviteUrl, bridgeAgentFlag, humanInviteUrl, isAdmin, type HarnessId } from '@beamhop/shared'
 import { useStore, go, copyText } from './hooks'
 import { Avatar, CopyBox, QR, Sheet } from './components'
 import { Icon } from './icons'
 
 export const appBase = () => location.origin + location.pathname
 
+const BRIDGE_PKG = 'github:beamhop/app#dist'
+
+/** The bridge command that connects `harness` on a computer to the room behind `link`. */
+export function bridgeCommand(link: string, harness: HarnessId, customCommand = '') {
+  return `npx -y ${BRIDGE_PKG} "${link}" ${bridgeAgentFlag(harness, customCommand.trim() || undefined)}`
+}
+
 export function bridgeCommands(link: string) {
-  const q = `"${link}"`
-  const pkg = 'github:beamhop/app#dist'
   return [
-    { id: 'fx', label: 'fx', cmd: `npx -y ${pkg} ${q} --agent fx`, note: 'Runs the fx CLI on your machine (fx login codex for a ChatGPT plan).' },
-    { id: 'claude', label: 'Claude Code', cmd: `npx -y ${pkg} ${q} --agent claude`, note: 'Runs Claude Code (through its ACP adapter) with your Claude plan.' },
-    { id: 'gemini', label: 'Gemini CLI', cmd: `npx -y ${pkg} ${q} --agent gemini`, note: 'Runs Gemini CLI with your Google account.' },
-    { id: 'codex', label: 'Codex', cmd: `npx -y ${pkg} ${q} --agent codex`, note: 'Runs Codex CLI (through its ACP adapter) with your ChatGPT plan.' },
+    ...HARNESS_ORDER.filter((id) => id !== 'custom').map((id) => ({
+      id: id as string,
+      label: HARNESSES[id].label,
+      cmd: bridgeCommand(link, id),
+      note: `Runs ${HARNESSES[id].label} on your computer (${HARNESSES[id].bridgeInstall}).`,
+    })),
     {
       id: 'mcp',
       label: 'MCP (Cursor…)',
-      cmd: `claude mcp add beamhop -- npx -y ${pkg} mcp ${q}`,
+      cmd: `claude mcp add beamhop -- npx -y ${BRIDGE_PKG} mcp "${link}"`,
       note: 'Gives Claude Code, Cursor or any MCP client tools to read and post in this room. For Cursor, add the same command as a stdio MCP server.',
     },
   ]
@@ -60,7 +67,7 @@ export function InviteSheet({ roomId, tab: initial, onClose }: { roomId: string;
   const st = c.state(roomId)!
   const [tab, setTab] = useState(initial)
   const [qr, setQr] = useState(false)
-  const [cli, setCli] = useState('fx')
+  const [cli, setCli] = useState('claude')
   const admin = isAdmin(st, s.pk)
   const human = c.humanInvite(roomId)
   const humanUrl = human ? humanInviteUrl(appBase(), human) : ''
@@ -127,9 +134,9 @@ export function InviteSheet({ roomId, tab: initial, onClose }: { roomId: string;
       {tab === 'agent' && (
         <>
           <AgentLinkCard roomId={roomId} />
-          <div className="section-title">Add a browser agent</div>
+          <div className="section-title">Add an agent</div>
           <p className="hint" style={{ marginTop: 0 }}>
-            Runs fx in this browser with your own sign-in: ChatGPT, Copilot, Gemini, OpenRouter or an API key.
+            Claude Code, Codex, Gemini CLI, OpenCode or fx, in this browser (no install) or on your computer.
           </p>
           {available.length > 0 && (
             <div className="list" style={{ marginBottom: 8 }}>
@@ -158,10 +165,10 @@ export function InviteSheet({ roomId, tab: initial, onClose }: { roomId: string;
             </div>
           )}
           <button className="btn block" onClick={() => go(`agents/new/${roomId}`)}>
-            <Icon name="plus" size={16} /> Create a browser agent
+            <Icon name="plus" size={16} /> New agent
           </button>
 
-          <div className="section-title">From your computer</div>
+          <div className="section-title">Quick connect from your computer</div>
           <div className="row wrap" style={{ gap: 6 }}>
             {cmds.map((x) => (
               <button key={x.id} className={`btn small ${cli === x.id ? 'primary' : ''}`} onClick={() => setCli(x.id)}>

@@ -1,9 +1,13 @@
-// Runs the user's in-browser agents (fx via libfx WebAssembly) in rooms and DMs.
+// Runs the user's in-browser agents in rooms and DMs: fx compiled to WebAssembly (runtime 'tab'),
+// or a coding-agent harness in the Linux machine in the tab (runtime 'machine', see ../machine).
 import { agentInstructions, displayName, formatTranscript, randomHex, shouldRespond, type Decoded, type FileRef } from '@beamhop/shared'
 import type { Store } from '../core/store'
 import type { AgentDef, Usage } from '../core/types'
 import { kv } from '../core/kv'
 import { canRun, fxProviderOptions } from './providers'
+import { HARNESSES } from '@beamhop/shared'
+import { HarnessAgent } from '../machine/acp'
+import { machine, machineSupported } from '../machine/machine'
 import { makeTools } from './tools'
 
 type FxMod = typeof import('libfx/browser')
@@ -18,6 +22,7 @@ interface FxHandle {
 
 export class AgentRunner {
   private fx = new Map<string, FxHandle>()
+  private harnesses = new Map<string, { agent: HarnessAgent; sig: string }>()
   private queues = new Map<string, Promise<void>>()
   private replies = new Map<string, number[]>()
   private lastIncluded = new Map<string, number>()
@@ -49,7 +54,7 @@ export class AgentRunner {
   async refreshCapabilities() {
     const c = this.store.client
     const run = new Set<string>()
-    for (const a of this.store.liveAgents()) if (await canRun(a.provider)) run.add(a.id)
+    for (const a of this.store.liveAgents()) if (await this.canRunDef(a)) run.add(a.id)
     this.runnable = run
     for (const roomId of c.rooms.keys()) {
       const st = c.state(roomId)
@@ -61,6 +66,11 @@ export class AgentRunner {
       c.setLocalAgents(roomId, local)
     }
     this.store.bump()
+  }
+
+  private async canRunDef(def: AgentDef) {
+    if (def.runtime === 'machine') return !!def.harness && machineSupported().ok && (await machine.harnessReady(def.harness))
+    return canRun(def.provider)
   }
 
   canRunHere(def: AgentDef) {
@@ -77,6 +87,11 @@ export class AgentRunner {
   }
 
   invalidate(id: string) {
+    const m = this.harnesses.get(id)
+    if (m) {
+      this.harnesses.delete(id)
+      m.agent.close()
+    }
     const h = this.fx.get(id)
     if (h) {
       this.fx.delete(id)
@@ -102,6 +117,61 @@ export class AgentRunner {
     const h = { agent, sig, pendingFiles }
     this.fx.set(def.id, h)
     return h
+  }
+
+  private async harnessFor(def: AgentDef): Promise<HarnessAgent> {
+    const harness = def.harness ?? 'claude'
+    const key = HARNESSES[harness].keyEnv ? await machine.harnessKey(harness) : ''
+    const sig = JSON.stringify([harness, key, def.customCommand ?? ''])
+    const cur = this.harnesses.get(def.id)
+    if (cur && cur.sig === sig && cur.agent.alive) return cur.agent
+    cur?.agent.close()
+    if (harness === 'custom') await machine.writeFile('/root/.beamhop/custom-agent', `#!/bin/sh\n${def.customCommand ?? ''}\n`)
+    const env: Record<string, string> = {}
+    const k = HARNESSES[harness].keyEnv
+    if (k && key) env[k.name] = key
+    const agent = new HarnessAgent(def.id, harness, env)
+    this.harnesses.set(def.id, { agent, sig })
+    await agent.init()
+    return agent
+  }
+
+  /**
+   * One turn of `def`, on whichever runtime it uses. Streams text through `onText` and status
+   * lines through `onStatus`; resolves with the reply and the files its tools attached.
+   */
+  private async turn(
+    def: AgentDef,
+    o: { session: string; instructions: string; context: Record<string, unknown>; prompt: string; allowTools: boolean; roomId?: string },
+    onText: (d: string) => void,
+    onStatus: (s: string) => void,
+  ): Promise<{ text: string; files: FileRef[] }> {
+    if (def.runtime === 'machine') {
+      if (machine.state !== 'ready') onStatus('Starting the Linux machine…')
+      const a = await this.harnessFor(def)
+      // ACP has no system prompt: the instructions open each conversation.
+      const prompt = a.hasSession(o.session) ? o.prompt : `${o.instructions}\n\n---\n\n${o.prompt}`
+      const text = await a.run({ session: o.session, prompt, allowTools: o.allowTools, onText, onStatus })
+      await this.recordUsage(def)
+      return { text, files: [] }
+    }
+    const h = await this.fxFor(def)
+    const session = h.agent.session(o.session, { instructions: o.instructions, context: o.context })
+    const turn = session.prompt(o.prompt)
+    let text = ''
+    for await (const e of turn) {
+      if (e.type === 'text_delta') {
+        text += e.delta
+        onText(e.delta)
+      } else if (e.type === 'tool_start') onStatus(`Using ${e.name}…`)
+      else if (e.type === 'tool_end') onStatus('Thinking…')
+    }
+    const result = await turn.result
+    await this.recordUsage(def, result?.usage)
+    if (result?.stopReason === 'error') throw new Error(result.error?.message ?? 'The model returned an error')
+    const files = (o.roomId && h.pendingFiles.get(o.roomId)) || []
+    if (o.roomId) h.pendingFiles.delete(o.roomId)
+    return { text, files }
   }
 
   /** Is this device the one that should run `def` in `roomId`? */
@@ -176,7 +246,6 @@ export class AgentRunner {
     try {
       await pushStream('Thinking…')
       this.setStatus(def.pk, 'Thinking…')
-      const h = await this.fxFor(def)
       const st = c.state(roomId)!
       const key = `${def.id}:${roomId}`
       const since = this.lastIncluded.get(key) ?? 0
@@ -191,30 +260,31 @@ export class AgentRunner {
         `${who} mentioned you in the last message. Write your reply to the room now.`,
         catchUp ? '(This message arrived while you were offline. Reply only if it is still useful; otherwise briefly acknowledge it.)' : '',
       ].join('\n')
-      const session = h.agent.session(`room-${roomId}`, {
-        instructions: agentInstructions(st, def.pk, def.instructions),
-        context: { roomId },
-      })
-      const turn = session.prompt(prompt)
-      for await (const e of turn) {
-        if (e.type === 'text_delta') {
-          text += e.delta
+      const out = await this.turn(
+        def,
+        {
+          session: `room-${roomId}`,
+          instructions: agentInstructions(st, def.pk, def.instructions),
+          context: { roomId },
+          prompt,
+          // Tools that change things run only when the agent's owner asked.
+          allowTools: trigger.pubkey === this.store.pk,
+          roomId,
+        },
+        (d) => {
+          text += d
           if (Date.now() - lastSent > 450) {
             lastSent = Date.now()
             pushStream()
           }
-        } else if (e.type === 'tool_start') {
-          this.setStatus(def.pk, `Using ${e.name}…`)
-          pushStream(`Using ${e.name}…`)
-        } else if (e.type === 'tool_end') {
-          this.setStatus(def.pk, 'Thinking…')
-        }
-      }
-      const result = await turn.result
-      await this.recordUsage(def, result?.usage)
-      if (result?.stopReason === 'error') throw new Error(result.error?.message ?? 'The model returned an error')
-      const files = h.pendingFiles.get(roomId) ?? []
-      h.pendingFiles.delete(roomId)
+        },
+        (s) => {
+          this.setStatus(def.pk, s)
+          pushStream(s)
+        },
+      )
+      text = out.text || text
+      const files = out.files
       const final = text.trim() || (files.length ? 'Here you go.' : '…')
       await c.sendMessage(roomId, final, { as: def.pk, trigger: trigger.id, hop, sid, files })
       const arr = (this.replies.get(def.pk) ?? []).filter((t) => t > Date.now() - 3600_000)
@@ -253,17 +323,18 @@ export class AgentRunner {
     this.enqueue(def, async () => {
       this.setStatus(def.pk, 'Thinking…')
       try {
-        const h = await this.fxFor(def)
-        const session = h.agent.session('dm', {
-          instructions: `You are "${def.name}", the personal AI agent of ${this.store.profile.name || 'your owner'}, talking privately with them in Beamhop.\n\n${def.instructions}`,
-          context: { dm: true },
-        })
-        const turn = session.prompt(item.text)
-        let text = ''
-        for await (const e of turn) if (e.type === 'text_delta') text += e.delta
-        const result = await turn.result
-        await this.recordUsage(def, result?.usage)
-        if (result?.stopReason === 'error') throw new Error(result.error?.message ?? 'model error')
+        const { text } = await this.turn(
+          def,
+          {
+            session: 'dm',
+            instructions: `You are "${def.name}", the personal AI agent of ${this.store.profile.name || 'your owner'}, talking privately with them in Beamhop.\n\n${def.instructions}`,
+            context: { dm: true },
+            prompt: item.text,
+            allowTools: true,
+          },
+          () => {},
+          (s) => this.setStatus(def.pk, s),
+        )
         await this.store.client.sendDM(def.pk, this.store.pk, text.trim() || '…')
       } catch (e: any) {
         await this.store.client.sendDM(def.pk, this.store.pk, `⚠️ ${e?.message ?? e}`).catch(() => {})
