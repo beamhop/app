@@ -20,7 +20,10 @@ const only = process.argv.slice(2);
 const t0 = Date.now();
 const r = await esbuild.build({
   entryPoints: [path.join(root, 'src/worker.js')], outfile: path.join(web, 'worker.js'), bundle: true, format: 'iife', platform: 'browser', target: 'es2022', minify: false, metafile: true, legalComments: 'none',
-  alias: { 'node:zlib': path.join(root, 'src/runtime/zlib-for-bash.js'), 'process/': path.join(root, 'src/runtime/process-shim.js'), process: path.join(root, 'src/runtime/process-shim.js') },
+  plugins: [{ name: 'spike-aliases', setup(b) {
+    b.onResolve({ filter: /^process\/?$/ }, () => ({ path: path.join(root, 'src/runtime/process-shim.js') }));
+    b.onResolve({ filter: /^node:zlib$/ }, () => ({ path: path.join(root, 'src/runtime/zlib-for-bash.js') }));
+  } }],
   inject: [path.join(root, 'src/runtime/inject-process.js')],
   define: { global: 'globalThis' },
   logLevel: 'warning',
@@ -119,11 +122,11 @@ async function buildImage(name, spec) {
   }
 
   // Serialize.
-  const header = { meta: { name, mount: spec.mount, builtAt: new Date().toISOString() }, dirs, files: [], links, esm: {} };
+  const header = { meta: { name, mount: spec.mount, builtAt: new Date().toISOString() }, dirs: dirs.map((d) => spec.mount + d), files: [], links: links.map(([p, t]) => [spec.mount + p, t]), esm: {} };
   const chunks = []; let off = 0;
-  for (const f of files) { header.files.push([f.rel, off, f.data.length, f.mode]); chunks.push(f.data); off += f.data.length; }
+  for (const f of files) { header.files.push([spec.mount + f.rel, off, f.data.length, f.mode]); chunks.push(f.data); off += f.data.length; }
   const fileBytes = off;
-  for (const [p, data] of esmCache) { header.esm[p.slice(spec.mount.length)] = [off, data.length]; chunks.push(data); off += data.length; }
+  for (const [p, data] of esmCache) { header.esm[p] = [off, data.length]; chunks.push(data); off += data.length; }
   const headerBuf = Buffer.from(JSON.stringify(header));
   const lenBuf = Buffer.alloc(4); lenBuf.writeUInt32LE(headerBuf.length);
   const image = Buffer.concat([lenBuf, headerBuf, ...chunks]);
