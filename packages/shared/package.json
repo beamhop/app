@@ -1,0 +1,12 @@
+{
+  "name": "@beamhop/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "nostr-tools": "2.26.1"
+  }
+}

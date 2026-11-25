@@ -1,0 +1,26 @@
+{
+  "name": "beamhop",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/app",
+    "packages/extension",
+    "packages/bridge"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @beamhop/app",
+    "build": "npm run build -w @beamhop/app && npm run build -w @beamhop/extension && npm run build -w @beamhop/bridge",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/app && tsc -p packages/bridge",
+    "test": "vitest run",
+    "e2e": "playwright test --trace off",
+    "relay": "node tools/relay.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/ws": "^8",
+    "typescript": "6.0.3",
+    "vitest": "5.1.1",
+    "ws": "8.23.0"
+  }
+}

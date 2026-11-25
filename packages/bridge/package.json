@@ -1,0 +1,14 @@
+{
+  "name": "@beamhop/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": {
+    "@beamhop/shared": "*",
+    "nostr-tools": "2.26.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@agentclientprotocol/sdk": "2.12.0"
+  },
+  "devDependencies": { "esbuild": "0.28.2", "@types/node": "^22" }
+}
