@@ -3,6 +3,7 @@ const RELAY = 'ws://localhost:7777'
 const OUT = process.env.SHOTS_DIR || 'test-results/shots'
 const open = (p: Page, hash = '') => p.goto(`/?relay=${encodeURIComponent(RELAY)}#/${hash}`)
 
+test.skip(!process.env.SHOTS_DIR, 'set SHOTS_DIR to take screenshots')
 test('screens', async ({ browser }) => {
   const mk = async (mobile: boolean) => (await browser.newContext(mobile ? { ...devices['iPhone 13'], deviceScaleFactor: 1 } : { viewport: { width: 1280, height: 820 } })).newPage()
   const alice = await mk(false)
@@ -52,6 +53,7 @@ test('screens', async ({ browser }) => {
   await bob.screenshot({ path: `${OUT}/10-chat-mobile.png` })
   await alice.screenshot({ path: `${OUT}/11-chat-desktop.png` })
   await bob.locator('[aria-label="People & agents"]').click()
+  await bob.waitForTimeout(500)
   await bob.screenshot({ path: `${OUT}/12-people-mobile.png` })
   const agentPk = await alice.evaluate(() => Object.keys((window as any).__beamhop.client.state(location.hash.split('/')[2]).agents)[0])
   await alice.goto(`/?relay=${encodeURIComponent(RELAY)}#/r/${roomId}/agent/${agentPk}`)

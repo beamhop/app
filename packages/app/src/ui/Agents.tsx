@@ -303,7 +303,7 @@ function ProviderConnect({ provider }: { provider: ProviderId }) {
   useEffect(() => {
     getCreds(provider).then((c) => {
       setC(c ?? null)
-      setBase((c as any)?.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : ''))
+      setBase((b) => b || ((c as any)?.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : '')))
     })
   }, [provider])
 

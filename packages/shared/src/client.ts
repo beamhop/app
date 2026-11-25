@@ -230,8 +230,14 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   }
 
   setLocalAgents(roomId: string, agents: Hex[]) {
+    const prev = [...(this.localAgentsByRoom.get(roomId) ?? [])].sort().join(',')
     this.localAgentsByRoom.set(roomId, new Set(agents))
+    if (prev !== [...agents].sort().join(',')) {
+      clearTimeout(this.presenceSoon)
+      this.presenceSoon = setTimeout(() => this.broadcastPresence(), 300)
+    }
   }
+  private presenceSoon: any
 
   allRelays() {
     const s = new Set(this.relays)

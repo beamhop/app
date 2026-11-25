@@ -57,7 +57,7 @@ export function RoomScreen({ roomId, panel, panelArg }: { roomId: string; panel?
     )
 
   return (
-    <div className="screen" style={desktop ? { position: 'relative', flexDirection: 'row' } : undefined}>
+    <div className="screen" style={desktop ? { flexDirection: 'row' } : undefined}>
       <Chat roomId={roomId} st={st} onPeople={togglePeople} panelOpen={!desktop && (panel === 'people' || panel === 'agent')} />
       {desktop && showSidePanel && <div className="right">{sideContent}</div>}
       {!desktop && (panel === 'people' || panel === 'agent') && <MobilePanel onClose={close}>{sideContent}</MobilePanel>}
