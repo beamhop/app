@@ -13,7 +13,7 @@ export function DMScreen({ identity, peer }: { identity: string; peer: string })
   const agent = s.agentByPk(identity) ?? s.agentByPk(peer)
   const me = s.pk
   const other = agent ? agent.pk : peer
-  const thread = agent ? c.dmMessages(agent.pk, me) : c.dmMessages(me, peer)
+  const thread = c.dmMessages(me, other)
   const name = agent ? agent.name : peerDisplayName(s, peer)
   const [text, setText] = useState('')
   const box = useRef<HTMLDivElement>(null)

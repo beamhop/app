@@ -85,6 +85,12 @@ export class Store {
       this.bump()
     })
     this.pullRemote().catch(() => {})
+    setInterval(() => this.pullRemote().catch(() => {}), 60_000)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.flushSync()
+      else this.pullRemote().catch(() => {})
+    })
+    window.addEventListener('pagehide', () => this.flushSync())
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault()
       this.installPrompt = e
@@ -153,6 +159,7 @@ export class Store {
     this.agents = [...this.agents, def]
     this.client.addIdentity(sk)
     await this.persistAgents()
+    await this.runner.refreshCapabilities()
     return def
   }
 
@@ -202,7 +209,10 @@ export class Store {
   // ---------------------------------------------------------------- multi-device sync (NIP-78, encrypted to self)
   private scheduleSync() {
     clearTimeout(this.syncTimer)
-    this.syncTimer = setTimeout(() => this.pushRemote().catch(() => {}), 1500)
+    this.syncTimer = setTimeout(() => {
+      this.syncTimer = null
+      this.pushRemote().catch(() => {})
+    }, 1500)
   }
 
   async pushRemote() {
@@ -248,7 +258,15 @@ export class Store {
       (this.profile.updatedAt > (remote.profile?.updatedAt ?? 0)) ||
       this.settings.updatedAt > (remote.settings?.updatedAt ?? 0) ||
       this.agents.some((a) => a.updatedAt > ((remote.agents ?? []).find((r) => r.id === a.id)?.updatedAt ?? 0))
-    if (needPush) this.scheduleSync()
+    if (needPush) await this.pushRemote().catch(() => this.scheduleSync())
+  }
+
+  /** Push pending changes now (e.g. before the page is hidden or another device pairs). */
+  async flushSync() {
+    if (!this.syncTimer) return
+    clearTimeout(this.syncTimer)
+    this.syncTimer = null
+    await this.pushRemote().catch(() => {})
   }
 
   // ---------------------------------------------------------------- identity

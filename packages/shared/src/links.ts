@@ -11,7 +11,7 @@ export const DEFAULT_RELAYS = [
   'wss://nostr.mom',
 ]
 
-export const DEFAULT_BLOSSOM = ['https://blossom.primal.net', 'https://nostr.download', 'https://blossom.band']
+export const DEFAULT_BLOSSOM = ['https://nostr.download', 'https://blossom.primal.net', 'https://blossom.band']
 
 export function humanInviteUrl(base: string, inv: HumanInvite) {
   return `${base.replace(/#.*$/, '')}#/join/${jsonToB64url(inv)}`

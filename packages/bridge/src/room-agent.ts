@@ -1,4 +1,5 @@
 // Joins a Beamhop room as an agent identity, using an agent link.
+import './ws-polyfill.js'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'

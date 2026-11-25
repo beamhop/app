@@ -14,6 +14,7 @@ export interface PairingSession {
 }
 
 export async function startPairing(store: Store): Promise<PairingSession> {
+  await store.pushRemote().catch(() => {})
   const esk = generateSecretKey()
   const epk = getPublicKey(esk)
   const secret = randomHex(16)

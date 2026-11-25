@@ -136,7 +136,7 @@ export function Home() {
   const s = useStore()
   const desktop = useDesktop()
   const c = s.client
-  const hasAnything = c.rooms.size > 0 || c.pending.size > 0 || c.dmThreads().length > 0
+  const hasAnything = c.rooms.size > 0 || c.pending.size > 0 || c.dmThreads(s.pk).length > 0
   if (!hasAnything) return <Landing />
   if (desktop)
     return (
@@ -174,7 +174,7 @@ export function RoomList({ activeRoom, activeDM }: { activeRoom?: string; active
       return { r, st, last, at: last?.ms ?? r.joinedAt * 1000 }
     })
     .sort((a, b) => b.at - a.at)
-  const threads = c.dmThreads()
+  const threads = c.dmThreads(s.pk)
   return (
     <div className="panel" style={{ background: 'var(--bg)' }}>
       <TopBar title={<div className="brand"><span className="brand-dot" /> Beamhop</div>}>

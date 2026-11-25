@@ -11,6 +11,7 @@ await build({
   target: 'node22',
   format: 'esm',
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
+  external: ['bufferutil', 'utf-8-validate'],
   logLevel: 'warning',
 })
 console.log('bridge built')
