@@ -111,6 +111,7 @@ export function createSockets({ core, stream, EventEmitter, stats }: Deps) {
       let cb: Dyn
       if (typeof args[args.length - 1] === 'function') cb = args.pop()
       if (args[0] && typeof args[0] === 'object') opts = args[0]
+      else if (typeof args[0] === 'string' && !/^\d+$/.test(args[0])) opts = { path: args[0] } // net.connect('/path/to.sock')
       else opts = { port: args[0], host: args[1] }
       if (opts.path) {
         track('net.connect(unix socket)', String(opts.path))
@@ -263,7 +264,13 @@ export function createSockets({ core, stream, EventEmitter, stats }: Deps) {
       this._transport?.destroy()
       this._transport = null
       this._release()
+      this._hadError = !!err
       cb(err)
+    }
+    emit(event: string | symbol, ...args: Dyn[]): boolean {
+      // Node's sockets pass hadError to 'close' listeners; the stream base class emits it bare.
+      if (event === 'close' && args.length === 0) return super.emit('close', !!this._hadError)
+      return super.emit(event, ...args)
     }
     setTimeout(ms: number, cb?: () => void): this {
       this.timeout = ms

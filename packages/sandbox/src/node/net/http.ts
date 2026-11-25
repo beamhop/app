@@ -57,7 +57,8 @@ export function createHttp({ core, stream, EventEmitter, net, Server, transportF
   }
   class ClientRequest extends stream.Writable {
     constructor(defaultProtocol?: Dyn, args?: Dyn) {
-      super()
+      // Not auto-destroyed: finishing the request body is the start of the exchange, not the end of the request.
+      super({ autoDestroy: false })
       let opts: Dyn = {}
       let cb: Dyn
       if (typeof args[args.length - 1] === 'function') cb = args.pop()

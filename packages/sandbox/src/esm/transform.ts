@@ -267,7 +267,14 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
   // Function declarations are moved, edits and all, to the front of the text; BODY_MARK then separates them from
   // the module body so the two parts can be placed in different scopes. (Moving is constant-time per function;
   // slicing each one out is quadratic in a module with thousands of them.)
+  let leading = ''
   const hoist = (start: number, end: number): void => {
+    if (start === 0) {
+      // Already at the front, where it cannot be "moved"; take it out by hand.
+      leading = s.slice(start, end) + '\n'
+      s.remove(start, end)
+      return
+    }
     s.appendLeft(end, '\n')
     s.move(start, end, 0)
   }
@@ -363,7 +370,7 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
   const header =
     `System.register(${JSON.stringify(deps)}, function ($__export, $__ctx) { "use strict";` +
     (hoistedVars.size ? ` var ${[...hoistedVars].join(', ')};` : '') +
-    (functionNames.size ? '\n' + functions : '') +
+    (functionNames.size ? '\n' + leading + functions : '') +
     (early.length ? ` $__export({${early.join(', ')}});` : '') +
     ` return { setters: [${setters.join(', ')}], execute: ${usesAwait ? 'async ' : ''}function () {\n`
   return { code: header + body + '\n} }; });', deps, dynamicImports, async: usesAwait }

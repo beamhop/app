@@ -5,7 +5,6 @@
 import assertImpl from 'assert/'
 import { Buffer as BufferImpl, INSPECT_MAX_BYTES as inspectMax, kMaxLength as maxLength, SlowBuffer as SlowBufferImpl } from 'buffer/'
 import eventsImpl from 'events/'
-import processImpl from 'process/'
 import pathImpl from 'path-browserify'
 import punycodeImpl from 'punycode/'
 import querystringImpl from 'querystring-es3'
@@ -13,7 +12,6 @@ import streamImpl from 'readable-stream'
 import { StringDecoder as StringDecoderImpl } from 'string_decoder/'
 import urlImpl from 'url/'
 import utilImpl from 'util/'
-import processShim from './process-shim.js'
 import type { Dyn } from './types.js'
 
 export const assertPkg: Dyn = assertImpl
@@ -29,8 +27,3 @@ export const streamPkg: Dyn = streamImpl
 export const StringDecoderPkg: Dyn = StringDecoderImpl
 export const urlPkg: Dyn = urlImpl
 export const utilPkg: Dyn = utilImpl
-
-// readable-stream schedules through the `process` package. Point it at the layer's own nextTick so an exception
-// thrown by a stream callback is routed to the owning Node process instead of escaping to the host.
-// (In the worker bundle 'process/' already is the shim; under a Node host this is what connects them.)
-processImpl.nextTick = processShim.nextTick

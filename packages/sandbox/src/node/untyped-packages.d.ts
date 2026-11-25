@@ -31,10 +31,6 @@ declare module 'util/' {
   const util: any
   export default util
 }
-declare module 'process/' {
-  const process: any
-  export default process
-}
 declare module 'buffer/' {
   export const Buffer: any
   export const SlowBuffer: any
