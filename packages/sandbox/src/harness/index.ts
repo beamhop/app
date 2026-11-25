@@ -83,7 +83,8 @@ const gemini: HarnessDefinition = {
   mountAt: '/opt/gemini',
   command: 'gemini',
   entry: 'node_modules/@google/gemini-cli/bundle/gemini.js',
-  precompileExtra: ['/bundle/(tree-sitter[^/]*|liteRtServerManager-[A-Z0-9]+)\\.js$'],
+  // Reached through computed import(); the chunk name is specific to the pinned release.
+  precompileExtra: ['/bundle/(tree-sitter[^/]*|liteRtServerManager-WTEPPKAQ)\\.js$'],
   env: {
     // The launcher re-spawns itself with an IPC channel to set V8 heap flags; a Node child with IPC does not exist here.
     GEMINI_CLI_NO_RELAUNCH: 'true',

@@ -8,7 +8,9 @@ export interface E2eConfig {
   proxyUrl: string
   proxyToken: string
   mockUrl: string
-  piImage: string
+  images: Record<string, string>
+  /** Path of each harness's API on the mock. */
+  apiBase: Record<string, string>
   prompt: string
 }
 
@@ -65,31 +67,32 @@ async function finish(proc: MachineProcess): Promise<{ code: number; signal?: st
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 function open(cfg: E2eConfig, extra: { watchdogMs?: number; logs?: string[]; opened?: string[]; unresponsive?: object[] } = {}): Machine {
+  const created = performance.now()
   return createMachine({
     frameUrl: cfg.frameUrl,
     container: document.getElementById('machine')!,
     net: proxyNet(cfg),
     onOpenUrl: (url) => extra.opened?.push(url),
     onLog: (level, message) => extra.logs?.push(`${level}: ${message}`),
-    watchdog: { timeoutMs: extra.watchdogMs, onUnresponsive: (info) => extra.unresponsive?.push(info) },
+    watchdog: { timeoutMs: extra.watchdogMs, onUnresponsive: (info) => extra.unresponsive?.push({ ...info, atMs: performance.now() - created }) },
   })
 }
 
 const scenarios = {
-  /** The full pi turn, plus probes of what the worker can and cannot do. */
-  async turn(cfg: E2eConfig, netMode: 'tunnel' | 'http') {
+  /** A full harness turn, plus probes of what the worker can and cannot do. */
+  async turn(cfg: E2eConfig, harnessName: string, netMode: 'tunnel' | 'http') {
     const logs: string[] = []
     const t0 = performance.now()
     const machine = open(cfg, { logs })
     await machine.ready
     const tReady = performance.now() - t0
     await machine.boot({ workspaceId: 'e2e', net: netMode })
-    const pi = getHarness('pi')
-    const mounted = await machine.mount(pi.mountAt, cfg.piImage)
+    const harness = getHarness(harnessName)
+    const mounted = await machine.mount(harness.mountAt, cfg.images[harnessName])
     const tMounted = performance.now() - t0
 
     // Cold start: first output of the harness in a fresh machine.
-    const version = await machine.spawn(['pi', '--version'], { stdin: 'none' })
+    const version = await machine.spawn([harness.command, '--version'], { env: harness.env, stdin: 'none' })
     const versionReader = version.stdout.getReader()
     const firstChunk = await versionReader.read()
     const tFirstOutput = performance.now() - t0
@@ -97,7 +100,7 @@ const scenarios = {
     const versionResult = await finish(version)
     versionResult.stdout = new TextDecoder().decode(firstChunk.value) + versionResult.stdout
 
-    const run = pi.headless({ prompt: cfg.prompt, endpoint: { baseUrl: cfg.mockUrl + '/v1', apiKey: 'mock-key', model: 'mock-model' } })
+    const run = harness.headless({ prompt: cfg.prompt, endpoint: { baseUrl: cfg.mockUrl + cfg.apiBase[harnessName], apiKey: 'mock-key', model: 'mock-model' } })
     for (const [path, content] of Object.entries(run.files)) await machine.fs.write(path, content)
     const tTurn = performance.now()
     const proc = await machine.spawn(run.argv, { env: run.env, cwd: '/work', stdin: run.stdin })
@@ -125,7 +128,7 @@ const scenarios = {
       ),
     )
     machine.dispose()
-    return { netMode, mounted, timings: { readyMs: tReady, mountedMs: tMounted, coldFirstOutputMs: tFirstOutput, turnMs }, version: versionResult, turn, file, stat, listing, probe, logs, pageIsolated: crossOriginIsolated, pageSab: typeof SharedArrayBuffer }
+    return { harness: harnessName, netMode, mounted, timings: { readyMs: tReady, mountedMs: tMounted, coldFirstOutputMs: tFirstOutput, turnMs }, version: versionResult, turn, file, stat, listing, probe, logs, pageIsolated: crossOriginIsolated, pageSab: typeof SharedArrayBuffer }
   },
 
   /** stdin, kill, open-url, and that the machine stays usable afterwards. */
@@ -169,14 +172,15 @@ const scenarios = {
 
   /** A node script that never yields freezes the worker; the client's watchdog must say so. */
   async frozen(cfg: E2eConfig) {
-    const unresponsive: { silentMs?: number; phase?: string }[] = []
+    const unresponsive: { silentMs?: number; phase?: string; atMs?: number }[] = []
     const machine = open(cfg, { watchdogMs: 1000, unresponsive })
     await machine.boot({ workspaceId: 'e2e', net: 'none' })
     const before = machine.status
+    const bootedAtMs = unresponsive.length
     const t0 = performance.now()
     await machine.spawn(['node', '-e', 'while (true) {}'], { stdin: 'none' })
+    const spawnedMs = performance.now() - t0
     const answered = await Promise.race([machine.fs.stat('/work').then(() => true), sleep(2500).then(() => false)])
-    const detectedAfterMs = unresponsive.length ? performance.now() - t0 : null
     const during = machine.status
     machine.dispose()
     // The app's reaction: a fresh machine.
@@ -186,7 +190,7 @@ const scenarios = {
     const again = await finish(await next.spawn(['node', '-p', '6 * 7'], { stdin: 'none' }))
     const restartMs = performance.now() - t1
     next.dispose()
-    return { before, during, unresponsive, answeredWhileFrozen: answered, detectedAfterMs, again, restartMs }
+    return { before, during, unresponsive, answeredWhileFrozen: answered, spawnedMs, falseAlarmsBeforeFreeze: bootedAtMs, again, restartMs }
   },
 
   /** ES modules written at run time have no precompiled form: the worker loads the transformer and runs them. */

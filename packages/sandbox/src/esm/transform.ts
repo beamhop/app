@@ -33,6 +33,8 @@ export interface TransformResult {
 type Binding = { dep: number; imported: string } // imported: 'default', '*' (namespace) or an export name
 
 const q = (s: string): string => JSON.stringify(s)
+/** Cannot occur in source text that parsed. */
+const BODY_MARK = '\u0000body\u0000'
 const isNode = (v: unknown): v is AnyNode => typeof v === 'object' && v !== null && typeof (v as { type?: unknown }).type === 'string'
 
 /** Names bound by a declaration pattern, or assigned by an assignment target (member expressions bind nothing). */
@@ -102,8 +104,7 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
   const reexports: { dep: number; imported: string; exported: string }[] = [] // imported '*' = namespace
   const starExports: number[] = []
   const hoistedVars = new Set<string>()
-  const hoistedFunctions: string[] = []
-  const functionNames: string[] = []
+  const functionNames = new Set<string>()
   const dynamicImports: string[] = []
   let usesAwait = false
 
@@ -263,10 +264,12 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
   for (const node of ast.body) walk(node, ast)
 
   // ---- pass 3: module-level declarations, imports and exports ----
-  const cut = (start: number, end: number): string => {
-    const text = s.slice(start, end)
-    s.remove(start, end)
-    return text
+  // Function declarations are moved, edits and all, to the front of the text; BODY_MARK then separates them from
+  // the module body so the two parts can be placed in different scopes. (Moving is constant-time per function;
+  // slicing each one out is quadratic in a module with thousands of them.)
+  const hoist = (start: number, end: number): void => {
+    s.appendLeft(end, '\n')
+    s.move(start, end, 0)
   }
   let anonymousDefault = 0
   for (const node of ast.body) {
@@ -281,8 +284,8 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         s.appendLeft(node.end, ';' + node.declarations.flatMap((d) => patternNames(d.id)).map(exportCalls).join(''))
         break
       case 'FunctionDeclaration':
-        functionNames.push(node.id.name)
-        hoistedFunctions.push(cut(node.start, node.end))
+        functionNames.add(node.id.name)
+        hoist(node.start, node.end)
         break
       case 'ClassDeclaration':
         hoistedVars.add(node.id.name)
@@ -294,9 +297,9 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         if (!d) {
           s.remove(node.start, node.end)
         } else if (d.type === 'FunctionDeclaration') {
-          functionNames.push(d.id.name)
-          hoistedFunctions.push(s.slice(d.start, d.end))
-          s.remove(node.start, node.end)
+          functionNames.add(d.id.name)
+          s.remove(node.start, d.start)
+          hoist(d.start, d.end)
         } else if (d.type === 'ClassDeclaration') {
           hoistedVars.add(d.id.name)
           s.overwrite(node.start, d.start, `${d.id.name} = `)
@@ -311,16 +314,16 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
       case 'ExportDefaultDeclaration': {
         const d = node.declaration
         if (d.type === 'FunctionDeclaration') {
-          let text = s.slice(d.start, d.end)
           let name = d.id?.name
           if (!name) {
             name = `$__default${anonymousDefault++ || ''}`
-            text = text.replace(/^(async\s+)?function(\s*\*)?/, (m) => `${m} ${name}`)
+            s.appendLeft(d.start + /^(async\s+)?function(\s*\*)?/.exec(source.slice(d.start))![0].length, ' ' + name)
             addExport(name, 'default')
           }
-          functionNames.push(name)
-          hoistedFunctions.push(text)
-          s.remove(node.start, node.end)
+          functionNames.add(name)
+          s.remove(node.start, d.start)
+          if (node.end > d.end) s.remove(d.end, node.end)
+          hoist(d.start, d.end)
         } else if (d.type === 'ClassDeclaration' && d.id) {
           hoistedVars.add(d.id.name)
           s.overwrite(node.start, d.start, `${d.id.name} = `)
@@ -352,16 +355,18 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
   const early: string[] = []
   for (const [local, names] of exportsOf) {
     if (imports.has(local)) continue
-    for (const name of names) early.push(`${q(name)}: ${functionNames.includes(local) ? local : 'void 0'}`)
+    for (const name of names) early.push(`${q(name)}: ${functionNames.has(local) ? local : 'void 0'}`)
   }
   for (const name of functionNames) hoistedVars.delete(name)
+  s.prependRight(0, BODY_MARK)
+  const [functions, body] = s.toString().split(BODY_MARK)
   const header =
     `System.register(${JSON.stringify(deps)}, function ($__export, $__ctx) { "use strict";` +
     (hoistedVars.size ? ` var ${[...hoistedVars].join(', ')};` : '') +
-    (hoistedFunctions.length ? '\n' + hoistedFunctions.join('\n') + '\n' : '') +
+    (functionNames.size ? '\n' + functions : '') +
     (early.length ? ` $__export({${early.join(', ')}});` : '') +
     ` return { setters: [${setters.join(', ')}], execute: ${usesAwait ? 'async ' : ''}function () {\n`
-  return { code: header + s.toString() + '\n} }; });', deps, dynamicImports, async: usesAwait }
+  return { code: header + body + '\n} }; });', deps, dynamicImports, async: usesAwait }
 }
 
 /** Changes whenever the transformer's code does; the image builder keys its on-disk transform cache with it. */

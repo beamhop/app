@@ -102,8 +102,10 @@ export function createGuestGlobal(own: Record<string, Dyn>): Dyn {
       return delete real[key]
     },
     defineProperty(_target, key, descriptor) {
-      // Always configurable: a proxy may not report a non-configurable property its target lacks.
-      Object.defineProperty(has(key) || (typeof key === 'string' && hidden.has(key)) ? own : real, key, { ...descriptor, configurable: true })
+      // A proxy may only confirm a non-configurable property that its target really has, so those are kept on the
+      // per-process object (undici pins its global dispatcher this way; per process is the better home for it anyway).
+      if (has(key) || descriptor.configurable === false || (typeof key === 'string' && hidden.has(key))) Object.defineProperty(own, key, descriptor)
+      else Object.defineProperty(real, key, descriptor)
       return true
     },
     getOwnPropertyDescriptor(_target, key) {

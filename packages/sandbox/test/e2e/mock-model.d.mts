@@ -10,6 +10,7 @@ export interface MockLogEntry {
   path: string
   kind?: string
   step?: number
+  agentRequest?: boolean
   via: string | null
   lastToolResult?: string
   headers: Record<string, string | string[] | undefined>

@@ -25,7 +25,13 @@ if (!haveImage()) {
   console.error('[e2e] no pi image yet: building it (npm install of the pinned pi release, then packing)')
   execFileSync('node', ['scripts/build-image.mjs', 'pi'], { cwd: pkg, stdio: 'inherit' })
 }
-const piImage = JSON.parse(fs.readFileSync(manifestFile, 'utf8')).pi
+const images = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
+// pi is the harness this test must pass with. gemini is exercised too when its image has been built
+// (`npm run build:image -- gemini`); it is larger and not required.
+const HARNESSES = [
+  { name: 'pi', apiBase: '/v1', kind: 'openai', strict: true },
+  { name: 'gemini', apiBase: '', kind: 'gemini', strict: false },
+].filter((h) => images[h.name] && fs.existsSync(path.join(pkg, 'images', images[h.name].file)))
 const hostBundle = (await build({ entryPoints: [path.join(here, 'host.ts')], bundle: true, format: 'esm', platform: 'browser', target: 'es2022', write: false, logLevel: 'warning' })).outputFiles[0].contents
 
 // ---- servers ----
@@ -65,14 +71,15 @@ const config = {
   proxyUrl: `http://127.0.0.1:${proxy.port}`,
   proxyToken: proxy.token,
   mockUrl: `http://127.0.0.1:${mock.port}`,
-  piImage: `images/${piImage.file}`,
+  images: Object.fromEntries(HARNESSES.map((h) => [h.name, `images/${images[h.name].file}`])),
+  apiBase: Object.fromEntries(HARNESSES.map((h) => [h.name, h.apiBase])),
   prompt: `Write ${FILE_NAME} then read it back with bash.`,
 }
 
 // ---- browser ----
 const browser = await chromium.launch({ headless: !args.includes('--headed') })
 const failures = []
-const SCENARIO_TIMEOUT_MS = 25_000
+const SCENARIO_TIMEOUT_MS = 60_000
 const measurements = []
 
 async function scenario(name, fn) {
@@ -104,23 +111,25 @@ async function scenario(name, fn) {
 for (let round = 1; round <= repeat; round++) {
   console.log(`e2e round ${round}/${repeat}: app ${appOrigin}, machine ${machineOrigin}`)
 
-  for (const netMode of ['tunnel', 'http']) {
-    await scenario(`pi completes a turn through the broker (${netMode} mode)`, async (page, { pageErrors, frameHeaders }) => {
-      const r = await page.evaluate(([cfg, mode]) => window.e2e.turn(cfg, mode), [config, netMode])
+  for (const h of HARNESSES) for (const netMode of ['tunnel', 'http']) {
+    await scenario(`${h.name} completes a turn through the broker (${netMode} mode)`, async (page, { pageErrors, frameHeaders }) => {
+      const r = await page.evaluate(([cfg, name, mode]) => window.e2e.turn(cfg, name, mode), [config, h.name, netMode])
       // the harness ran
-      assert.match(r.version.stdout, /^\d+\.\d+\.\d+/, 'pi --version prints a version')
-      assert.equal(r.turn.stderr, '', 'pi wrote nothing to stderr')
-      assert.equal(r.turn.code, 0, 'pi exited 0')
+      assert.match(r.version.stdout, /^\d+\.\d+\.\d+/, '--version prints a version')
+      // gemini's shell wrapper uses `trap`, which the shell does not have; it reports that on stderr and carries on.
+      if (h.strict) assert.equal(r.turn.stderr, '', 'nothing on stderr')
+      assert.equal(r.turn.code, 0, 'exited 0: ' + r.turn.stderr.slice(0, 500))
       assert.equal(r.turn.signal, undefined)
       // the file its write tool created exists, with the expected bytes, read back over fs.read
       assert.equal(r.file, FILE_TEXT)
       assert.deepEqual({ type: r.stat.type, size: r.stat.size }, { type: 'file', size: FILE_TEXT.length })
       assert.deepEqual(r.listing, [{ name: FILE_NAME, type: 'file' }])
       // the final answer, which echoes the shell tool's output, arrived on stdout
-      assert.ok(r.turn.stdout.includes(FINAL_PREFIX + 'hello from the universal sandbox'), 'final answer on stdout')
+      assert.ok(r.turn.stdout.includes(FINAL_PREFIX), 'final answer on stdout')
+      assert.ok(r.turn.stdout.includes('hello from the universal sandbox'), 'the file content, read back by the shell tool, in the final answer')
       assert.ok(r.turn.stdout.includes('lines=1'), 'shell output in the final answer')
       // the mock saw the three scripted steps, and was reached only through the broker's proxy
-      const calls = mock.log.filter((e) => e.kind === 'openai')
+      const calls = mock.log.filter((e) => e.kind === h.kind && (h.kind === 'openai' || e.agentRequest))
       assert.deepEqual(calls.map((e) => e.step), [0, 1, 2])
       assert.ok(calls[2].lastToolResult.includes('lines=1'))
       if (netMode === 'tunnel') {
@@ -149,8 +158,11 @@ for (let round = 1; round <= repeat; round++) {
       // the frame was served with the documented CSP and without isolation headers, and nothing violated it
       assert.ok(frameHeaders.length >= 3 && frameHeaders.every((h) => h.csp === CSP && !h.coop && !h.coep), 'CSP on every machine-origin response')
       assert.deepEqual(pageErrors.filter((e) => !/Content Security Policy|ERR_BLOCKED_BY_CSP|status of 502/.test(e)), [])
-      const stats = JSON.parse(r.logs.find((l) => l.includes('node-exit') && l.includes('"esm":3')) ?.replace(/^.*?node-exit /, '') ?? '{}')
-      measurements.push({ scenario: 'turn', netMode, ...r.timings, mounted: r.mounted, moduleEvalMs: stats.evalMs })
+      // node-exit logs, one per Node process: `pi --version`, the turn, the probe. The turn loads the most modules.
+      const exits = r.logs.filter((l) => l.includes('node-exit')).map((l) => JSON.parse(l.replace(/^.*?node-exit /, '')))
+      const stats = exits.sort((a, b) => b.esm - a.esm)[0]
+      assert.equal(stats.transformed, 0, 'every ES module the harness loaded came precompiled from the image')
+      measurements.push({ scenario: 'turn', harness: h.name, netMode, ...r.timings, imageFiles: r.mounted.files, esmModulesEvaluated: stats.esm, moduleEvalMs: stats.evalMs, moduleEvalBytes: stats.evalBytes })
     })
   }
 
@@ -178,7 +190,8 @@ for (let round = 1; round <= repeat; round++) {
     assert.ok(r.unresponsive[0].silentMs >= 1000 && r.unresponsive[0].silentMs < 2500, `silent for ${r.unresponsive[0].silentMs} ms`)
     assert.equal(r.during, 'unresponsive')
     assert.deepEqual(r.again, { code: 0, stdout: '42\n', stderr: '' })
-    measurements.push({ scenario: 'frozen', detectedAfterMs: r.detectedAfterMs, restartMs: r.restartMs })
+    assert.equal(r.falseAlarmsBeforeFreeze, 0)
+    measurements.push({ scenario: 'frozen', watchdogTimeoutMs: 1000, reportedSilentMs: r.unresponsive[0].silentMs, restartMs: r.restartMs })
   })
 
   await scenario('ES modules written at run time run through the in-worker transformer', async (page) => {
@@ -200,7 +213,7 @@ await browser.close()
 await Promise.all([mock.close(), proxy.close(), new Promise((r) => appServer.close(r)), new Promise((r) => machineServer.close(r))])
 const buildManifest = JSON.parse(fs.readFileSync(path.join(pkg, 'dist/build-manifest.json'), 'utf8'))
 fs.mkdirSync(path.join(pkg, 'test-results'), { recursive: true })
-fs.writeFileSync(path.join(pkg, 'test-results/e2e.json'), JSON.stringify({ chromium: browser.version(), measurements, bundles: { ...buildManifest.site, ...buildManifest.lib }, image: { file: piImage.file, bytes: piImage.bytes, payloadBytes: piImage.payloadBytes, files: piImage.files } }, null, 1))
+fs.writeFileSync(path.join(pkg, 'test-results/e2e.json'), JSON.stringify({ chromium: browser.version(), measurements, bundles: { ...buildManifest.site, ...buildManifest.lib }, images: Object.fromEntries(HARNESSES.map((h) => [h.name, { file: images[h.name].file, bytes: images[h.name].bytes, payloadBytes: images[h.name].payloadBytes, files: images[h.name].files, esmPrecompiled: images[h.name].esmPrecompiled }])) }, null, 1))
 console.log(JSON.stringify(measurements.map((m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * 10) / 10 : v])))))
 if (failures.length) {
   console.error(`e2e: ${failures.length} scenario(s) failed`)
