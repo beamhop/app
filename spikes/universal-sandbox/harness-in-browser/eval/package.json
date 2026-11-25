@@ -8,5 +8,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@r1ck404/nodepod": "^1.11.2",
+    "almostnode": "^0.2.14"
+  }
 }
