@@ -109,7 +109,11 @@ function fsAdapter(kernel: Kernel) {
 }
 
 export interface ShellOptions {
-  /** Names of other kernel programs that scripts may call (`node`, ...). Each runs as a child process. */
+  /**
+   * Names of other kernel programs that scripts may call (`node`, ...). Each runs as a child process.
+   * just-bash maps an executable to a registered command by name only when it is found in /usr/bin or /bin;
+   * a file anywhere else on PATH is run as a shell script. Executables for scripts therefore live in /usr/bin.
+   */
   external?: string[]
 }
 
@@ -117,8 +121,9 @@ export interface ShellOptions {
  * Install the shell and its tools: `bash`/`sh` as one program kind, and every just-bash built-in as an
  * executable of its own, so `spawn('cat', …)` and PATH lookups behave as on a real system.
  */
-export function installShell(kernel: Kernel, opts: ShellOptions = {}): void {
+export function installShell(kernel: Kernel, opts: ShellOptions = {}): { addExternal(name: string): void } {
   const builtinNames = new Set<string>(getCommandNames())
+  const external = new Set(opts.external ?? [])
   let bash: Bash | null = null
 
   // A kernel program exposed as a shell command: spawn it, hand over stdin, collect its output.
@@ -146,7 +151,7 @@ export function installShell(kernel: Kernel, opts: ShellOptions = {}): void {
       cwd: '/work',
       env: { ...kernel.env },
       defenseInDepth: false,
-      customCommands: (opts.external ?? []).map(externalCommand),
+      customCommands: [...external].map(externalCommand),
     })
     return bash
   }
@@ -214,4 +219,12 @@ export function installShell(kernel: Kernel, opts: ShellOptions = {}): void {
   kernel.install(builtin, [...builtinNames].filter((n) => !SHELL_NAMES.includes(n)).map((n) => '/usr/bin/' + n))
   kernel.install(shell, SHELL_NAMES.map((n) => '/usr/bin/' + n))
   kernel.setNativeFallback((name) => (builtinNames.has(name) ? builtin : undefined))
+  return {
+    /** Make another kernel program callable from scripts. Its executable must live in /usr/bin (see below). */
+    addExternal(name) {
+      if (external.has(name)) return
+      external.add(name)
+      bash = null // commands are fixed when the interpreter is constructed; scripts keep no state between runs
+    },
+  }
 }

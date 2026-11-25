@@ -232,7 +232,11 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
 
   /** System.register source for a file: the image's precompiled form, or the transformer's. */
   const transformed = new Map<string, { mtimeMs: number; size: number; code: string }>()
+  /** Source text that exists only in memory (node -e with --input-type=module). */
+  const virtual = new Map<string, string>()
   function registerSource(file: string): string {
+    const inline = virtual.get(file)
+    if (inline !== undefined) return loadTransformer()(inline, file).code
     const precompiled = esmCache.get(file)
     if (precompiled) return decoder.decode(precompiled)
     const st = vfs.stat(file)
@@ -443,7 +447,7 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
       loadFile(real, null, mainModule)
       return Promise.resolve()
     },
-    /** Run source text as an ES module that lives at `file` (node -e / --input-type=module). */
+    /** Run source text as if it were the file `file` (node -e, a script piped to stdin). Nothing is written to disk. */
     runSource(source: string, file: string, format: 'esm' | 'cjs'): Promise<void> {
       if (format === 'cjs') {
         const mod = new Module(file, null)
@@ -451,8 +455,9 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
         fn.call(mod.exports, mod.exports, makeRequire(mod), mod, file, dirname(file), dynamicImportFrom(file), ...scope.values)
         return Promise.resolve()
       }
-      vfs.writeFile(file, new TextEncoder().encode(source))
-      return importModule(file, undefined).then(() => {})
+      virtual.set(file, source)
+      const pending = execute(loadEsm(file), new Set())
+      return pending ?? Promise.resolve()
     },
   }
 }

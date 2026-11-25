@@ -20,7 +20,7 @@ export class ProcessExit extends Error {
 }
 
 export const NODE_VERSION = '22.12.0'
-export const EXEC_PATH = '/usr/local/bin/node'
+export const EXEC_PATH = '/usr/bin/node'
 /** Idle checks before an empty loop ends the process, and their spacing. Work that holds no handle gets this long. */
 const IDLE_CHECKS = 3
 const IDLE_CHECK_MS = 15

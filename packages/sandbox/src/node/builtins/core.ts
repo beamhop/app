@@ -440,6 +440,41 @@ export function makeUtil({ Buffer, process }: Dyn) {
   const util = { ...utilPkg }
   const ansi =
     /[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g
+  // The package's format() quotes strings when the first argument is not a string (`console.log(1, 'a')` prints
+  // 1 'a'). Node only inspects non-strings. This is Node's algorithm.
+  util.formatWithOptions = (inspectOptions: Dyn, ...args: Dyn[]): string => {
+    const show = (v: Dyn): string => (typeof v === 'string' ? v : util.inspect(v, inspectOptions))
+    if (typeof args[0] !== 'string') return args.map(show).join(' ')
+    let i = 1
+    let out = String(args[0]).replace(/%[sdifjoOc%]/g, (m: string) => {
+      if (m === '%%') return '%'
+      if (i >= args.length) return m
+      const v = args[i++]
+      switch (m) {
+        case '%s':
+          return typeof v === 'string' ? v : typeof v === 'bigint' ? `${v}n` : typeof v === 'object' && v !== null ? util.inspect(v, { ...inspectOptions, depth: 0, colors: false }) : String(v)
+        case '%d':
+          return typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? 'NaN' : String(Number(v))
+        case '%i':
+          return typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? 'NaN' : String(parseInt(v, 10))
+        case '%f':
+          return typeof v === 'symbol' ? 'NaN' : String(parseFloat(v))
+        case '%j':
+          try {
+            return JSON.stringify(v)
+          } catch {
+            return '[Circular]'
+          }
+        case '%c':
+          return ''
+        default:
+          return util.inspect(v, { ...inspectOptions, showHidden: m === '%o', depth: m === '%o' ? 4 : undefined })
+      }
+    })
+    for (; i < args.length; i++) out += ' ' + show(args[i])
+    return out
+  }
+  util.format = (...args: Dyn[]): string => util.formatWithOptions({}, ...args)
   util.stripVTControlCharacters = (s?: Dyn) => String(s).replace(ansi, '')
   util.TextEncoder = TextEncoder
   util.TextDecoder = TextDecoder
