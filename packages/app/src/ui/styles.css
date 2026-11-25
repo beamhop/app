@@ -213,6 +213,8 @@ textarea.input { resize: vertical; min-height: 90px; }
 .msg.mine .bubble { background: var(--accent-soft); border-color: transparent; }
 .msg.agent .bubble { background: var(--agent-soft); border-color: transparent; }
 .msg.deleted .bubble { color: var(--faint); font-style: italic; }
+.msg .failed { font-size: 12px; color: var(--danger); margin-left: 8px; }
+.link-btn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .msg .edited { font-size: 11px; color: var(--faint); margin-left: 6px; }
 .msg.highlight .bubble { box-shadow: 0 0 0 2px var(--accent); }
 .msg .reply-ref { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding: 2px 8px; margin: 2px 0 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

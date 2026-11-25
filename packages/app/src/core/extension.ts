@@ -3,7 +3,7 @@
 // which can make cross-origin requests (no CORS) and watch sign-in tabs.
 
 type Res =
-  | { __bh: 'res'; id: string; kind: 'head'; status: number; statusText: string; headers: [string, string][] }
+  | { __bh: 'res'; id: string; kind: 'head'; status: number; statusText: string; headers: [string, string][]; url?: string }
   | { __bh: 'res'; id: string; kind: 'chunk'; data: string } // base64
   | { __bh: 'res'; id: string; kind: 'end' }
   | { __bh: 'res'; id: string; kind: 'error'; message: string }
@@ -99,7 +99,10 @@ export async function extFetch(input: string | URL | Request, init: RequestInit 
     listeners.set(id, (r) => {
       if (r.kind === 'head') {
         const nullBody = [101, 204, 205, 304].includes(r.status)
-        resolve(new Response(nullBody ? null : stream, { status: r.status, statusText: r.statusText, headers: r.headers }))
+        const res = new Response(nullBody ? null : stream, { status: r.status, statusText: r.statusText, headers: r.headers })
+        // a constructed Response has no URL; report where the request ended up after redirects
+        Object.defineProperty(res, 'url', { value: r.url ?? url })
+        resolve(res)
       } else if (r.kind === 'chunk') controller.enqueue(b64ToBytes(r.data))
       else if (r.kind === 'end') {
         listeners.delete(id)

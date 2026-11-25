@@ -16,19 +16,39 @@ export function mentionsName(text: string, name: string) {
   return re.test(text)
 }
 
-/** Resolve @mentions in text into pubkeys using the room state. */
+/**
+ * Resolve @mentions in text into pubkeys using the room state. Longer names win, so
+ * "@Claude Code" mentions an agent named "Claude Code", not one named "Claude".
+ */
 export function resolveMentions(state: RoomState, text: string): Hex[] {
-  const out: Hex[] = []
-  for (const [pk, m] of Object.entries(state.members)) if (mentionsName(text, m.name)) out.push(pk)
-  for (const [pk, a] of Object.entries(state.agents)) if (mentionsName(text, a.name)) out.push(pk)
-  return out
+  const variants: { pk: Hex; v: string }[] = []
+  const add = (pk: Hex, name: string) => {
+    if (!name) return
+    variants.push({ pk, v: name })
+    const squashed = name.replace(/\s+/g, '')
+    if (squashed !== name) variants.push({ pk, v: squashed })
+  }
+  for (const [pk, m] of Object.entries(state.members)) add(pk, m.name)
+  for (const [pk, a] of Object.entries(state.agents)) add(pk, a.name)
+  variants.sort((a, b) => b.v.length - a.v.length)
+  const taken: [number, number][] = []
+  const out = new Set<Hex>()
+  for (const { pk, v } of variants) {
+    const re = new RegExp(`(^|[^\\w@])@(${escapeRe(v)})(?![\\w-])`, 'gi')
+    for (const m of text.matchAll(re)) {
+      const start = (m.index ?? 0) + m[1].length
+      const end = start + 1 + m[2].length
+      if (taken.some(([a, b]) => start < b && end > a)) continue
+      taken.push([start, end])
+      out.add(pk)
+    }
+  }
+  return [...out]
 }
 
 export function isMentioned(state: RoomState, msg: Decoded, agentPk: Hex) {
   if (msg.payload.t !== 'msg') return false
-  if (msg.payload.mentions?.includes(agentPk)) return true
-  const a = state.agents[agentPk]
-  return !!a && mentionsName(msg.payload.text, a.name)
+  return resolveMentions(state, msg.payload.text).includes(agentPk)
 }
 
 export type Decision = { respond: true; hop: number } | { respond: false; reason: string }

@@ -13,6 +13,46 @@ const roomConvKey = (keyHex: string) => hmacSha256(hexToBytes(keyHex), 'beamhop-
 
 export const MAX_PLAINTEXT = 60000
 
+/** Size of `text` once it sits, JSON-escaped twice, inside an encrypted room event. */
+export const encodedSize = (text: string) => JSON.stringify(JSON.stringify(text)).length
+
+/** Most of a message's text that fits in one room event, leaving room for the rest of the payload. */
+export const MAX_TEXT_ENCODED = 48000
+
+/** Split `text` into pieces that each fit in one room event, preferring line breaks. */
+export function splitText(text: string, max = MAX_TEXT_ENCODED): string[] {
+  if (encodedSize(text) <= max) return [text]
+  const out: string[] = []
+  let rest = text
+  while (rest && encodedSize(rest) > max) {
+    // find the longest prefix that fits (binary search), then back up to a line break
+    let lo = 1
+    let hi = rest.length
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2)
+      if (encodedSize(rest.slice(0, mid)) <= max) lo = mid
+      else hi = mid - 1
+    }
+    let cut = lo
+    const nl = rest.lastIndexOf('\n', cut)
+    if (nl > cut * 0.6) cut = nl + 1
+    // don't split a surrogate pair
+    const c = rest.charCodeAt(cut - 1)
+    if (c >= 0xd800 && c <= 0xdbff) cut--
+    out.push(rest.slice(0, cut))
+    rest = rest.slice(cut)
+  }
+  if (rest) out.push(rest)
+  return out
+}
+
+/** The end of `text`, shortened with a leading ellipsis if it wouldn't fit in one event. */
+export function fitTail(text: string, max = MAX_TEXT_ENCODED) {
+  if (encodedSize(text) <= max) return text
+  const parts = splitText(text, max - 8)
+  return '…' + parts[parts.length - 1]
+}
+
 /** Sign an inner event as `sk` for room `roomId`. */
 export function signInner(sk: Uint8Array, roomId: string, payload: Payload, createdAt = nowSec()): InnerEvent {
   const ms = Date.now()

@@ -56,6 +56,8 @@ export interface RoomState {
   members: Record<Hex, MemberInfo>
   agents: Record<Hex, AgentInfo>
   lobbyKey: Hex
+  /** When each removed or departed participant left (seconds). Their later events are ignored. */
+  departed?: Record<Hex, number>
   closed?: boolean
   epoch: number
   ts: number // seconds; ops strictly after this (or same second and not in opIds) apply on top
@@ -106,6 +108,9 @@ export interface Decoded {
   payload: Payload
   outerId?: string
   epoch?: number
+  /** Set on this device when no relay accepted our own event; `failedOuter` is kept for a retry. */
+  failed?: boolean
+  failedOuter?: any
 }
 
 export type Control =

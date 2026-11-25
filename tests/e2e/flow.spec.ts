@@ -60,9 +60,18 @@ test('create room, invite, lobby, admit, chat, browser agent replies', async ({ 
   await expect(bob.locator('.msg.agent').getByText(/tool said: ok/)).toBeVisible({ timeout: 60000 })
   await expect(bob.locator('.msg.agent').getByText(/42/)).toBeVisible()
 
+  // agent code is isolated from Beamhop's storage (keys, sign-ins)
+  await bob.getByPlaceholder('Message').fill('@Echo use_tool:run_javascript {"code":"return await indexedDB.databases().then(d => \'dbs:\' + d.length, e => \'blocked:\' + e.name)"}')
+  await bob.keyboard.press('Enter')
+  await expect(bob.locator('.msg.agent').getByText(/blocked:SecurityError|dbs:/)).toBeVisible({ timeout: 60000 })
+  await expect(bob.locator('.msg.agent').getByText(/blocked:SecurityError/)).toBeVisible()
+
   // reactions & replies
   const msg = alice.locator('.msg').filter({ hasText: 'hello alice' }).first()
   await msg.click({ button: 'right' })
   await alice.locator('.action-sheet .quick button').first().click()
   await expect(bob.locator('.reaction').first()).toBeVisible({ timeout: 10000 })
+  // tapping your own reaction removes it
+  await alice.locator('.reaction').first().click()
+  await expect(bob.locator('.reaction')).toHaveCount(0, { timeout: 10000 })
 })

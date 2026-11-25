@@ -11,13 +11,15 @@ import {
   outerKeyFor,
   roomTag,
   signInner,
+  fitTail,
+  splitText,
   unwrapGift,
   unwrapRoomEvent,
   wrapRoomEvent,
   type Event,
   type Rumor,
 } from './crypto.js'
-import { initialState, isAdmin, keyRecipients, reduceState, displayName } from './state.js'
+import { initialState, isAdmin, keyRecipients, reduceState, displayName, mayHaveAuthored } from './state.js'
 import {
   KIND,
   type AgentInvite,
@@ -149,8 +151,10 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   streams = new Map<string, Map<string, StreamState>>()
   dms = new Map<string, DMItem[]>() // key `${identity}:${peer}`
   localAgentsByRoom = new Map<string, Set<Hex>>() // agents this device can run, per room
-  private stateCache = new Map<string, { v: number; s: RoomState }>()
-  private versions = new Map<string, number>()
+  // Both caches are invalidated explicitly when their inputs change, so ephemeral updates
+  // (typing, presence, streams) keep returning the same objects and the UI can skip re-renders.
+  private stateCache = new Map<string, RoomState>()
+  private msgCache = new Map<string, Decoded[]>()
   private tagIndex = new Map<string, { roomId: string; key: Hex; epoch: number; lobby?: boolean }>()
   private subs = new Map<string, { close: () => void; sig: string }>()
   private inboxSub?: { close: () => void; sig: string }
@@ -247,7 +251,6 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   }
 
   private bump(roomId?: string) {
-    if (roomId) this.versions.set(roomId, (this.versions.get(roomId) ?? 0) + 1)
     this.emit('change', roomId)
   }
 
@@ -373,6 +376,7 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     this.events.set(k.roomId, m)
     if (m.has(d.id)) return
     m.set(d.id, d)
+    this.msgCache.delete(k.roomId)
     if (d.payload.t === 'state') {
       this.stateCache.delete(k.roomId)
       this.afterStateEvent(k.roomId, d, live)
@@ -505,8 +509,12 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     // For in-browser agents (non-primary identities) we already hold the user's keys.
     if (!recipientIsMe && !this.agentMode) return
     if (existing) {
+      // For a room we already know, only trust who our own state says may hand out keys,
+      // never the admin list inside the snapshot being offered.
       const cur = this.state(c.roomId)
-      if (cur && !(isAdmin(cur, author) || fromOwner || fromSelf) && !authorAdminInSnap) return
+      if (!cur) return
+      const curOwner = cur.agents[recipient]?.owner === author
+      if (!(isAdmin(cur, author) || curOwner || fromSelf)) return
       if (existing.left && !this.pending.has(c.roomId)) return
       if (existing.keys.some((k) => k.key === c.key)) return
       existing.left = false
@@ -587,19 +595,27 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   state(roomId: string): RoomState | undefined {
     const r = this.rooms.get(roomId)
     if (!r) return undefined
-    const v = this.versions.get(roomId) ?? 0
     const c = this.stateCache.get(roomId)
-    if (c && c.v === v) return c.s
+    if (c) return c
     const evs = [...(this.events.get(roomId)?.values() ?? [])]
     const s = reduceState(r.base, evs)
-    this.stateCache.set(roomId, { v, s })
+    this.stateCache.set(roomId, s)
+    this.msgCache.delete(roomId) // who may post depends on the state
     return s
   }
 
+  /** The room's events in order, without those from people who had already left when they sent them. */
   messages(roomId: string): Decoded[] {
     const m = this.events.get(roomId)
     if (!m) return []
-    return [...m.values()].sort((a, b) => a.ms - b.ms || (a.id < b.id ? -1 : 1))
+    const st = this.state(roomId)
+    const cached = this.msgCache.get(roomId)
+    if (cached) return cached
+    const out = [...m.values()]
+      .filter((e) => e.payload.t === 'state' || !st || mayHaveAuthored(st, e.pubkey, e.created_at))
+      .sort((a, b) => a.ms - b.ms || (a.id < b.id ? -1 : 1))
+    this.msgCache.set(roomId, out)
+    return out
   }
 
   nameOf(roomId: string, pk: Hex) {
@@ -684,8 +700,37 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     } else {
       if (payload.t === 'presence' || payload.t === 'stream') this.onEphemeralLocal(roomId, inner, payload)
     }
-    await this.publish(r.relays, outer)
+    try {
+      await this.publish(r.relays, outer)
+    } catch (e) {
+      if (!opts.ephemeral) this.markFailed(roomId, inner.id, outer)
+      throw e
+    }
     return inner.id
+  }
+
+  private markFailed(roomId: string, id: string, outer: Event | null) {
+    const d = this.events.get(roomId)?.get(id)
+    if (!d) return
+    if (outer) {
+      d.failed = true
+      d.failedOuter = outer
+    } else {
+      delete d.failed
+      delete d.failedOuter
+    }
+    this.msgCache.delete(roomId)
+    this.scheduleSave('events:' + roomId, () => this.saveEvents(roomId), 300)
+    this.bump(roomId)
+  }
+
+  /** Publish one of our events again after no relay accepted it. */
+  async retry(roomId: string, id: string) {
+    const d = this.events.get(roomId)?.get(id)
+    const r = this.rooms.get(roomId)
+    if (!d?.failedOuter || !r) return
+    await this.publish(r.relays, d.failedOuter)
+    this.markFailed(roomId, id, null)
   }
 
   private onEphemeralLocal(roomId: string, inner: any, payload: Payload) {
@@ -703,14 +748,21 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     o: { reply?: string; files?: FileRef[]; as?: Hex; trigger?: string; hop?: number; sid?: string } = {},
   ) {
     const st = this.state(roomId)
-    const mentions = st ? resolveMentions(st, text) : []
-    const payload: any = { t: 'msg', text, mentions }
-    if (o.reply) payload.reply = o.reply
-    if (o.files?.length) payload.files = o.files
-    if (o.trigger) payload.trigger = o.trigger
-    if (o.hop !== undefined) payload.hop = o.hop
-    if (o.sid) payload.sid = o.sid
-    return this.send(roomId, payload, { as: o.as })
+    // Long texts go out as several messages so each one fits in an encrypted event.
+    const parts = splitText(text)
+    let id = ''
+    for (let i = 0; i < parts.length; i++) {
+      const first = i === 0
+      const last = i === parts.length - 1
+      const payload: any = { t: 'msg', text: parts[i], mentions: st ? resolveMentions(st, parts[i]) : [] }
+      if (o.reply && first) payload.reply = o.reply
+      if (o.files?.length && last) payload.files = o.files
+      if (o.trigger) payload.trigger = o.trigger
+      if (o.hop !== undefined) payload.hop = o.hop
+      if (o.sid && first) payload.sid = o.sid
+      id = await this.send(roomId, payload, { as: o.as })
+    }
+    return id
   }
 
   react(roomId: string, target: string, emoji: string, remove = false, as?: Hex) {
@@ -728,7 +780,7 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     return this.send(roomId, { t: 'typing' }, { ephemeral: true }).catch(() => {})
   }
   stream(roomId: string, as: Hex, sid: string, text: string, extra: { trigger?: string; done?: boolean; status?: string } = {}) {
-    return this.send(roomId, { t: 'stream', sid, text, ...extra }, { as, ephemeral: true }).catch(() => {})
+    return this.send(roomId, { t: 'stream', sid, text: fitTail(text), ...extra }, { as, ephemeral: true }).catch(() => {})
   }
 
   async broadcastPresence() {
@@ -916,6 +968,8 @@ export class BeamhopClient extends Emitter<ClientEvents> {
       this.subs.get(roomId)?.close()
       this.subs.delete(roomId)
       this.events.delete(roomId)
+      this.stateCache.delete(roomId)
+      this.msgCache.delete(roomId)
       await this.kv.del('events:' + roomId)
       this.rooms.delete(roomId)
       this.saveRooms()

@@ -97,3 +97,17 @@ describe('gemini adapter with fx', () => {
     expect(turnNo).toBe(2)
   }, 30000)
 })
+
+describe('web_fetch address check', () => {
+  it('allows only public internet addresses', async () => {
+    const { isPublicUrl } = await import('../src/agents/tools')
+    for (const u of ['https://example.com/x', 'http://news.ycombinator.com', 'https://8.8.8.8/', 'https://[2606:4700::1111]/'])
+      expect(isPublicUrl(u), u).toBe(true)
+    for (const u of [
+      'http://localhost:11434/api/tags', 'http://127.0.0.1/', 'http://10.0.0.5/secrets', 'http://192.168.1.1/admin', 'http://172.20.0.1/',
+      'http://169.254.169.254/latest/meta-data/', 'http://[::1]/', 'http://[fd00::1]/', 'http://router/', 'http://printer.local/',
+      'http://2130706433/', 'http://0x7f000001/', 'http://0.0.0.0/', 'file:///etc/passwd', 'http://user:pw@example.com/', 'http://db.internal/',
+    ])
+      expect(isPublicUrl(u), u).toBe(false)
+  })
+})

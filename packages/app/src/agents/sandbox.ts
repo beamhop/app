@@ -68,10 +68,87 @@ self.onmessage = async (e) => {
 }
 `
 
-const blobUrl = (src: string) => URL.createObjectURL(new Blob([src], { type: 'text/javascript' }))
-let jsUrl: string | null = null
-let pyUrl: string | null = null
-let pyWorker: Worker | null = null
+// Agent code runs in workers started inside a sandboxed iframe (sandbox="allow-scripts", no
+// allow-same-origin). The iframe and its workers get an opaque origin, so code a room member talks
+// an agent into running can't read Beamhop's IndexedDB (identity key, sign-ins) or storage.
+const HOST_SRC = (js: string, py: string) => `<!doctype html><meta charset="utf-8"><script>
+const JS = ${JSON.stringify(js).replace(/</g, '\\u003c')};
+const PY = ${JSON.stringify(py).replace(/</g, '\\u003c')};
+const url = (src) => URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+const jsUrl = url(JS), pyUrl = url(PY);
+let py = null;
+const reply = (id, r) => parent.postMessage({ __sbx: 'res', id, r }, '*');
+onmessage = (e) => {
+  if (e.source !== parent) return;
+  const { id, kind, code, files, timeoutMs } = e.data || {};
+  if (kind === 'js') {
+    const w = new Worker(jsUrl);
+    const t = setTimeout(() => { w.terminate(); reply(id, { ok: false, stdout: '', error: 'Timed out after ' + timeoutMs / 1000 + 's', changed: {} }) }, timeoutMs);
+    w.onmessage = (m) => { clearTimeout(t); w.terminate(); reply(id, m.data) };
+    w.onerror = (m) => { clearTimeout(t); w.terminate(); reply(id, { ok: false, stdout: '', error: m.message, changed: {} }) };
+    w.postMessage({ code, files });
+  } else if (kind === 'py') {
+    // A classic worker: module workers can't start from a blob: URL in an opaque-origin iframe.
+    py = py || new Worker(pyUrl);
+    const w = py;
+    const fail = (error) => { clearTimeout(t); w.removeEventListener('message', on); w.removeEventListener('error', onErr); w.terminate(); py = null; reply(id, { ok: false, stdout: '', error, changed: {} }) };
+    const t = setTimeout(() => fail('Timed out after ' + timeoutMs / 1000 + 's'), timeoutMs);
+    const on = (m) => { if (!m.data || m.data.id !== id) return; clearTimeout(t); w.removeEventListener('message', on); w.removeEventListener('error', onErr); reply(id, m.data) };
+    const onErr = (e) => fail('Python worker failed: ' + (e.message || 'unknown error'));
+    w.addEventListener('message', on);
+    w.addEventListener('error', onErr);
+    w.postMessage({ code, files, id });
+  }
+};
+parent.postMessage({ __sbx: 'ready' }, '*');
+<\/script>`
+
+let host: Promise<HTMLIFrameElement> | null = null
+const waiting = new Map<string, (r: RunResult) => void>()
+
+function sandboxHost(): Promise<HTMLIFrameElement> {
+  host ??= new Promise((resolve) => {
+    const f = document.createElement('iframe')
+    f.setAttribute('sandbox', 'allow-scripts')
+    f.setAttribute('aria-hidden', 'true')
+    f.style.display = 'none'
+    f.srcdoc = HOST_SRC(JS_WORKER, PY_WORKER)
+    window.addEventListener('message', (e) => {
+      if (e.source !== f.contentWindow || !e.data) return
+      if (e.data.__sbx === 'ready') resolve(f)
+      else if (e.data.__sbx === 'res') {
+        waiting.get(e.data.id)?.(e.data.r)
+        waiting.delete(e.data.id)
+      }
+    })
+    document.body.appendChild(f)
+  })
+  return host
+}
+
+async function runInSandbox(kind: 'js' | 'py', code: string, files: Files, timeoutMs: number): Promise<RunResult> {
+  const f = await sandboxHost()
+  const id = Math.random().toString(36).slice(2) + Date.now().toString(36)
+  return new Promise((resolve) => {
+    // a backstop in case the sandbox itself stops answering
+    const t = setTimeout(() => {
+      waiting.delete(id)
+      resolve({ ok: false, stdout: '', error: 'The sandbox stopped responding', changed: {} })
+    }, timeoutMs + 5000)
+    waiting.set(id, (r) => {
+      clearTimeout(t)
+      resolve({ ok: !!r?.ok, stdout: String(r?.stdout ?? ''), result: r?.result, error: r?.error, changed: sanitizeFiles(r?.changed) })
+    })
+    f.contentWindow!.postMessage({ id, kind, code, files, timeoutMs }, '*')
+  })
+}
+
+/** Only string files with simple relative paths come back from the sandbox. */
+function sanitizeFiles(v: any): Files {
+  const out: Files = {}
+  if (v && typeof v === 'object') for (const [k, d] of Object.entries(v)) if (typeof d === 'string' && /^[\w.\-]+(\/[\w.\-]+)*$/.test(k)) out[k] = d
+  return out
+}
 
 export interface RunResult {
   ok: boolean
@@ -119,25 +196,7 @@ export class Sandbox {
 
   async runJs(code: string, timeoutMs = 20000): Promise<RunResult> {
     await this.loaded
-    jsUrl ??= blobUrl(JS_WORKER)
-    const w = new Worker(jsUrl)
-    const r = await new Promise<RunResult>((resolve) => {
-      const t = setTimeout(() => {
-        w.terminate()
-        resolve({ ok: false, stdout: '', error: `Timed out after ${timeoutMs / 1000}s`, changed: {} })
-      }, timeoutMs)
-      w.onmessage = (e) => {
-        clearTimeout(t)
-        w.terminate()
-        resolve(e.data)
-      }
-      w.onerror = (e) => {
-        clearTimeout(t)
-        w.terminate()
-        resolve({ ok: false, stdout: '', error: e.message, changed: {} })
-      }
-      w.postMessage({ code, files: { ...this.files } })
-    })
+    const r = await runInSandbox('js', code, { ...this.files }, timeoutMs)
     Object.assign(this.files, r.changed)
     if (Object.keys(r.changed).length) await this.save()
     return r
@@ -145,25 +204,7 @@ export class Sandbox {
 
   async runPython(code: string, timeoutMs = 120000): Promise<RunResult> {
     await this.loaded
-    pyUrl ??= blobUrl(PY_WORKER)
-    pyWorker ??= new Worker(pyUrl, { type: 'module' })
-    const w = pyWorker
-    const id = Math.random().toString(36).slice(2)
-    const r = await new Promise<RunResult>((resolve) => {
-      const t = setTimeout(() => {
-        w.terminate()
-        pyWorker = null
-        resolve({ ok: false, stdout: '', error: `Timed out after ${timeoutMs / 1000}s`, changed: {} })
-      }, timeoutMs)
-      const onMsg = (e: MessageEvent) => {
-        if (e.data?.id !== id) return
-        clearTimeout(t)
-        w.removeEventListener('message', onMsg)
-        resolve(e.data)
-      }
-      w.addEventListener('message', onMsg)
-      w.postMessage({ code, files: { ...this.files }, id })
-    })
+    const r = await runInSandbox('py', code, { ...this.files }, timeoutMs)
     Object.assign(this.files, r.changed)
     if (Object.keys(r.changed).length) await this.save()
     return r

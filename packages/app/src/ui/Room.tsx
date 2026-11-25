@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { downloadDecrypted, uploadEncrypted, isAdmin, type Decoded, type FileRef, type RoomState } from '@beamhop/shared'
 import { useDesktop, useMedia, useStore, go, copyText } from './hooks'
 import { Avatar, RoomAvatar, Sheet, clock } from './components'
@@ -234,6 +234,10 @@ function Chat({ roomId, st, onPeople, panelOpen }: { roomId: string; st: RoomSta
   const [editing, setEditing] = useState<ViewMsg | null>(null)
   const [actions, setActions] = useState<ViewMsg | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  // Stable handlers, so memoized message rows only re-render when their own data changes.
+  const onReplyCb = useCallback((ev: Decoded) => setReply(ev), [])
+  const onActionsCb = useCallback((item: ViewMsg) => setActions(item), [])
+  const onReactCb = useCallback((id: string, emoji: string, on: boolean) => c.react(roomId, id, emoji, on), [c, roomId])
   const scroller = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const [showJump, setShowJump] = useState(false)
@@ -303,9 +307,9 @@ function Chat({ roomId, st, onPeople, panelOpen }: { roomId: string; st: RoomSta
         st={st}
         names={names}
         mine={item.ev.pubkey === s.pk}
-        onReply={() => setReply(item.ev)}
-        onActions={() => setActions(item)}
-        onReact={(e, on) => c.react(roomId, item.ev.id, e, !on)}
+        onReply={onReplyCb}
+        onActions={onActionsCb}
+        onReact={onReactCb}
         onImage={setLightbox}
         online={online.has(item.ev.pubkey) || c.onlinePeople(roomId).has(item.ev.pubkey)}
       />,
@@ -567,9 +571,9 @@ const MessageRow = memo(function MessageRow({
   st: RoomState
   names: MentionName[]
   mine: boolean
-  onReply: () => void
-  onActions: () => void
-  onReact: (emoji: string, on: boolean) => void
+  onReply: (ev: Decoded) => void
+  onActions: (item: ViewMsg) => void
+  onReact: (id: string, emoji: string, remove: boolean) => void
   onImage: (url: string) => void
   online: boolean
 }) {
@@ -590,14 +594,14 @@ const MessageRow = memo(function MessageRow({
       className={`msg ${first ? 'first' : ''} ${mine ? 'mine' : ''} ${agent ? 'agent' : ''} ${item.deleted ? 'deleted' : ''}`}
       onContextMenu={(e) => {
         e.preventDefault()
-        onActions()
+        onActions(item)
       }}
       onTouchStart={(e) => {
         const p: { x: number; y: number; timer: any; long?: boolean } = { x: e.touches[0].clientX, y: e.touches[0].clientY, timer: 0 }
         p.timer = setTimeout(() => {
           p.long = true
           navigator.vibrate?.(10)
-          onActions()
+          onActions(item)
         }, 480)
         t.current = p
       }}
@@ -625,7 +629,7 @@ const MessageRow = memo(function MessageRow({
         if (p.lock === 'h' && dx > 60 && p.x > 28 && !item.deleted) {
           e.stopPropagation()
           navigator.vibrate?.(8)
-          onReply()
+          onReply(ev)
         }
       }}
     >
@@ -647,6 +651,14 @@ const MessageRow = memo(function MessageRow({
         <div className="bubble">
           {item.deleted ? 'Message deleted' : <Markdown text={item.text} names={names} />}
           {item.edited && !item.deleted && <span className="edited">(edited)</span>}
+          {ev.failed && (
+            <span className="failed">
+              Not sent ·{' '}
+              <button className="link-btn" onClick={() => c.retry(roomId, ev.id).catch((e: any) => s.toast(`Still not sent: ${e?.message ?? e}`, 'error'))}>
+                Retry
+              </button>
+            </span>
+          )}
           {!item.deleted && files?.length ? (
             <div className="files">
               {files.map((f) => (
@@ -660,7 +672,7 @@ const MessageRow = memo(function MessageRow({
             {item.reactions.map(([e, who]) => {
               const on = who.includes(s.pk)
               return (
-                <button key={e} className={`reaction ${on ? 'me' : ''}`} title={who.map((p) => c.nameOf(roomId, p)).join(', ')} onClick={() => onReact(e, on)}>
+                <button key={e} className={`reaction ${on ? 'me' : ''}`} title={who.map((p) => c.nameOf(roomId, p)).join(', ')} onClick={() => onReact(ev.id, e, on)}>
                   {e} {who.length}
                 </button>
               )
@@ -668,7 +680,7 @@ const MessageRow = memo(function MessageRow({
           </div>
         )}
       </div>
-      <button className="icon-btn desktop-only" style={{ opacity: 0.4, width: 30, height: 30 }} onClick={onActions} aria-label="Message actions">
+      <button className="icon-btn desktop-only" style={{ opacity: 0.4, width: 30, height: 30 }} onClick={() => onActions(item)} aria-label="Message actions">
         <Icon name="more" size={18} />
       </button>
     </div>

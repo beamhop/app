@@ -201,7 +201,7 @@ export class AgentRunner {
       const files = h.pendingFiles.get(roomId) ?? []
       h.pendingFiles.delete(roomId)
       const final = text.trim() || (files.length ? 'Here you go.' : '…')
-      await c.sendMessage(roomId, final.slice(0, 50000), { as: def.pk, trigger: trigger.id, hop, sid, files })
+      await c.sendMessage(roomId, final, { as: def.pk, trigger: trigger.id, hop, sid, files })
       const arr = (this.replies.get(def.pk) ?? []).filter((t) => t > Date.now() - 3600_000)
       arr.push(Date.now())
       this.replies.set(def.pk, arr)

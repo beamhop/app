@@ -41,7 +41,8 @@ export function applyOp(s: RoomState, author: Hex, op: StateOp, opId: string, at
     admins: [...s.admins],
     members: { ...s.members },
     agents: { ...s.agents },
-    opIds: [...s.opIds, opId].slice(-300),
+    opIds: [...s.opIds, opId].slice(-1000),
+    departed: { ...(s.departed ?? {}) },
     ts: Math.max(s.ts, at),
   }
   switch (op.op) {
@@ -54,13 +55,19 @@ export function applyOp(s: RoomState, author: Hex, op: StateOp, opId: string, at
     case 'admit':
       if (!admin || isMember(s, op.pubkey)) return null
       n.members[op.pubkey] = { name: String(op.name || 'Guest').slice(0, 60), joinedAt: at }
+      delete n.departed![op.pubkey]
       return n
     case 'remove': {
       if (!(admin || author === op.pubkey)) return null
       if (!isMember(s, op.pubkey)) return null
       delete n.members[op.pubkey]
+      n.departed![op.pubkey] = at
       n.admins = n.admins.filter((a) => a !== op.pubkey)
-      for (const [apk, a] of Object.entries(n.agents)) if (a.owner === op.pubkey) delete n.agents[apk]
+      for (const [apk, a] of Object.entries(n.agents))
+        if (a.owner === op.pubkey) {
+          delete n.agents[apk]
+          n.departed![apk] = at
+        }
       return n
     }
     case 'promote':
@@ -85,6 +92,7 @@ export function applyOp(s: RoomState, author: Hex, op: StateOp, opId: string, at
         addedAt: at,
       }
       n.agents[op.pubkey] = a
+      delete n.departed![op.pubkey]
       return n
     }
     case 'agent-update': {
@@ -105,6 +113,7 @@ export function applyOp(s: RoomState, author: Hex, op: StateOp, opId: string, at
       const a = s.agents[op.pubkey]
       if (!a || !(a.owner === author || admin)) return null
       delete n.agents[op.pubkey]
+      n.departed![op.pubkey] = at
       return n
     }
     case 'profile':
@@ -123,11 +132,14 @@ export function applyOp(s: RoomState, author: Hex, op: StateOp, opId: string, at
   return null
 }
 
+/** Ops this much older than a snapshot may still be missing from it (another admin acted concurrently). */
+export const SNAPSHOT_GRACE_SEC = 600
+
 /** Reduce a base snapshot plus decoded state events into the current state. */
 export function reduceState(base: RoomState, events: Decoded[]): RoomState {
   const seen = new Set(base.opIds)
   const ops = events
-    .filter((e) => e.payload.t === 'state' && !seen.has(e.id) && e.created_at >= base.ts)
+    .filter((e) => e.payload.t === 'state' && !seen.has(e.id) && e.created_at >= base.ts - SNAPSHOT_GRACE_SEC)
     .sort((a, b) => a.ms - b.ms || a.created_at - b.created_at || (a.id < b.id ? -1 : 1))
   let s = base
   for (const e of ops) {
@@ -136,6 +148,13 @@ export function reduceState(base: RoomState, events: Decoded[]): RoomState {
     if (next) s = next
   }
   return s
+}
+
+/** May `pk` have authored a (non-state) event at `createdAt`? Participants, or people before they left. */
+export function mayHaveAuthored(s: RoomState, pk: Hex, createdAt: number) {
+  if (isParticipant(s, pk)) return true
+  const left = s.departed?.[pk]
+  return left !== undefined && createdAt <= left
 }
 
 /** People who should receive a key rotation. */

@@ -18,7 +18,7 @@ const fs = require('node:fs')
   const opts = new firefox.Options().setBinary(process.env.FIREFOX_BIN).addArguments('-headless').setAcceptInsecureCerts(true)
   const driver = await new Builder().forBrowser('firefox').setFirefoxOptions(opts).setFirefoxService(new firefox.ServiceBuilder(process.env.GECKODRIVER)).build()
   try {
-    await driver.installAddon(require('node:path').resolve(__dirname, '../../packages/extension/dist/beamhop-companion-firefox.zip'), true)
+    await driver.installAddon(require('node:path').resolve(__dirname, '../../packages/extension/dist/dev-firefox.zip'), true)
     await driver.get('http://localhost:5173/?relay=ws%3A%2F%2Flocalhost%3A7777#/')
     let v = null
     for (let i = 0; i < 50 && !v; i++) { v = await driver.executeScript('return document.documentElement.dataset.beamhopCompanion || null'); if (!v) await new Promise((r) => setTimeout(r, 200)) }

@@ -20,7 +20,7 @@ test('companion extension: detection and cross-origin streaming fetch', async ()
     })
   })
   await new Promise<void>((r) => server.listen(7795, r))
-  const ext = path.resolve('packages/extension/dist/chromium')
+  const ext = path.resolve('packages/extension/dist/chromium-dev')
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bh-ext-'))
   const ctx = await chromium.launchPersistentContext(dir, {
     headless: true,
@@ -74,5 +74,20 @@ test('companion extension: detection and cross-origin streaming fetch', async ()
   } finally {
     await ctx.close()
     server.close()
+  }
+})
+
+test('release extension build ignores pages other than the Beamhop app', async () => {
+  const ext = path.resolve('packages/extension/dist/chromium')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bh-ext-rel-'))
+  const ctx = await chromium.launchPersistentContext(dir, { headless: true, channel: 'chromium', args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`] })
+  try {
+    const page = await ctx.newPage()
+    await page.goto('http://localhost:5173/?relay=ws%3A%2F%2Flocalhost%3A7777#/')
+    await page.waitForTimeout(1500)
+    expect(await page.evaluate(() => document.documentElement.dataset.beamhopCompanion ?? null)).toBeNull()
+    expect(await page.evaluate(() => (window as any).__beamhop.hasExtension)).toBe(false)
+  } finally {
+    await ctx.close()
   }
 })

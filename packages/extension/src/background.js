@@ -1,7 +1,9 @@
 // Beamhop Companion: background worker. Makes cross-origin requests for the Beamhop page
 // (no CORS, no cookies) and watches sign-in tabs for their redirect address.
 const api = globalThis.browser ?? globalThis.chrome
-const ALLOWED_PAGES = [/^https:\/\/beamhop\.github\.io\//, /^http:\/\/localhost(:\d+)?\//, /^http:\/\/127\.0\.0\.1(:\d+)?\//]
+// Pages allowed to use the extension. The build replaces this list: release builds allow only the
+// Beamhop app; dev builds (never published) also allow localhost for development and tests.
+const ALLOWED_PAGES = [/^https:\/\/beamhop\.github\.io\/app\//] /*@ALLOWED_PAGES@*/
 
 const b64 = (u8) => {
   let s = ''
@@ -86,7 +88,7 @@ api.runtime.onConnect.addListener((port) => {
         })
         const headers = []
         res.headers.forEach((v, k) => headers.push([k, v]))
-        send({ id, kind: 'head', status: res.status, statusText: res.statusText, headers })
+        send({ id, kind: 'head', status: res.status, statusText: res.statusText, headers, url: res.url })
         if (res.body) {
           const reader = res.body.getReader()
           for (;;) {
