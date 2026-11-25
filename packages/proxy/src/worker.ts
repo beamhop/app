@@ -294,10 +294,11 @@ async function handlePlain(request: Request, st: State): Promise<Response> {
         flush() {
           onDone?.()
         },
+        // Part of the Streams standard, not yet in TypeScript's DOM types.
         cancel() {
           onDone?.()
         },
-      })
+      } as Transformer<Uint8Array, Uint8Array>)
 
     let res: Response
     try {

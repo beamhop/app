@@ -109,6 +109,7 @@ const CLASS_TO_CODE: Record<number, TlsErrorCode> = {
 
 /** Plaintext per encrypt call: keeps wasm buffers small and gives the transport regular backpressure points. */
 const WRITE_CHUNK = 64 * 1024
+const ALERT_FLUSH_MS = 100
 
 function encodeAlpn(alpn: string[]): Uint8Array {
   const enc = new TextEncoder()
@@ -170,6 +171,9 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
     return next
   }
 
+  /** Flush our fatal alert, best effort: a transport that never settles must not hide the error. */
+  const sendAlert = () => Promise.race([send().catch(() => {}), new Promise<void>((r) => setTimeout(r, ALERT_FLUSH_MS))])
+
   const engineError = (cls: number, handshaking: boolean): TlsError =>
     new TlsError(CLASS_TO_CODE[cls] ?? (handshaking ? 'handshake-failed' : 'protocol-error'), conn?.err_msg())
 
@@ -200,7 +204,7 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
       const cls = conn.feed(value, nowSecs())
       if (cls !== 0) {
         const err = engineError(cls, true)
-        await send().catch(() => {}) // the alert, best effort
+        await sendAlert()
         throw err
       }
       await send()
@@ -277,7 +281,7 @@ export async function connectTls(transport: TlsTransport, options: TlsOptions): 
           if (cls !== 0) {
             // Records before the bad one were authenticated: deliver them first, then error.
             deferred = engineError(cls, false)
-            await send().catch(() => {}) // our alert, best effort
+            await sendAlert()
           } else {
             send().catch((e) => fail(asTlsError(e)))
           }

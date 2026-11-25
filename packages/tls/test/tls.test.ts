@@ -96,7 +96,8 @@ describe('handshake and data', () => {
   }
 
   it('sends SNI and reports the cipher suite', async () => {
-    const s = await server(leaf.ecdsa!)
+    // Node servers impose their own suite order by default; with that off, ours (ChaCha20 first) wins.
+    const s = await server(leaf.ecdsa!, { honorCipherOrder: false })
     const { sock } = await connect(s)
     expect(await roundTrip(sock)).toBe('ping')
     expect(s.sni).toEqual([HOST])
@@ -145,10 +146,12 @@ describe('handshake and data', () => {
   })
 
   it('delivers data the server sends immediately after its Finished', async () => {
-    const s = await server(leaf.ecdsa!, {}, (sk) => sk.end('hello from server'))
-    const { sock } = await connect(s, 'tcp')
-    expect(dec(await readAll(sock.readable))).toBe('hello from server')
-    sock.close()
+    const s = await server(leaf.ecdsa!, {}, (sk) => sk.write('hello from server'))
+    for (const mode of ['memory', 'tcp'] as const) {
+      const { sock } = await connect(s, mode)
+      expect(dec(await readN(sock.readable.getReader(), 17))).toBe('hello from server')
+      sock.close()
+    }
   })
 })
 
@@ -292,9 +295,13 @@ describe('protocol versions', () => {
 
 describe('closing', () => {
   it('ends the readable cleanly on close_notify', async () => {
-    const s = await server(leaf.ecdsa!, {}, (sk) => sk.end('bye'))
+    // (The server ends in response to data: a node:tls server that calls end() straight from its
+    // connection callback closes the TCP socket without sending close_notify, which this client
+    // correctly reports as "truncated".)
+    const s = await server(leaf.ecdsa!, {}, (sk) => sk.once('data', () => sk.end('bye')))
     for (const mode of ['memory', 'tcp'] as const) {
       const { sock } = await connect(s, mode)
+      await sock.write(enc('q'))
       expect(dec(await readAll(sock.readable))).toBe('bye')
       await sock.end()
     }
@@ -306,7 +313,7 @@ describe('closing', () => {
       const { sock, serverRaw } = await connect(s, 'memory')
       const r = sock.readable.getReader()
       expect(dec(await readN(r, 7))).toBe('partial')
-      serverRaw!.push(null) // EOF on the wire, no TLS alert
+      serverRaw!.end() // EOF on the wire, no TLS alert
       await expect(r.read()).rejects.toMatchObject({ name: 'TlsError', code: 'truncated' })
       await expect(sock.write(enc('x'))).rejects.toMatchObject({ code: 'truncated' })
     })
@@ -335,7 +342,7 @@ describe('closing', () => {
     const { sock, serverRaw } = await connect(s, 'memory', { allowUncleanEof: true })
     const r = sock.readable.getReader()
     expect(dec(await readN(r, 7))).toBe('partial')
-    serverRaw!.push(null)
+    serverRaw!.end()
     expect((await r.read()).done).toBe(true)
   })
 
@@ -422,7 +429,7 @@ describe('hostile or broken peers', () => {
     const { sock, serverRaw } = await connect(s, 'memory')
     const r = sock.readable.getReader()
     expect(dec(await readN(r, 4))).toBe('good')
-    serverRaw!.push(Buffer.concat([Buffer.from([0x17, 0x03, 0x03, 0x00, 0x40]), randomBytes(64)]))
+    serverRaw!.write(Buffer.concat([Buffer.from([0x17, 0x03, 0x03, 0x00, 0x40]), randomBytes(64)]))
     await expect(r.read()).rejects.toMatchObject({ code: 'protocol-error' })
   })
 

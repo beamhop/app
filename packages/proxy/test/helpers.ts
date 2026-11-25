@@ -2,6 +2,8 @@
 import { createHash } from 'node:crypto'
 import http from 'node:http'
 import net from 'node:net'
+import v8 from 'node:v8'
+import vm from 'node:vm'
 import { DEFAULT_CONFIG, type ProxyConfig } from '../src/core'
 import { startProxy, type ProxyOptions, type RunningProxy } from '../src/node'
 
@@ -22,10 +24,11 @@ export async function proxy(over: Partial<ProxyConfig> = {}, options: ProxyOptio
   return p
 }
 
-export function listen(server: net.Server | http.Server): Promise<number> {
+export function listen(server: net.Server | http.Server, sockets: net.Socket[] = []): Promise<number> {
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => resolve((server.address() as net.AddressInfo).port))
     onCleanup(() => new Promise((r) => {
+      for (const s of sockets) s.destroy()
       if ('closeAllConnections' in server) server.closeAllConnections()
       server.close(r)
     }))
@@ -39,8 +42,7 @@ function tcpServer(handler: (sock: net.Socket) => void): Promise<{ port: number;
     sock.on('error', () => {})
     handler(sock)
   })
-  onCleanup(() => sockets.forEach((s) => s.destroy()))
-  return listen(server).then((port) => ({ port, sockets }))
+  return listen(server, sockets).then((port) => ({ port, sockets }))
 }
 
 /** Echoes bytes; ends its side when the client ends. */
@@ -70,8 +72,8 @@ export function* pattern(size: number, chunk = 64 * 1024): Generator<Buffer> {
   let seed = 1
   for (let off = 0; off < size; off += chunk) {
     const b = Buffer.allocUnsafe(Math.min(chunk, size - off))
-    for (let i = 0; i < b.length; i += 4096) b.fill((seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff, i, i + 4096)
-    b.writeUInt32LE(off >>> 0, 0)
+    for (let i = 0; i < b.length; i += 4096) b.fill((seed = (seed * 48271) % 0x7fffffff) & 0xff, i, Math.min(i + 4096, b.length))
+    if (b.length >= 4) b.writeUInt32LE(off >>> 0, 0)
     yield b
   }
 }
@@ -128,4 +130,13 @@ export function deferred<T = void>(): { promise: Promise<T>; resolve: (v: T) => 
   let resolve!: (v: T) => void
   const promise = new Promise<T>((r) => (resolve = r))
   return { promise, resolve }
+}
+
+/** Memory in use after a forced collection, so that garbage awaiting collection is not counted. */
+export function memoryInUse(): { heapUsed: number; arrayBuffers: number } {
+  v8.setFlagsFromString('--expose-gc')
+  const gc = vm.runInNewContext('gc') as () => void
+  gc()
+  const { heapUsed, arrayBuffers } = process.memoryUsage()
+  return { heapUsed, arrayBuffers }
 }

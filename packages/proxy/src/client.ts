@@ -234,26 +234,30 @@ export function openTunnel(options: TunnelOptions): Promise<Tunnel> {
       queue.push(new Uint8Array(ev.data as ArrayBuffer))
       notify()
     }
-    // The close event that always follows carries the outcome; nothing to do here.
-    ws.onerror = () => {}
-    ws.onclose = (ev: CloseEvent) => {
+    const finish = (info: TunnelClose): void => {
+      if (gone) return
       gone = true
       options.signal?.removeEventListener('abort', onAbort)
-      const info: TunnelClose = { code: ev.code, reason: ev.reason }
       if (!settled) {
         settled = true
-        reject(handshakeError ?? new ProxyError('proxy', `could not reach the proxy (WebSocket closed with ${ev.code})`))
+        reject(handshakeError ?? new ProxyError('proxy', `could not reach the proxy at ${options.proxyUrl}`))
         resolveClosed(info)
         return
       }
-      if (opened && !closedByUs && ev.code !== CLOSE_NORMAL) {
-        const code: ProxyErrorCode = ev.code === CLOSE_IDLE ? 'timeout' : ev.code === CLOSE_LIMIT ? 'limit' : 'connect'
-        failure = new ProxyError(code, ev.reason || `tunnel closed abnormally (${ev.code})`)
+      if (opened && !closedByUs && info.code !== CLOSE_NORMAL) {
+        const code: ProxyErrorCode = info.code === CLOSE_IDLE ? 'timeout' : info.code === CLOSE_LIMIT ? 'limit' : 'connect'
+        failure = new ProxyError(code, info.reason || `tunnel closed abnormally (${info.code})`)
       }
       notify()
       if (failure) tunnel.onError?.(failure)
       tunnel.onClose?.(info)
       resolveClosed(info)
+    }
+    ws.onclose = (ev: CloseEvent) => finish({ code: ev.code, reason: ev.reason })
+    // Browsers follow every error with a close event, which carries the outcome. Node 22's
+    // WebSocket does not when the connection never opened, so that case is finished here.
+    ws.onerror = () => {
+      if (!opened && !handshakeError) finish({ code: 1006, reason: '' })
     }
 
     if (options.signal) {

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 import { ProxyError, openTunnel, type Tunnel } from '../src/client'
-import { TOKEN, closedPort, digestServer, echoServer, pattern, patternDigest, proxy, runCleanups, settled, sourceServer } from './helpers'
+import { TOKEN, closedPort, digestServer, echoServer, memoryInUse, pattern, patternDigest, proxy, runCleanups, settled, sourceServer } from './helpers'
 
 afterEach(runCleanups)
 
@@ -119,31 +119,32 @@ describe('tunnel mode', () => {
     const t = raw(p.url, `host=127.0.0.1&port=${source.port}`)
     const hash = createHash('sha256')
     let received = 0
-    let sawEnd = false
     t.ws.on('message', (data: Buffer, isBinary: boolean) => {
-      if (!isBinary) return void (sawEnd ||= data.toString() === '{"end":true}')
+      if (!isBinary) {
+        if (data.toString() === '{"end":true}') t.ws.send('{"end":true}') // target is done: finish our side too
+        return
+      }
       received += data.length
       hash.update(data)
     })
     expect(await t.next()).toBe('{"ok":true}')
-    const before = process.memoryUsage()
+    const before = memoryInUse()
     t.ws.pause() // a client that has stopped reading
 
     // With nobody reading, the proxy must stop pulling from the target: the target's writes stall.
     await vi.waitFor(() => expect(p.stats().backpressurePauses).toBeGreaterThan(0), { timeout: 20_000 })
     const sent = await settled(() => source.sockets[0]!.bytesWritten)
-    const after = process.memoryUsage()
+    const after = memoryInUse()
     // What left the target and did not reach the client sits in kernel socket buffers plus about
     // 1 MiB of WebSocket send buffer in the proxy. It must be far from the whole transfer.
     expect(sent - received).toBeLessThan(24 * MB)
     expect(sent).toBeLessThan(size)
     // Memory sanity: the proxy (in this process, with the target and client) holds no large backlog.
     expect(after.arrayBuffers - before.arrayBuffers).toBeLessThan(16 * MB)
-    expect(after.heapUsed - before.heapUsed).toBeLessThan(32 * MB)
+    expect(after.heapUsed - before.heapUsed).toBeLessThan(16 * MB)
 
     t.ws.resume()
-    expect(await t.closed.then((c) => (t.ws.send === undefined ? c : c))).toBeDefined()
-    expect(sawEnd).toBe(true)
+    expect(await t.closed).toMatchObject({ code: 1000 })
     expect(received).toBe(size)
     expect(hash.digest('hex')).toBe(patternDigest(size))
   }, 60_000)
@@ -155,7 +156,7 @@ describe('tunnel mode', () => {
     const tunnel = await openTunnel({ proxyUrl: p.url, token: TOKEN, host: '127.0.0.1', port: sink.port })
     let written = 0
     let maxBuffered = 0
-    const before = process.memoryUsage()
+    const before = memoryInUse()
     const upload = (async () => {
       for (const chunk of pattern(size)) {
         await tunnel.write(chunk)
@@ -168,10 +169,11 @@ describe('tunnel mode', () => {
     // The target is not reading: awaited writes must stall long before 50 MB has been accepted.
     await vi.waitFor(() => expect(written).toBeGreaterThan(0), { timeout: 20_000 })
     const stalledAt = await settled(() => written)
-    const during = process.memoryUsage()
+    const during = memoryInUse()
     expect(stalledAt).toBeLessThan(size - 16 * MB)
     expect(sink.received()).toBe(0)
     expect(during.arrayBuffers - before.arrayBuffers).toBeLessThan(16 * MB)
+    expect(during.heapUsed - before.heapUsed).toBeLessThan(16 * MB)
 
     sink.sockets[0]!.resume()
     await upload
