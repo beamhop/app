@@ -6,11 +6,12 @@ import { webcrypto } from 'node:crypto'
 const subtle = webcrypto.subtle as unknown as SubtleCrypto
 x509.cryptoProvider.set(webcrypto as unknown as Crypto)
 
-export type KeyAlg = 'p256' | 'p384' | 'rsa' | 'ed25519'
+export type KeyAlg = 'p256' | 'p384' | 'p521' | 'rsa' | 'ed25519'
 
 const ALGS: Record<KeyAlg, RsaHashedKeyGenParams | EcKeyGenParams | Algorithm> = {
   p256: { name: 'ECDSA', namedCurve: 'P-256', hash: 'SHA-256' } as EcKeyGenParams,
   p384: { name: 'ECDSA', namedCurve: 'P-384', hash: 'SHA-384' } as EcKeyGenParams,
+  p521: { name: 'ECDSA', namedCurve: 'P-521', hash: 'SHA-512' } as EcKeyGenParams,
   rsa: { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
   ed25519: { name: 'Ed25519' },
 }

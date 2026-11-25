@@ -252,6 +252,15 @@ describe('certificate verification', () => {
     expect(['cert-invalid', 'cert-untrusted']).toContain(await outcome({ key: leaf.ecdsa!.key, cert: derToPem(der) }))
   })
 
+  it('fails closed on algorithms the engine does not implement (P-521)', async () => {
+    const ca521 = await issue({ cn: 'P-521 Root', ca: true, alg: 'p521' })
+    const viaRoot = await issue({ cn: HOST, issuer: ca521 })
+    const r = RootStore.fromPem(ca521.pem)
+    expect(['cert-invalid', 'cert-untrusted']).toContain(await outcome(viaRoot, { roots: r }))
+    const leaf521 = await issue({ cn: HOST, issuer: ca, alg: 'p521' })
+    expect(await outcome(leaf521)).not.toBe('ok')
+  })
+
   it('rejects a forged leaf that only copies the trusted issuer name', async () => {
     const fakeCa = await issue({ cn: 'Beamhop Test Root (ECDSA)', ca: true })
     expect(['cert-invalid', 'cert-untrusted']).toContain(await outcome(await issue({ cn: HOST, issuer: fakeCa })))

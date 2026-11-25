@@ -94,15 +94,14 @@ separate cases that would otherwise be mislabelled.
 ## Decision record
 
 Chosen: **rustls 0.23 + rustls-webpki 0.103 + ring 0.17, compiled to `wasm32-unknown-unknown`,
-behind a 300-line wasm-bindgen wrapper** (`wasm/src/lib.rs`) and a TypeScript stream adapter.
+behind a 320-line wasm-bindgen wrapper** (`wasm/src/lib.rs`) and a TypeScript stream adapter.
 
 Why, in the order of the criteria:
 
 1. Certificate verification. rustls-webpki builds paths through the intermediates the server
    sends, checks validity dates, basic constraints, key usage and serverAuth EKU, name constraints,
    and matches DNS and IP names against SANs only. It verifies ECDSA P-256 and P-384, RSA PKCS#1
-   v1.5 and PSS (2048 to 8192 bit) and Ed25519. It is widely deployed and has been independently
-   audited together with rustls. Nothing in this package re-implements any of it.
+   v1.5 and PSS (2048 to 8192 bit) and Ed25519. It is widely deployed; rustls and webpki had an independent audit in 2020. Nothing in this package re-implements any of it.
 2. TLS 1.3 with a real TLS 1.2 fallback (ECDHE with AES-GCM or ChaCha20-Poly1305 only).
 3. ALPN (any protocol, so `h2` can be negotiated) and SNI.
 4. Size is the cost: 549 kB of wasm, 226 kB gzip.
@@ -119,9 +118,9 @@ Rejected:
 | Option | Why not |
 | --- | --- |
 | `subtls` 0.5.0 (MIT, last published January 2025) | Its README says "Not intended for production use" and "really needs auditing". TLS 1.3 only. Key exchange P-256 only. Leaf signatures ECDSA P-256 and RSA-PSS-SHA256 only; chain signatures without Ed25519 or RSA-PSS. Hand-written state machine and X.509 checks, which is the thing we least want to own. Its one advantage is size (about 130 kB unpacked). |
-| rustls with the `rustls-rustcrypto` provider | Pure Rust and needs no C compiler, but the provider is alpha and describes itself as unaudited. ring is older, far more widely deployed, and builds for wasm with clang. |
-| rustls with `aws-lc-rs` | Does not build for `wasm32-unknown-unknown`. |
-| `node-forge` | TLS 1.2 at most and in practice 1.1-era suites, own X.509 code, TLS parts unmaintained. |
+| rustls with the `rustls-rustcrypto` provider | Pure Rust and needs no C compiler, but a much younger and less deployed provider than ring (not evaluated in depth here). ring builds for wasm with clang, so there was no reason to take it. |
+| rustls with `aws-lc-rs` | Not tried: to our knowledge it does not target `wasm32-unknown-unknown`. |
+| `node-forge` | No TLS 1.3, own X.509 code in JavaScript, TLS parts not actively maintained (not evaluated beyond its documentation). |
 | BearSSL, mbedTLS or OpenSSL via Emscripten | Memory-unsafe C parsers for hostile input inside the trust boundary, a second toolchain, larger (OpenSSL) or without TLS 1.3 (BearSSL). |
 | Writing it ourselves on WebCrypto | Excluded by the brief, and X25519/Ed25519 in WebCrypto are recent in every engine. |
 
@@ -164,7 +163,8 @@ by subject CN.
 - **Trust anchors are not checked for expiry**, as is conventional: an expired root stays trusted
   until it is removed from the bundle.
 - **Side channels.** ring's primitives are written to be constant-time, and with no AES hardware
-  it uses its constant-time software AES and GHASH. That code is then compiled to wasm and JIT
+  it falls back to its portable software AES and GHASH (believed bitsliced and constant-time; we did
+  not review that code). That code is then compiled to wasm and JIT
   compiled by the browser, which gives no constant-time guarantee, and nobody has measured it in
   this configuration. Keys and plaintext live in wasm linear memory and in JS buffers; they are
   not reliably zeroised. Without cross-origin isolation the worker may share a process with other
@@ -214,7 +214,7 @@ typically saves a further 5 to 15 percent.
 
 ## Tests and measurements
 
-`npm test` (vitest, 57 tests, about 5 s; also `BH_TEST_PENDING=1 npx vitest run packages/tls` from
+`npm test` (vitest, 58 tests, about 5 s; also `BH_TEST_PENDING=1 npx vitest run packages/tls` from
 the repo root). A `node:tls` server with a CA generated in memory at test time, reached over an
 in-memory duplex and over loopback TCP:
 
@@ -226,7 +226,7 @@ in-memory duplex and over loopback TCP:
 - Rejections: untrusted CA, empty and wrong root stores, self-signed leaf, missing intermediate,
   wrong hostname, parent and child domains, wildcard depth, CN without SAN, IP literal against DNS
   SAN, expired and not-yet-valid (real certificates and via the injected clock), expired
-  intermediate, issuer that is not a CA, leaf without serverAuth, tampered signature, forged issuer
+  intermediate, issuer that is not a CA, leaf without serverAuth, tampered signature, P-521 CA and leaf, forged issuer
   with a copied name, malformed custom roots, non-ASCII server names.
 - Versions: TLS 1.2-only server connects with 1.2; TLS 1.3-only server connects with 1.3; each
   fails with `protocol-version` when the caller excludes that version; TLS 1.1-only server fails
@@ -281,7 +281,7 @@ against a real public chain. Run it once from an unfiltered network.
 - Servers that omit an intermediate fail with `cert-untrusted`. Browsers often hide this by
   fetching or caching intermediates; this client does not.
 - The one P-521 root in the bundle (e-Szigno TLS Root CA 2023) cannot be used: ring has no P-521,
-  so chains to it fail closed with `cert-invalid`. Ed448 and RSA keys above 8192 bits likewise.
+  so chains to it fail closed (tested with a synthetic P-521 CA). Ed448 and RSA keys above 8192 bits likewise.
 - No HTTP. `h2` can be negotiated with ALPN but there is no HTTP/2 implementation here.
 - No handshake timeout unless the caller passes `signal`.
 - Resumption is off, so every connection costs a full handshake (about 3 ms of CPU here).

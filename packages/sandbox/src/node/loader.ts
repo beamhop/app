@@ -162,7 +162,7 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
     return require
   }
 
-  function loadFile(file: string, parent: Module | null): Dyn {
+  function loadFile(file: string, parent: Module | null, main?: Module): Dyn {
     const cached = cjsCache[file]
     if (cached) return cached.exports
     const format = formatOf(file)
@@ -179,7 +179,7 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
       track('native-addon', file)
       throw Object.assign(new Error(`Cannot load a native addon in the machine: ${file}`), { code: 'ERR_DLOPEN_FAILED' })
     }
-    const mod = new Module(file, parent)
+    const mod = main ?? new Module(file, parent)
     cjsCache[file] = mod
     if (parent) parent.children.push(mod)
     try {
@@ -440,7 +440,7 @@ export function createLoader({ vfs, core, builtins, evaluate, scope, esmCache, l
       mainModule = new Module(real, null)
       mainModule.id = '.'
       process.mainModule = mainModule
-      loadFile(real, null)
+      loadFile(real, null, mainModule)
       return Promise.resolve()
     },
     /** Run source text as an ES module that lives at `file` (node -e / --input-type=module). */
