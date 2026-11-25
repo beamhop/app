@@ -21,7 +21,8 @@ async function setupRules() {
           id: 1,
           priority: 1,
           action: { type: 'modifyHeaders', requestHeaders: [{ header: 'origin', operation: 'remove' }] },
-          condition: { initiatorDomains: [api.runtime.id], resourceTypes: ['xmlhttprequest', 'other'] },
+          // Chrome names the extension by its ID; Firefox by the internal UUID in moz-extension:// URLs.
+          condition: { initiatorDomains: [...new Set([api.runtime.id, new URL(api.runtime.getURL('')).host])], resourceTypes: ['xmlhttprequest', 'other'] },
         },
       ],
     })
@@ -30,6 +31,19 @@ async function setupRules() {
   }
 }
 setupRules()
+
+// Firefox doesn't apply declarativeNetRequest rules to an extension's own requests; use webRequest there.
+const ownOrigin = api.runtime.getURL('').replace(/\/$/, '')
+if (ownOrigin.startsWith('moz-extension:') && api.webRequest?.onBeforeSendHeaders) {
+  api.webRequest.onBeforeSendHeaders.addListener(
+    (d) => {
+      if (!(d.originUrl ?? '').startsWith(ownOrigin)) return {}
+      return { requestHeaders: d.requestHeaders.filter((h) => h.name.toLowerCase() !== 'origin') }
+    },
+    { urls: ['<all_urls>'] },
+    ['blocking', 'requestHeaders'],
+  )
+}
 api.runtime.onStartup?.addListener(setupRules)
 api.runtime.onInstalled?.addListener(setupRules)
 

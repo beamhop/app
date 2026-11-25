@@ -20,6 +20,7 @@
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "@types/ws": "^8",
+    "selenium-webdriver": "^4.54.0",
     "typescript": "6.0.3",
     "vitest": "5.1.1",
     "ws": "8.23.0"
