@@ -541,6 +541,7 @@ export async function startProxy(config: ProxyConfig, options: ProxyOptions = {}
   server.on('upgrade', (req, socket, head) => {
     const path = new URL(req.url ?? '/', 'http://x').pathname
     if (closing || path !== '/v1/tcp' || !cfg.modes.includes('tcp')) {
+      socket.on('error', () => {})
       socket.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       return
     }
