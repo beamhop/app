@@ -80,7 +80,7 @@ async function main() {
   } else {
     const p = PRESETS[values.agent!]
     if (!p) throw new Error(`Unknown --agent ${values.agent}. Use fx, claude, gemini or codex, or --acp "<command>".`)
-    backend = new AcpBackend(p.label, p.cmd, p.args, cwd)
+    backend = new AcpBackend(p.label, p.cmd, p.args, cwd, p.install)
     defaultName = p.label
   }
   const name = values.name ?? defaultName
@@ -89,6 +89,8 @@ async function main() {
     maxHops: Number(values['max-hops'] ?? DEFAULT_CAPS.maxHops),
   }
   const allowTools = values['allow-tools'] as 'owner' | 'everyone' | 'none'
+  log(`Starting ${backend.name}…`)
+  await backend.init?.()
   const joined = await joinRoom(link, name, 'bridge', undefined, { relays: values.relay })
   await serve(joined, backend, { caps, allowTools })
 }

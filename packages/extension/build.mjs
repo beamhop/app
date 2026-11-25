@@ -30,7 +30,9 @@ const targets = {
   firefox: {
     ...base,
     background: { scripts: ['background.js'] },
-    browser_specific_settings: { gecko: { id: 'companion@beamhop.github.io', strict_min_version: '128.0' } },
+    // Firefox match patterns can't name a port; a host without one matches every port.
+    content_scripts: [{ ...base.content_scripts[0], matches: ['https://beamhop.github.io/*', 'http://localhost/*', 'http://127.0.0.1/*'] }],
+    browser_specific_settings: { gecko: { id: 'companion@beamhop.github.io', strict_min_version: '128.0', data_collection_permissions: { required: ['none'] } } },
   },
 }
 for (const [name, manifest] of Object.entries(targets)) {

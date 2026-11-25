@@ -14,15 +14,16 @@ export interface TurnInput {
 
 export interface Backend {
   name: string
+  init?(): Promise<void>
   run(t: TurnInput): Promise<string>
   close(): Promise<void>
 }
 
-export const PRESETS: Record<string, { cmd: string; args: string[]; label: string }> = {
-  fx: { cmd: 'fx', args: ['acp'], label: 'fx' },
-  claude: { cmd: 'npx', args: ['-y', '@zed-industries/claude-code-acp'], label: 'Claude Code' },
-  gemini: { cmd: 'gemini', args: ['--experimental-acp'], label: 'Gemini CLI' },
-  codex: { cmd: 'npx', args: ['-y', '@zed-industries/codex-acp'], label: 'Codex' },
+export const PRESETS: Record<string, { cmd: string; args: string[]; label: string; install: string }> = {
+  fx: { cmd: 'fx', args: ['acp'], label: 'fx', install: 'curl -fsSL https://fx.sh/setup.sh | bash, then fx login' },
+  claude: { cmd: 'npx', args: ['-y', '@zed-industries/claude-code-acp'], label: 'Claude Code', install: 'npm i -g @anthropic-ai/claude-code, then run claude once to sign in' },
+  gemini: { cmd: 'gemini', args: ['--experimental-acp'], label: 'Gemini CLI', install: 'npm i -g @google/gemini-cli, then run gemini once to sign in' },
+  codex: { cmd: 'npx', args: ['-y', '@zed-industries/codex-acp'], label: 'Codex', install: 'npm i -g @openai/codex, then codex login' },
 }
 
 /** An ACP agent subprocess with one long-lived session per room. */
@@ -33,19 +34,33 @@ export class AcpBackend implements Backend {
   private ready: Promise<void>
   private turnAllow = false
   private closeConn?: () => void
+  private exited = ''
   constructor(
     public name: string,
     private cmd: string,
     private args: string[],
     private cwd: string,
+    private installHint = '',
   ) {
     this.ready = this.start()
+    this.ready.catch(() => {})
+  }
+
+  /** Resolves once the agent has started and opened a session; rejects with why it couldn't. */
+  init() {
+    return this.ready
   }
 
   private start() {
     return new Promise<void>((resolve, reject) => {
       this.proc = spawn(this.cmd, this.args, { cwd: this.cwd, stdio: ['pipe', 'pipe', 'inherit'], env: process.env, shell: process.platform === 'win32' })
-      this.proc.once('error', (e) => reject(new Error(`Couldn't start ${this.name} (${this.cmd}): ${e.message}`)))
+      this.proc.once('error', (e) => reject(new Error(`Couldn't start ${this.name} (${this.cmd}): ${e.message}${this.installHint ? `. Install it: ${this.installHint}` : ''}`)))
+      this.proc.once('exit', (code) => {
+        this.exited = `${this.name} stopped (exit code ${code}). Check that it is installed and signed in${this.installHint ? ` (${this.installHint})` : ''}.`
+        if (process.env.CLAUDECODE) this.exited += ' Note: Claude Code refuses to start inside another Claude Code session; run the bridge from a normal terminal.'
+        reject(new Error(this.exited))
+      })
+      this.proc.stdin!.on('error', () => {})
       const stream = ndJsonStream(Writable.toWeb(this.proc.stdin!) as WritableStream<Uint8Array>, Readable.toWeb(this.proc.stdout!) as unknown as ReadableStream<Uint8Array>)
       const app = acpClient({ name: 'beamhop-bridge' })
         .onRequest('session/request_permission', async ({ params }: any) => {
@@ -78,6 +93,7 @@ export class AcpBackend implements Backend {
 
   async run(t: TurnInput) {
     await this.ready
+    if (this.exited) throw new Error(this.exited)
     this.turnAllow = t.allowTools
     const s = this.session
     const pending = s.prompt(t.prompt)

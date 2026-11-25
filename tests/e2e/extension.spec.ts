@@ -1,5 +1,6 @@
 import { test, expect, chromium } from '@playwright/test'
 import http from 'node:http'
+import https from 'node:https'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -24,7 +25,7 @@ test('companion extension: detection and cross-origin streaming fetch', async ()
   const ctx = await chromium.launchPersistentContext(dir, {
     headless: true,
     channel: 'chromium',
-    args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+    args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`, '--ignore-certificate-errors'],
   })
   try {
     const page = await ctx.newPage()
@@ -51,6 +52,25 @@ test('companion extension: detection and cross-origin streaming fetch', async ()
     expect(r.chunks).toBeGreaterThan(1)
     expect(r.origin).toBe('none')
     expect(await page.evaluate(() => (window as any).__beamhop.hasExtension)).toBe(true)
+
+    // Sign-in capture: a provider page (https) that redirects to a localhost callback that doesn't load
+    const fx = path.resolve('tests/e2e/fixtures')
+    const signin = https.createServer({ key: fs.readFileSync(path.join(fx, 'key.pem')), cert: fs.readFileSync(path.join(fx, 'cert.pem')) }, (req, res) => {
+      res.writeHead(302, { location: 'http://localhost:1455/auth/callback?code=abc123&state=xyz' })
+      res.end()
+    })
+    await new Promise<void>((r) => signin.listen(7796, r))
+    const pagesBefore = ctx.pages().length
+    const captured = await page.evaluate(() => new Promise((resolve, reject) => {
+      const id = 'cap1'
+      window.addEventListener('message', (e) => {
+        if (e.data?.__bh === 'res' && e.data.id === id) e.data.kind === 'result' ? resolve(e.data.value) : reject(new Error(e.data.message))
+      })
+      window.postMessage({ __bh: 'req', id, op: 'capture', url: 'https://localhost:7796/authorize', redirectPrefix: 'http://localhost:1455/auth/callback' }, '*')
+    }))
+    expect(captured).toBe('http://localhost:1455/auth/callback?code=abc123&state=xyz')
+    await expect.poll(() => ctx.pages().length).toBe(pagesBefore) // the sign-in tab was closed
+    signin.close()
   } finally {
     await ctx.close()
     server.close()

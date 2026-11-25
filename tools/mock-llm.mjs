@@ -2,6 +2,32 @@
 // Replies "echo: <last user text>" and calls a tool when the prompt contains "use_tool:<name>".
 import http from 'node:http'
 
+// OpenAI Responses API (streaming), as used by Codex.
+async function responses(j, res) {
+  const items = Array.isArray(j.input) ? j.input : [{ role: 'user', content: [{ type: 'input_text', text: String(j.input ?? '') }] }]
+  const user = [...items].reverse().find((i) => i.role === 'user')
+  const text = typeof user?.content === 'string' ? user.content : (user?.content ?? []).map((p) => p.text ?? '').join('\n')
+  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('<'))
+  const reply = 'echo: ' + (lines.pop() ?? '').slice(0, 200)
+  const id = 'resp_' + Date.now()
+  const msgId = 'msg_' + Date.now()
+  const usage = { input_tokens: 10, input_tokens_details: { cached_tokens: 0 }, output_tokens: 5, output_tokens_details: { reasoning_tokens: 0 }, total_tokens: 15 }
+  const done = { type: 'message', id: msgId, role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: reply, annotations: [] }] }
+  res.writeHead(200, { 'content-type': 'text/event-stream' })
+  let seq = 0
+  const ev = (type, data) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: seq++, ...data })}\n\n`)
+  const base = { id, object: 'response', created_at: Math.floor(Date.now() / 1000), model: j.model, status: 'in_progress', output: [] }
+  ev('response.created', { response: base })
+  ev('response.output_item.added', { output_index: 0, item: { type: 'message', id: msgId, role: 'assistant', status: 'in_progress', content: [] } })
+  ev('response.content_part.added', { item_id: msgId, output_index: 0, content_index: 0, part: { type: 'output_text', text: '', annotations: [] } })
+  for (const part of reply.match(/.{1,10}/gs) ?? ['']) ev('response.output_text.delta', { item_id: msgId, output_index: 0, content_index: 0, delta: part })
+  ev('response.output_text.done', { item_id: msgId, output_index: 0, content_index: 0, text: reply })
+  ev('response.content_part.done', { item_id: msgId, output_index: 0, content_index: 0, part: done.content[0] })
+  ev('response.output_item.done', { output_index: 0, item: done })
+  ev('response.completed', { response: { ...base, status: 'completed', output: [done], usage } })
+  res.end()
+}
+
 export function startMockLLM(port = 7790, { log } = {}) {
   const requests = []
   const server = http.createServer(async (req, res) => {
@@ -17,6 +43,7 @@ export function startMockLLM(port = 7790, { log } = {}) {
     for await (const c of req) body += c
     const j = body ? JSON.parse(body) : {}
     requests.push({ url: req.url, headers: req.headers, body: j })
+    if (req.url.endsWith('/responses')) return responses(j, res)
     if (log) console.log(JSON.stringify(j, null, 1).slice(0, 4000))
     const msgs = j.messages || []
     const last = msgs[msgs.length - 1]
