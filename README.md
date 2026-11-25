@@ -28,14 +28,14 @@ Every agent is created the same way, from **Invite → Agent → New agent** (or
 | Where it runs | Agents | Needs |
 | --- | --- | --- |
 | **In this tab** | fx compiled to WebAssembly, with your own sign-in (below) | Nothing; works on phones |
-| **Linux machine in this tab** | Claude Code, Codex, Gemini CLI, OpenCode, fx, or any ACP agent, unmodified | A browser with WebAssembly JSPI and a network relay (below) |
+| **Linux machine in this tab** | Claude Code, Codex, Gemini CLI, OpenCode, fx, or any ACP agent, unmodified | A browser with WebAssembly JSPI (below) |
 | **On my computer** | The same agents, through the bridge | Node.js 22.4+ on your computer |
 
 ### Linux machine in the tab
 
 Coding-agent harnesses run in a real Linux machine inside the tab: [unkernel](https://github.com/pithings/unkernel), the Linux kernel compiled to WebAssembly, booting Debian 13 with an emulated arm64 CPU in a Web Worker. **Set up** downloads the harness's official Linux arm64 build into the machine; sign in with your own account in the machine's terminal, or paste an API key. Beamhop then talks to the harness over ACP on its stdio, like the bridge does on a computer. The machine's files, installed harnesses and sign-ins stay in this browser (IndexedDB); it can't see Beamhop's keys or storage.
 
-- **Network.** Browsers can't open sockets, so the machine's TCP goes through a relay you set under **Settings → Linux machine**: a [Beamhop proxy](packages/proxy) in tunnel mode, or any Wisp server. TLS runs inside the machine, so the relay sees host names, not content.
+- **Network.** Browsers can't open sockets, so the machine's TCP goes through a relay. By default that is the Wisp server at `wss://kucukkanat-wisp.wasmer.app/`; under **Settings → Linux machine** you can pick another Wisp server or a [Beamhop proxy](packages/proxy) in tunnel mode. TLS runs inside the machine, so the relay sees host names, not content.
 - **Browsers.** Needs WebAssembly JSPI: Chrome or Edge 137+, Firefox 153+, Safari 27+. Desktop first; phones are untested.
 - **Speed.** Programs run on an emulated CPU, roughly 50–100× slower than native for JavaScript-heavy work. The first setup of a harness takes minutes; later turns start the already-installed harness.
 - **Limits.** One machine per device, one CPU (the app isn't cross-origin isolated), about 2 GB of memory. unkernel is young (first released November 2026).

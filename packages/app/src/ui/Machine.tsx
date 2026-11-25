@@ -2,11 +2,12 @@
 // and the machine's settings (network relay, storage).
 import { useEffect, useRef, useState } from 'react'
 import { HARNESSES, type HarnessId } from '@beamhop/shared'
-import { useStore } from './hooks'
+import { useMedia, useStore } from './hooks'
 import { Sheet, Switch } from './components'
 import { Icon } from './icons'
-import { machine, machineSupported, type MachineConfig } from '../machine/machine'
+import { DEFAULT_WISP_URL, machine, machineSupported, type MachineConfig } from '../machine/machine'
 import type { AgentDef } from '../core/types'
+import { NO_MODS, applyMods, specialKeySeq, type Mods, type SpecialKey } from './terminalKeys'
 
 /** Re-render when the machine's state changes. */
 function useMachine() {
@@ -159,6 +160,15 @@ export function AgentMachineCard({ def }: { def: AgentDef }) {
 export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }: { command?: string; cwd?: string; title?: string; onClose: () => void }) {
   const el = useRef<HTMLDivElement>(null)
   const [err, setErr] = useState('')
+  // Phones have no Esc, Tab, Ctrl or arrow keys: show a key bar on touch screens (and on request).
+  const touch = useMedia('(pointer: coarse)')
+  const [keysOn, setKeysOn] = useState<boolean | null>(null)
+  const showKeys = keysOn ?? touch
+  const [mods, setMods] = useState<Mods>(NO_MODS)
+  const modsRef = useRef<Mods>(NO_MODS)
+  modsRef.current = mods
+  const io = useRef<{ send: (d: string) => void; appCursor: () => boolean; focus: () => void } | null>(null)
+
   useEffect(() => {
     let closed = false
     let cleanup = () => {}
@@ -176,7 +186,15 @@ export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }
       if (closed) return pty.close()
       pty.onData = (d) => term.write(d)
       pty.onExit = () => term.write('\r\n[session ended]\r\n')
-      const sub = term.onData((d) => pty.write(d))
+      // Sticky modifiers from the key bar apply to the next key typed, then release.
+      const sub = term.onData((d) => {
+        const m = modsRef.current
+        if (m.ctrl || m.alt || m.shift) {
+          pty.write(applyMods(d, m))
+          setMods(NO_MODS)
+        } else pty.write(d)
+      })
+      io.current = { send: (d) => pty.write(d), appCursor: () => term.modes.applicationCursorKeysMode, focus: () => term.focus() }
       const onResize = () => {
         fit.fit()
         pty.resize(term.cols, term.rows)
@@ -186,6 +204,7 @@ export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }
       if (command) pty.write(command + '\n')
       term.focus()
       cleanup = () => {
+        io.current = null
         window.removeEventListener('resize', onResize)
         sub.dispose()
         pty.close()
@@ -197,13 +216,31 @@ export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }
       cleanup()
     }
   }, [command, cwd])
+
+  const special = (k: SpecialKey) => {
+    io.current?.send(specialKeySeq(k, modsRef.current, io.current.appCursor()))
+    setMods(NO_MODS)
+    io.current?.focus()
+  }
+  const text = (t: string) => {
+    io.current?.send(applyMods(t, modsRef.current))
+    setMods(NO_MODS)
+    io.current?.focus()
+  }
+  const toggle = (k: keyof Mods) => setMods((m) => ({ ...m, [k]: !m[k] }))
+
   return (
     <Sheet onClose={onClose} className="terminal-sheet">
       <div className="row between">
         <h3>{title}</h3>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">
-          <Icon name="close" />
-        </button>
+        <div className="row" style={{ gap: 4 }}>
+          <button className={`btn small ${showKeys ? '' : 'ghost'}`} onClick={() => setKeysOn(!showKeys)} aria-pressed={showKeys} title="Show keys for touch screens">
+            Keys
+          </button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <Icon name="close" />
+          </button>
+        </div>
       </div>
       <p className="hint" style={{ marginTop: 0 }}>
         A shell (as root) in this browser’s Linux machine{cwd ? (
@@ -214,8 +251,50 @@ export function TerminalSheet({ command, cwd, title = 'Linux machine', onClose }
         . Sign-ins and files are kept on this device. Type <code>exit</code> or close this when you’re done.
       </p>
       {err && <div className="small warn-card">{err}</div>}
-      <div ref={el} className="terminal" />
+      <div ref={el} className="machine-terminal" />
+      {showKeys && <TerminalKeyBar mods={mods} onToggle={toggle} onKey={special} onText={text} />}
     </Sheet>
+  )
+}
+
+/**
+ * Keys a phone keyboard lacks. Ctrl, Alt and Shift are sticky: tap one, then a key (on the bar or
+ * the keyboard), e.g. Ctrl then c. Buttons keep the terminal focused so the keyboard stays open.
+ */
+function TerminalKeyBar({ mods, onToggle, onKey, onText }: { mods: Mods; onToggle: (k: keyof Mods) => void; onKey: (k: SpecialKey) => void; onText: (t: string) => void }) {
+  const keep = (e: React.PointerEvent | React.MouseEvent) => e.preventDefault()
+  const K = ({ label, aria, onPress, on }: { label: string; aria?: string; onPress: () => void; on?: boolean }) => (
+    <button type="button" className={`term-key ${on ? 'on' : ''} ${/^[←↑↓→↵]$/.test(label) ? 'glyph' : ''}`} aria-label={aria ?? label} aria-pressed={on} onPointerDown={keep} onMouseDown={keep} onClick={onPress}>
+      {label}
+    </button>
+  )
+  return (
+    <div className="term-keys" role="toolbar" aria-label="Terminal keys">
+      <div className="term-keys-row">
+        <K label="Esc" onPress={() => onKey('esc')} />
+        <K label="Tab" onPress={() => onKey('tab')} />
+        <K label="Ctrl" on={mods.ctrl} onPress={() => onToggle('ctrl')} />
+        <K label="Alt" on={mods.alt} onPress={() => onToggle('alt')} />
+        <K label="Shift" on={mods.shift} onPress={() => onToggle('shift')} />
+        <K label="↵" aria="Return" onPress={() => onKey('enter')} />
+      </div>
+      <div className="term-keys-row">
+        <K label="←" aria="Left" onPress={() => onKey('left')} />
+        <K label="↑" aria="Up" onPress={() => onKey('up')} />
+        <K label="↓" aria="Down" onPress={() => onKey('down')} />
+        <K label="→" aria="Right" onPress={() => onKey('right')} />
+        <K label="Home" onPress={() => onKey('home')} />
+        <K label="End" onPress={() => onKey('end')} />
+        <K label="PgUp" onPress={() => onKey('pgup')} />
+        <K label="PgDn" onPress={() => onKey('pgdn')} />
+      </div>
+      <div className="term-keys-row">
+        {['|', '/', '~', '-', '_', '*', '&', '>', '$'].map((c) => (
+          <K key={c} label={c} onPress={() => onText(c)} />
+        ))}
+        <K label="^C" aria="Ctrl-C" onPress={() => onText('\x03')} />
+      </div>
+    </div>
   )
 }
 
@@ -282,7 +361,14 @@ export function MachineSettings() {
         </div>
         <div className="seg">
           {(['none', 'beamhop', 'wisp'] as const).map((k) => (
-            <button key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>
+            <button
+              key={k}
+              className={kind === k ? 'on' : ''}
+              onClick={() => {
+                setKind(k)
+                if (k === 'wisp' && !url.trim()) setUrl(DEFAULT_WISP_URL)
+              }}
+            >
               {k === 'none' ? 'None' : k === 'beamhop' ? 'Beamhop proxy' : 'Wisp server'}
             </button>
           ))}
@@ -294,7 +380,9 @@ export function MachineSettings() {
             <div className="hint" style={{ marginTop: -4 }}>
               {kind === 'beamhop'
                 ? 'Run your own with packages/proxy (Node, Docker or Cloudflare Workers).'
-                : 'Any Wisp v1 server. Public ones are run by third parties, who see the hosts the machine connects to.'}
+                : url.trim() === DEFAULT_WISP_URL
+                  ? 'Beamhop’s default Wisp server. It sees which hosts the machine connects to, not what it sends.'
+                  : 'Any Wisp v1 server. Public ones are run by third parties, who see the hosts the machine connects to.'}
             </div>
           </>
         )}
@@ -316,6 +404,17 @@ export function MachineSettings() {
           <button className="btn" onClick={save}>
             Save
           </button>
+          {(kind !== 'wisp' || url.trim() !== DEFAULT_WISP_URL) && (
+            <button
+              className="btn ghost"
+              onClick={() => {
+                setKind('wisp')
+                setUrl(DEFAULT_WISP_URL)
+              }}
+            >
+              Use default
+            </button>
+          )}
           <span className="spacer" />
           <button
             className="btn ghost danger small"

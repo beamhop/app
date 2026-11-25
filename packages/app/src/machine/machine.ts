@@ -14,7 +14,10 @@ export interface MachineConfig {
   extraCa: string
 }
 
-export const DEFAULT_MACHINE_CONFIG: MachineConfig = { net: { kind: 'none' }, persist: true, memoryMiB: 2048, extraCa: '' }
+/** The Wisp server the machine uses unless the user picks another relay (Settings → Linux machine). */
+export const DEFAULT_WISP_URL = 'wss://kucukkanat-wisp.wasmer.app/'
+
+export const DEFAULT_MACHINE_CONFIG: MachineConfig = { net: { kind: 'wisp', url: DEFAULT_WISP_URL }, persist: true, memoryMiB: 2048, extraCa: '' }
 
 export type MachineState = 'off' | 'booting' | 'ready' | 'error'
 
