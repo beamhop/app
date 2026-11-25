@@ -73,6 +73,7 @@ function pkgTypeFor(absFile) {
 
 const tBuild = Date.now();
 let esmTransformMs = 0;
+let sniffed = 0;
 while (queue.length) {
   const name = queue.shift();
   if (seen.has(name)) continue;
@@ -95,7 +96,11 @@ while (queue.length) {
     const vpath = `/node_modules/${name}/${rel}`;
     files[vpath] = src;
     bytes += src.length; count++;
-    const isEsm = /\.mjs$/.test(rel) || (/\.js$/.test(rel) && pkgTypeFor(abs) === 'module');
+    // ESM by declaration (.mjs / "type":"module"), or ESM syntax sniffed in a .js file of a
+    // CommonJS-typed package (common for "browser"/"module" export targets meant for bundlers).
+    const declaredEsm = /\.mjs$/.test(rel) || (/\.js$/.test(rel) && pkgTypeFor(abs) === 'module');
+    const sniffedEsm = !declaredEsm && /\.js$/.test(rel) && src.length < 3e6 && /^\s*(import\s*[\w{*'"]|export\s*(default|const|let|var|function|class|async|\{|\*))/m.test(src);
+    const isEsm = declaredEsm || sniffedEsm;
     if (isEsm) {
       const t = performance.now();
       try {
@@ -103,10 +108,10 @@ while (queue.length) {
           format: 'cjs', target: 'es2022', loader: 'js', sourcefile: vpath,
           supported: { 'dynamic-import': false }, logLevel: 'silent',
         });
-        cjs[vpath] = r.code;
-        esmCount++;
+        // a sniffed file only counts as ESM if esbuild actually found import/export syntax
+        if (declaredEsm || /__toCommonJS\(|__toESM\(/.test(r.code)) { cjs[vpath] = r.code; esmCount++; if (sniffedEsm) sniffed++; }
       } catch (e) {
-        esmErrors.push({ file: vpath, error: String(e.message).split('\n')[0] });
+        if (declaredEsm) esmErrors.push({ file: vpath, error: String(e.message).split('\n')[0] });
       }
       esmTransformMs += performance.now() - t;
     }
@@ -264,6 +269,7 @@ const meta = {
   smallImageBytes: smallJson.length,
   fileCount: Object.keys(files).length,
   esmFilesPretransformed: Object.keys(cjs).length,
+  esmFilesDetectedBySyntaxSniffing: sniffed,
   esmPretransformMsOnBuildMachine: Math.round(esmTransformMs),
   esmErrors,
   tsFixtureLines: tsFixture.split('\n').length,

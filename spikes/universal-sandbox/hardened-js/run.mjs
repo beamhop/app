@@ -34,6 +34,7 @@ async function newPage(query = '') {
   const context = await browser.newContext();
   const page = await context.newPage();
   page.on('pageerror', (e) => log('pageerror', e.message));
+  page.on('crash', () => log('PAGE CRASHED'));
   await page.goto(`${base}/src/page.html${query ? '?' + query : ''}`);
   const H = {
     page,
@@ -167,6 +168,7 @@ try {
         // module load time first, on a cold worker
         for (const spec of ['typescript', 'lodash', 'zod', 'prettier/standalone']) {
           const r = await H.call(w.id, 'loadTime', { spec, runs: 3, ...cfg.run });
+          log('load', `round ${round}`, mode, spec, JSON.stringify(r.times));
           ((loads[spec] ||= {})[mode] ||= []).push(r);
         }
         for (const [workload, iters, warmup] of workloads) {

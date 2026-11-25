@@ -185,9 +185,9 @@
       if (spec.startsWith('node:')) spec = spec.slice(5);
       if (coreValues.has(spec)) return 'core:' + spec;
       if (Object.prototype.hasOwnProperty.call(CORE_FILES, spec)) return CORE_FILES[spec];
-      // No 'node' condition (we are not Node) and no 'browser' condition either: in practice
-      // "browser" export targets are often ESM-syntax .js files meant for bundlers.
-      const conds = isEsm ? ['import', 'default'] : ['require', 'default'];
+      // Browser-like resolution: no 'node' condition. 'browser' targets are frequently ESM-syntax
+      // .js files inside CommonJS-typed packages; the build step sniffs and pre-transforms those.
+      const conds = isEsm ? ['import', 'browser', 'default'] : ['require', 'browser', 'default'];
       const fromDir = dirname(from);
       if (spec.startsWith('./') || spec.startsWith('../') || spec === '.' || spec === '..' || spec.startsWith('/')) {
         const p = spec.startsWith('/') ? norm(spec) : join(fromDir, spec);

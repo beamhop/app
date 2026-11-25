@@ -63,7 +63,15 @@ async function handle(req, u) {
     const headers = { 'content-type': r.contentType, 'cache-control': 'no-store', 'x-served-by': 'sw-' + inst };
     // A response synthesized by the SW has ONLY the headers set here. A preview document gets no CSP
     // unless the SW adds one.
-    if (!id.includes('nocsp')) headers['content-security-policy'] = (await getCsp()) + (id.includes('cspsandbox') ? '; sandbox allow-scripts allow-same-origin' : '');
+    // The preview frame's ancestors are B (the kernel frame) and A, and frame-ancestors is checked against
+    // every ancestor, so B's own "frame-ancestors A" would block it: previews need 'self' as well
+    // (ids containing "strictfa" keep B's policy unchanged to demonstrate the failure).
+    if (!id.includes('nocsp')) {
+      let csp = await getCsp();
+      if (!id.includes('strictfa')) csp = csp.replace(/frame-ancestors /, "frame-ancestors 'self' ");
+      if (id.includes('cspsandbox')) csp += '; sandbox allow-scripts allow-same-origin';
+      headers['content-security-policy'] = csp;
+    }
     return new Response(r.body, { status: r.status, headers });
   } catch (e) {
     return new Response('preview error: ' + e.message, { status: 503, headers: { 'content-type': 'text/plain' } });

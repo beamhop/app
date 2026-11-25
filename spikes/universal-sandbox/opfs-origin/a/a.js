@@ -87,15 +87,20 @@ A.benchBridge = async () => {
   const out = {};
   for (let i = 0; i < 200; i++) await A.rpc({ op: 'echo', v: i }); // warm-up
   let lat = [];
+  let T0 = performance.now();
   for (let i = 0; i < 5000; i++) { const t = performance.now(); await A.rpc({ op: 'echo', v: i }); lat.push(performance.now() - t); }
   out.smallMs = stats(lat);
+  // the clock here ticks in 0.1 ms steps, so also report total time / calls
+  out.smallAvgMicroseconds = Math.round((performance.now() - T0) / 5000 * 1000);
   // 1 MB ArrayBuffer transferred A -> worker and transferred back
   lat = [];
   let buf = new ArrayBuffer(1 << 20);
   new Uint8Array(buf).fill(7);
   for (let i = 0; i < 20; i++) buf = (await A.rpc({ op: 'echo', buf }, [buf])).buf;
+  T0 = performance.now();
   for (let i = 0; i < 1000; i++) { const t = performance.now(); buf = (await A.rpc({ op: 'echo', buf }, [buf])).buf; lat.push(performance.now() - t); }
   out.transfer1MBMs = stats(lat);
+  out.transfer1MBAvgMicroseconds = Math.round((performance.now() - T0) / 1000 * 1000);
   out.transfer1MBIntact = buf.byteLength === 1 << 20 && new Uint8Array(buf)[12345] === 7;
   // 1 MB structured-cloned (copied) both ways, for comparison
   lat = [];

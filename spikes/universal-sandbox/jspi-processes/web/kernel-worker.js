@@ -324,6 +324,32 @@ const cmds = {
   },
 
   // ---------------------------------------------------------------- traps
+  // Variants of one crash mode, to see which combination of JSPI state matters.
+  // variant: 'raw' (plain _start(), no JSPI stack) | 'promising-nosuspend' | 'promising-suspended'
+  async trapVariant({ mode = 'oob', variant = 'raw' } = {}) {
+    const p = k.pipe(4096);
+    const err = k.memFile();
+    const w = p.w.open();
+    if (variant !== 'promising-suspended') p.w.write(enc.encode('hello'), 0, 5); // data ready: fd_read will not block
+    const proc = k.spawn('crash', [mode], { fds: [p.r, err, err], noStart: true });
+    if (variant === 'raw') {
+      let error = null;
+      try {
+        proc.instance.exports._start();
+      } catch (e) {
+        error = `${e.constructor.name}: ${e.message}`;
+      }
+      k.kill(proc.pid);
+      release(w);
+      return { mode, variant, error, stderr: err.text().trim().slice(0, 80) };
+    }
+    k.start(proc);
+    if (variant === 'promising-suspended') p.w.write(enc.encode('hello'), 0, 5);
+    const code = await proc.exited;
+    release(w);
+    return { mode, variant, suspends: proc.suspends, exitCode: code, state: proc.state, error: proc.error, stderr: err.text().trim().slice(0, 80) };
+  },
+
   async trap({ modes = ['trap', 'panic', 'oob', 'overflow'] } = {}) {
     const r = {};
     // a bystander process that must survive the others' traps

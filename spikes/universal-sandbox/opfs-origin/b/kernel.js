@@ -223,13 +223,14 @@ spike.registerSW = async () => {
   spike.reg = reg;
   return { ms: +(performance.now() - t0).toFixed(1), scope: reg.scope, state: reg.active && reg.active.state };
 };
-async function sendPortToSW() {
+async function sendPortToSW(sw) {
   const ch = new MessageChannel();
   await spike.call('previewPort', {}, [ch.port1]);
-  spike.reg.active.postMessage({ type: 'kernel-port' }, [ch.port2]);
+  (sw || spike.reg.active).postMessage({ type: 'kernel-port' }, [ch.port2]);
 }
 navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'need-port') { spike.portRequests++; sendPortToSW(); }
+  // the SW lost its port (it was restarted) or never had one: hand it a fresh one
+  if (e.data && e.data.type === 'need-port') { spike.portRequests++; sendPortToSW(e.source); }
 });
 spike.connectPreview = async (opts = {}) => {
   const r = await spike.call('previewInit', opts);
