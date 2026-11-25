@@ -67,10 +67,20 @@ describe('node program', () => {
 
   it('gives each process its own globals', async () => {
     const m = testMachine()
-    write(m, '/work/g.js', 'globalThis.process.title = process.argv[2]; setTimeout(() => console.log(process.title, typeof window, typeof self, typeof WebSocket, globalThis === global), 30)')
+    write(m, '/work/g.js', 'globalThis.process.title = process.argv[2]; setTimeout(() => console.log(process.title, typeof window, typeof self, globalThis === global), 30)')
     const [a, b] = await Promise.all([run(m, ['node', 'g.js', 'one']), run(m, ['node', 'g.js', 'two'])])
-    expect(a.stdout).toBe('one undefined undefined undefined true\n')
-    expect(b.stdout).toBe('two undefined undefined undefined true\n')
+    expect(a.stdout).toBe('one undefined undefined true\n')
+    expect(b.stdout).toBe('two undefined undefined true\n')
+  })
+
+  it('lets a program replace fetch: bare references follow, and a wrapper around the captured fetch does not recurse', async () => {
+    const m = testMachine()
+    write(m, '/work/f.js', `
+      const original = fetch
+      globalThis.fetch = (url) => (url === 'inner' ? Promise.resolve('reached original? no: networking is off') : original(url).catch((e) => 'original:' + e.message))
+      fetch('http://127.0.0.1:9/x').then((r) => console.log(r, fetch !== globalThis.fetch, typeof globalThis.fetch))
+    `)
+    expect((await run(m, ['node', 'f.js'])).stdout).toBe('original:fetch failed true function\n')
   })
 
   it('supports node -e, -p and --version', async () => {

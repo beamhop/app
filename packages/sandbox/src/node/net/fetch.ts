@@ -1,7 +1,7 @@
 // `fetch` for guest code, and the HTTP exchange primitive node:http shares with it.
 // In 'http' mode an exchange goes to the app as one `http.open`. In 'tunnel' mode it is spoken as HTTP/1.1 by a
 // small client here, over a net.Socket (or a TLS socket for https, once the machine has TLS).
-import { host } from '../../host.js'
+import { host as platform } from '../../host.js'
 import type { Dyn, ProcessCore } from '../types.js'
 import { encodeRequestHead, headerValue, ResponseParser } from './http1.js'
 import type { NetStats } from './socket.js'
@@ -15,11 +15,11 @@ export interface ExchangeInit {
 export type TransportFetch = (url: string, init: ExchangeInit) => Promise<Response>
 
 const NULL_BODY_STATUS = new Set([101, 103, 204, 205, 304])
-const abortError = (signal?: AbortSignal | null): unknown => signal?.reason ?? new host.DOMException('This operation was aborted', 'AbortError')
+const abortError = (signal?: AbortSignal | null): unknown => signal?.reason ?? new platform.DOMException('This operation was aborted', 'AbortError')
 const fetchFailed = (cause: unknown): TypeError => Object.assign(new TypeError('fetch failed'), { cause })
 
 function makeResponse(url: string, status: number, statusText: string, headers: [string, string][], body: ReadableStream<Uint8Array> | null): Response {
-  const res = new host.Response(NULL_BODY_STATUS.has(status) ? null : body, { status, statusText, headers })
+  const res = new platform.Response(NULL_BODY_STATUS.has(status) ? null : body, { status, statusText, headers })
   Object.defineProperty(res, 'url', { value: url })
   return res
 }
@@ -47,7 +47,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
           // the body stream was cancelled by the reader
         }
       }
-      const body = new host.ReadableStream<Uint8Array>({ start: (c) => void (controller = c), cancel: () => exchange.abort() })
+      const body = new platform.ReadableStream<Uint8Array>({ start: (c) => void (controller = c), cancel: () => exchange.abort() })
       // Bodies arrive decoded, so the request must not negotiate a content coding the guest would then try to undo.
       const headers = init.headers.filter(([k]) => k.toLowerCase() !== 'accept-encoding')
       headers.push(['accept-encoding', 'identity'])
@@ -86,7 +86,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
   function socketFetch(url: string, init: ExchangeInit): Promise<Response> {
     return new Promise((resolve, reject) => {
       if (init.signal?.aborted) return reject(abortError(init.signal))
-      const u = new host.URL(url)
+      const u = new platform.URL(url)
       const secure = u.protocol === 'https:'
       const port = Number(u.port || (secure ? 443 : 80))
       const host = u.hostname.replace(/^\[|\]$/g, '')
@@ -110,7 +110,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
         } else quiet(() => controller.error(e))
         sock.destroy()
       }
-      const raw = new host.ReadableStream<Uint8Array>({ start: (c) => void (controller = c), cancel: () => sock.destroy() })
+      const raw = new platform.ReadableStream<Uint8Array>({ start: (c) => void (controller = c), cancel: () => sock.destroy() })
       const parser = new ResponseParser(init.method, {
         head(head) {
           settled = true
@@ -118,7 +118,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
           const drop = new Set(['content-length', 'transfer-encoding', 'connection', 'keep-alive'])
           let body: ReadableStream<Uint8Array> = raw
           if (coding === 'gzip' || coding === 'x-gzip' || coding === 'deflate') {
-            body = raw.pipeThrough(new host.DecompressionStream(coding === 'deflate' ? 'deflate' : 'gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>)
+            body = raw.pipeThrough(new platform.DecompressionStream(coding === 'deflate' ? 'deflate' : 'gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>)
             drop.add('content-encoding')
           }
           resolve(makeResponse(url, head.status, head.statusText, head.headers.filter(([k]) => !drop.has(k.toLowerCase())), init.method === 'HEAD' ? null : body))
@@ -171,8 +171,8 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
     const base64 = /;base64$/i.test(meta)
     const type = meta.replace(/;base64$/i, '') || 'text/plain;charset=US-ASCII'
     const text = decodeURIComponent(url.slice(comma + 1))
-    const bytes = base64 ? Uint8Array.from(atob(text), (c) => c.charCodeAt(0)) : new host.TextEncoder().encode(text)
-    return new host.Response(bytes, { status: 200, headers: { 'content-type': type } })
+    const bytes = base64 ? Uint8Array.from(atob(text), (c) => c.charCodeAt(0)) : new platform.TextEncoder().encode(text)
+    return new platform.Response(bytes, { status: 200, headers: { 'content-type': type } })
   }
 
   /** The global `fetch` a Node program starts with (until it installs its own, as pi does with undici). */
@@ -181,7 +181,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
     const isRequest = typeof input === 'object' && input !== null && typeof input.url === 'string' && typeof input.method === 'string'
     let url: string = isRequest ? input.url : String(input)
     let method: string = (init.method || (isRequest ? input.method : 'GET')).toUpperCase()
-    const headers = new host.Headers(init.headers || (isRequest ? input.headers : undefined))
+    const headers = new platform.Headers(init.headers || (isRequest ? input.headers : undefined))
     const rawBody: Dyn = init.body !== undefined ? init.body : isRequest ? input.body : undefined
     const signal: AbortSignal | undefined = init.signal || (isRequest ? input.signal : undefined)
     const redirect: string = init.redirect || (isRequest ? input.redirect : 'follow')
@@ -191,15 +191,15 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
     let body: Uint8Array | null = null
     if (typeof rawBody === 'string') {
       if (!headers.has('content-type')) headers.set('content-type', 'text/plain;charset=UTF-8')
-      body = new host.TextEncoder().encode(rawBody)
+      body = new platform.TextEncoder().encode(rawBody)
     } else if (rawBody instanceof URLSearchParams) {
       if (!headers.has('content-type')) headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8')
-      body = new host.TextEncoder().encode(rawBody.toString())
+      body = new platform.TextEncoder().encode(rawBody.toString())
     } else if (rawBody instanceof ArrayBuffer) body = new Uint8Array(rawBody)
     else if (ArrayBuffer.isView(rawBody)) body = new Uint8Array(rawBody.buffer, rawBody.byteOffset, rawBody.byteLength)
     else if (rawBody != null) {
       // Blob, FormData, ReadableStream: let the platform serialise it. The request body is buffered.
-      const r = new host.Response(rawBody)
+      const r = new platform.Response(rawBody)
       const type = r.headers.get('content-type')
       if (type && !headers.has('content-type')) headers.set('content-type', type)
       body = new Uint8Array(await r.arrayBuffer())
@@ -223,8 +223,8 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
         if (redirect === 'error') throw fetchFailed(new Error('unexpected redirect'))
         if (hops >= 20) throw fetchFailed(new Error('redirect count exceeded'))
         void res.body?.cancel()
-        const next = new host.URL(location, url)
-        if (next.origin !== new host.URL(url).origin) for (const h of ['authorization', 'cookie', 'proxy-authorization']) headers.delete(h)
+        const next = new platform.URL(location, url)
+        if (next.origin !== new platform.URL(url).origin) for (const h of ['authorization', 'cookie', 'proxy-authorization']) headers.delete(h)
         if (res.status === 303 || ((res.status === 301 || res.status === 302) && method === 'POST')) {
           method = 'GET'
           body = null
@@ -237,7 +237,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
         return res
       }
       const reader = res.body.getReader()
-      const tracked = new host.ReadableStream<Uint8Array>({
+      const tracked = new platform.ReadableStream<Uint8Array>({
         async pull(c) {
           try {
             const { done, value } = await reader.read()
@@ -256,7 +256,7 @@ export function createFetch({ core, net, tls }: Deps): { fetch: (input: Dyn, ini
         },
       })
       signal?.addEventListener('abort', release, { once: true })
-      const out = new host.Response(tracked, { status: res.status, statusText: res.statusText, headers: res.headers })
+      const out = new platform.Response(tracked, { status: res.status, statusText: res.statusText, headers: res.headers })
       Object.defineProperty(out, 'url', { value: url })
       Object.defineProperty(out, 'redirected', { value: url !== (isRequest ? input.url : String(input)) })
       return out

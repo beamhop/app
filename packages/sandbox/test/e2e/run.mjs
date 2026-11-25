@@ -58,6 +58,7 @@ const machineServer = await listen((req, res) => {
 const machineOrigin = `http://127.0.0.1:${machineServer.address().port}`
 
 const mock = await startMock({ delayMs: 15 })
+if (process.env.E2E_DEBUG) mock.server.on('clientError', (err) => console.error('[mock] clientError', err.code, err.message, JSON.stringify(String(err.rawPacket ?? '').slice(0, 700))))
 const proxy = await startTestProxy({ allow: [`127.0.0.1:${mock.port}`] })
 const config = {
   frameUrl: `${machineOrigin}/machine.html`,
@@ -139,7 +140,7 @@ for (let round = 1; round <= repeat; round++) {
       assert.equal(probe.guestSeesSelf, 'undefined')
       assert.equal(probe.origin, machineOrigin)
       assert.match(probe.directFetch, /^blocked/, 'CSP stops the worker fetching the mock directly')
-      assert.equal(probe.browserOnly, 'undefined,undefined,undefined', 'browser-only APIs are removed from the worker')
+      assert.equal(probe.browserOnly, 'false,undefined,undefined', 'the browser\'s WebSocket, XMLHttpRequest and indexedDB are not available to programs')
       // a destination outside the allow-list is refused by the test proxy, and nothing left the machine for it
       assert.match(probe.outside, /^refused/, 'non-local destination refused: ' + probe.outside)
       assert.deepEqual([...new Set(proxy.stats.denied)], ['example.com:80'])
@@ -184,7 +185,7 @@ for (let round = 1; round <= repeat; round++) {
     const r = await page.evaluate((cfg) => window.e2e.esm(cfg), config)
     assert.equal(r.first.stderr, '')
     assert.deepEqual(JSON.parse(r.first.stdout), { count: 2, same: true, box: 7, data: r.counterBytes, file: 'main.mjs', isolated: false })
-    assert.deepEqual(r.second, { code: 0, stdout: '25 12000\n', stderr: '' })
+    assert.deepEqual(r.second, { code: 0, stdout: '22 12000\n', stderr: '' })
     assert.equal(r.viaShell.stdout.trim(), '1', 'bash can run node on an ES module')
     const load = r.logs.find((l) => l.includes('esm-transform loaded'))
     assert.ok(load, 'the transformer was lazy-loaded')

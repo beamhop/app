@@ -36,6 +36,7 @@ export function startTestProxy({ allow, token = 'test-token' }) {
       return fail('policy', `destination ${target.hostname}:${port} is not allowed by this test proxy`)
     }
     stats.httpRequests++
+    if (process.env.E2E_DEBUG) console.error('[proxy] http', req.method, String(target), 'headers', Buffer.from(String(req.headers['x-bh-headers'] ?? ''), 'base64url').toString('utf8').slice(0, 600))
     let headers = []
     try {
       headers = JSON.parse(Buffer.from(String(req.headers['x-bh-headers'] ?? ''), 'base64url').toString('utf8') || '[]')
@@ -46,9 +47,10 @@ export function startTestProxy({ allow, token = 'test-token' }) {
     for await (const c of req) chunks.push(c)
     const body = Buffer.concat(chunks)
     stats.bytesUp += body.length
-    const out = http.request({ host: target.hostname, port, path: target.pathname + target.search, method: req.method, headers: { connection: 'close' } }, (upstream) => {
+    const out = http.request({ host: target.hostname, port, path: target.pathname + target.search, method: req.method, agent: false, headers: { connection: 'close' } }, (upstream) => {
       const pairs = []
       for (let i = 0; i < upstream.rawHeaders.length; i += 2) pairs.push([upstream.rawHeaders[i], upstream.rawHeaders[i + 1]])
+      if (process.env.E2E_DEBUG) console.error('[proxy] upstream status', upstream.statusCode)
       res.writeHead(upstream.statusCode, { ...cors, 'x-bh-status': String(upstream.statusCode), 'x-bh-resp-headers': b64url(JSON.stringify(pairs)), 'content-type': upstream.headers['content-type'] ?? 'application/octet-stream', 'cache-control': 'no-store' })
       upstream.on('data', (c) => {
         stats.bytesDown += c.length

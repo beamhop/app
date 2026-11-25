@@ -118,7 +118,7 @@ const scenarios = {
             fetch('http://example.com/').then((r) => 'reached ' + r.status, (e) => 'refused: ' + ((e.cause && e.cause.message) || e.message)),
           ]).then(([directFetch, outside]) => console.log(JSON.stringify({
             crossOriginIsolated: real.crossOriginIsolated, sharedArrayBuffer: typeof real.SharedArrayBuffer, workerScope: typeof real.WorkerGlobalScope,
-            directFetch, outside, guestSeesSelf: typeof self, browserOnly: [typeof real.WebSocket, typeof real.XMLHttpRequest, typeof real.indexedDB].join(), origin: real.location.origin,
+            directFetch, outside, guestSeesSelf: typeof self, browserOnly: [/native code/.test(String(real.WebSocket)), typeof real.XMLHttpRequest, typeof real.indexedDB].join(), origin: real.location.origin,
           })))
         `],
         { stdin: 'none' },
