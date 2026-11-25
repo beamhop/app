@@ -235,8 +235,9 @@ export function RoomList({ activeRoom, activeDM }: { activeRoom?: string; active
             <div className="list">
               {rooms.map(({ r, st, last, at }) => {
                 const unread = c.unreadCount(r.roomId)
+                const lastText = last && (last.text?.trim() || ((last.ev.payload as any).files?.length ? `📎 ${(last.ev.payload as any).files[0].name}` : ''))
                 const preview = last
-                  ? `${last.ev.pubkey === s.pk ? 'You' : c.nameOf(r.roomId, last.ev.pubkey)}: ${last.deleted ? 'Message deleted' : (last.text ?? '').replace(/\s+/g, ' ').slice(0, 80)}`
+                  ? `${last.ev.pubkey === s.pk ? 'You' : c.nameOf(r.roomId, last.ev.pubkey)}: ${last.deleted ? 'Message deleted' : lastText.replace(/\s+/g, ' ').slice(0, 80)}`
                   : st?.closed
                     ? 'Room closed'
                     : 'No messages yet'

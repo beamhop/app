@@ -472,6 +472,10 @@ function Chat({ roomId, st, onPeople, panelOpen }: { roomId: string; st: RoomSta
             editing={editing}
             onClearReply={() => setReply(null)}
             onClearEdit={() => setEditing(null)}
+            onRestore={(r) => {
+              if (r.editing) setEditing(r.editing)
+              if (r.reply) setReply(r.reply)
+            }}
             onSent={() => {
               atBottom.current = true
             }}
@@ -735,6 +739,7 @@ function Composer({
   editing,
   onClearReply,
   onClearEdit,
+  onRestore,
   onSent,
 }: {
   roomId: string
@@ -743,6 +748,7 @@ function Composer({
   editing: ViewMsg | null
   onClearReply: () => void
   onClearEdit: () => void
+  onRestore: (r: { editing?: ViewMsg; reply?: Decoded }) => void
   onSent: () => void
 }) {
   const s = useStore()
@@ -750,6 +756,8 @@ function Composer({
   const desktop = useDesktop()
   const draftKey = 'bh-draft-' + roomId
   const [text, setText] = useState(() => localStorage.getItem(draftKey) ?? '')
+  const textRef = useRef(text)
+  textRef.current = text
   const [files, setFiles] = useState<FileRef[]>([])
   const [uploading, setUploading] = useState(0)
   const [sel, setSel] = useState(0)
@@ -805,30 +813,37 @@ function Composer({
   const send = async () => {
     const t = text.trim()
     if ((!t && !files.length) || uploading) return
+    // Clear the composer before waiting on the relays: they can take seconds to confirm, and
+    // whatever is typed meanwhile is a new message, not more of this edit or reply.
+    const wasEditing = editing
+    const wasReply = reply
+    const sentFiles = files
+    setText('')
+    setFiles([])
+    localStorage.removeItem(draftKey)
+    // sending clears our typing state for others, so the next keystroke should ping again right away
+    lastTyping.current = 0
+    if (wasEditing) onClearEdit()
+    else onClearReply()
+    onSent()
     try {
-      if (editing) {
-        await c.edit(roomId, editing.ev.id, t)
-        onClearEdit()
-      } else {
-        await c.sendMessage(roomId, t, { reply: reply?.id, files })
-        onClearReply()
-      }
-      setText('')
-      setFiles([])
-      localStorage.removeItem(draftKey)
-      // sending clears our typing state for others, so the next keystroke should ping again right away
-      lastTyping.current = 0
-      onSent()
+      if (wasEditing) await c.edit(roomId, wasEditing.ev.id, t)
+      else await c.sendMessage(roomId, t, { reply: wasReply?.id, files: sentFiles })
     } catch (e: any) {
-      // If the message was kept locally as "Not sent · Retry", clear the composer so pressing
-      // Send again doesn't post a duplicate. Otherwise (e.g. not in the room) keep the text.
-      if (!editing && e?.keptLocally) {
-        setText('')
-        setFiles([])
-        localStorage.removeItem(draftKey)
-        onClearReply()
+      // A message kept locally shows "Not sent · Retry", so don't put it back (that would post a duplicate).
+      if (!wasEditing && e?.keptLocally) {
         s.toast('Not sent. Tap Retry on the message when you’re back online.', 'error')
-      } else s.toast(e?.message ?? String(e), 'error')
+        return
+      }
+      s.toast(e?.message ?? String(e), 'error')
+      // Otherwise (e.g. not in the room) restore what was being sent, unless something new was typed.
+      if (textRef.current.trim()) return
+      setText(t)
+      if (wasEditing) onRestore({ editing: { ...wasEditing, text: t } })
+      else {
+        setFiles(sentFiles)
+        if (wasReply) onRestore({ reply: wasReply })
+      }
     }
   }
 
