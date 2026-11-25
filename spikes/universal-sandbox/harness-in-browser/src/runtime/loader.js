@@ -216,7 +216,8 @@ export function createLoader({ vfs, esmCache, builtins, process, evaluate, globa
   function syntheticNs(value) {
     const ns = makeNs();
     if (value != null && (typeof value === 'object' || typeof value === 'function')) {
-      for (const key of Object.keys(value)) { if (key !== 'default') { try { ns[key] = value[key]; } catch {} } }
+      for (const key in value) { if (key !== 'default') { try { ns[key] = value[key]; } catch {} } }
+      for (const key of Object.getOwnPropertyNames(value)) { if (key !== 'default' && !(key in ns) && !['length', 'name', 'prototype', 'caller', 'arguments'].includes(key)) { try { ns[key] = value[key]; } catch {} } }
       if (value.__esModule && 'default' in value && false) ns.default = value.default;
     }
     ns.default = value;

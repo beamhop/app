@@ -324,13 +324,27 @@ export function createNet({ EventEmitter, stream, process, track, host, config }
       else { const r = new Response(body); if (!hs.has('content-type') && r.headers.get('content-type')) hs.set('content-type', r.headers.get('content-type')); body = new Uint8Array(await r.arrayBuffer()); }
     } else if (typeof body === 'string' && !hs.has('content-type')) hs.set('content-type', 'text/plain;charset=UTF-8');
     const signal = init.signal || (isReq ? input.signal : undefined);
+    // The request holds the process open until its response body has been fully read or cancelled (as a socket would).
     process.__ref();
+    let released = false;
+    const release = () => { if (!released) { released = true; process.__unref(); } };
     try {
       const res = await transportFetch(url, { method, headers: [...hs], body, signal });
-      const out = new Response(res.status === 204 || res.status === 304 || method === 'HEAD' ? null : res.body, { status: res.status, statusText: res.statusText, headers: [...res.headers].filter(([k]) => !k.startsWith('access-control-') && !k.startsWith('x-sandbox-')) });
+      const noBody = res.status === 204 || res.status === 304 || method === 'HEAD' || !res.body;
+      let outBody = null;
+      if (noBody) release();
+      else {
+        const reader = res.body.getReader();
+        outBody = new ReadableStream({
+          async pull(c) { try { const { done, value } = await reader.read(); if (done) { release(); c.close(); } else c.enqueue(value); } catch (e) { release(); c.error(e); } },
+          cancel(reason) { release(); return reader.cancel(reason); },
+        });
+        if (signal) signal.addEventListener('abort', release, { once: true });
+      }
+      const out = new Response(outBody, { status: res.status, statusText: res.statusText, headers: [...res.headers].filter(([k]) => !k.startsWith('access-control-') && !k.startsWith('x-sandbox-')) });
       Object.defineProperty(out, 'url', { value: url });
       return out;
-    } finally { process.__unref(); }
+    } catch (e) { release(); throw e; }
   }
 
   // ---------------- node:http / node:https (client only) ----------------

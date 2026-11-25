@@ -103,7 +103,7 @@ export function createProcess({ EventEmitter, stream, argv, env, cwd, onStdout, 
 
   // ---- stdio ----
   const mkOut = (fd, sink) => {
-    const w = new stream.Writable({ decodeStrings: false, write(chunk, enc, cb) { sink(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')); cb(); } });
+    const w = new stream.Writable({ decodeStrings: false, write(chunk, enc, cb) { if (exited) { track('output written after process.exit (dropped)'); return cb(); } sink(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8')); cb(); } });
     w.fd = fd; w.isTTY = false; w._isStdio = true; w.writable = true;
     w.destroySoon = w.destroy; w._destroy = (err, cb) => cb(err);
     w.getColorDepth = () => 1; w.hasColors = () => false; w.getWindowSize = () => [80, 24];

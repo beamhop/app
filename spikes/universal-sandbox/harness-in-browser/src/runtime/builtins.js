@@ -168,13 +168,13 @@ export function makeStream(Buffer) {
     stream.isErrored = (s) => (isWeb(s) ? (webState.get(s) || {}).state === 'errored' : origIsErrored ? origIsErrored(s) : !!(s && s.errored));
     stream.isDisturbed = (s) => (isWeb(s) ? !!(s.locked) : origIsDisturbed ? origIsDisturbed(s) : !!(s && s.readableDidRead));
     if (stream.promises) { const pf = stream.promises.finished; stream.promises.finished = (s, o) => (isWeb(s) ? new Promise((res, rej) => stream.finished(s, (e) => (e ? rej(e) : res()))) : pf(s, o)); }
-    stream.isReadable ??= (s) => !!s && s.readable !== false && !s.destroyed && !s.readableEnded;
-    stream.isWritable ??= (s) => !!s && s.writable !== false && !s.destroyed && !s.writableEnded;
+    if (!Object.prototype.hasOwnProperty.call(stream, 'isReadable')) stream.isReadable = (s) => !!s && s.readable !== false && !s.destroyed && !s.readableEnded;
+    if (!Object.prototype.hasOwnProperty.call(stream, 'isWritable')) stream.isWritable = (s) => !!s && s.writable !== false && !s.destroyed && !s.writableEnded;
     stream.isErrored ??= (s) => !!(s && (s.errored || (s._readableState && s._readableState.errored) || (s._writableState && s._writableState.errored)));
     stream.isDisturbed ??= (s) => !!(s && (s.readableDidRead || s.readableAborted || (typeof ReadableStream !== 'undefined' && s instanceof ReadableStream && s.locked)));
-    stream.getDefaultHighWaterMark ??= (objectMode) => (objectMode ? 16 : 16384);
-    stream.setDefaultHighWaterMark ??= () => {};
-    stream.duplexPair ??= () => {
+    if (!Object.prototype.hasOwnProperty.call(stream, 'getDefaultHighWaterMark')) stream.getDefaultHighWaterMark = (objectMode) => (objectMode ? 16 : 16384);
+    if (!Object.prototype.hasOwnProperty.call(stream, 'setDefaultHighWaterMark')) stream.setDefaultHighWaterMark = () => {};
+    if (!Object.prototype.hasOwnProperty.call(stream, 'duplexPair')) stream.duplexPair = () => {
       let a, b;
       a = new Duplex({ read() {}, write(c, e, cb) { b.push(c); cb(); }, final(cb) { b.push(null); cb(); } });
       b = new Duplex({ read() {}, write(c, e, cb) { a.push(c); cb(); }, final(cb) { a.push(null); cb(); } });
@@ -484,6 +484,10 @@ export function makeMisc({ Buffer, EventEmitter, stream, util, process, track, h
     repl: { start: ni('repl.start') },
     trace_events: { createTracing: () => ({ enable() {}, disable() {}, enabled: false }), getEnabledCategories: () => undefined },
     wasi: { WASI: class WASI { constructor() { ni('wasi.WASI')(); } } },
+    'stream/consumers': (() => {
+      const collect = async (s) => { const chunks = []; for await (const c of s) chunks.push(typeof c === 'string' ? Buffer.from(c) : Buffer.from(c.buffer ? new Uint8Array(c.buffer, c.byteOffset, c.byteLength) : c)); return Buffer.concat(chunks); };
+      return { buffer: collect, text: async (s) => (await collect(s)).toString('utf8'), json: async (s) => JSON.parse((await collect(s)).toString('utf8')), arrayBuffer: async (s) => { const b = await collect(s); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); }, blob: async (s) => new Blob([await collect(s)]) };
+    })(),
     'stream/web': { ReadableStream: TrackedReadableStream, WritableStream, TransformStream, ReadableStreamDefaultReader, WritableStreamDefaultWriter, ByteLengthQueuingStrategy, CountQueuingStrategy, TextEncoderStream, TextDecoderStream, CompressionStream, DecompressionStream, ReadableByteStreamController: globalThis.ReadableByteStreamController, ReadableStreamBYOBReader: globalThis.ReadableStreamBYOBReader, ReadableStreamDefaultController: globalThis.ReadableStreamDefaultController },
   };
 }

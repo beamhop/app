@@ -207,6 +207,8 @@ export function createFs({ vfs, process, stream, EventEmitter, track }) {
       return s;
     },
   };
+  // dup() for child stdio: a child keeps writing to the open file after the parent closes its descriptor.
+  Object.defineProperty(fs, '__dupForChild', { enumerable: false, value: (fd) => { const e = fds.get(fd); if (!e) return null; const node = e.node; return (bytes) => { const merged = new Uint8Array(node.data.length + bytes.length); merged.set(node.data, 0); merged.set(bytes, node.data.length); node.data = merged; node.mtime = Date.now(); }; } });
   fs.exists = (p, cb) => queueMicrotask(() => cb(fs.existsSync(p)));
 
   // ---- callback API derived from the sync API ----
