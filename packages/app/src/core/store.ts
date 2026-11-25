@@ -63,9 +63,7 @@ export class Store {
     this.profile = (await kv.get<Profile>('profile')) ?? this.profile
     this.settings = (await kv.get<Settings>('settings')) ?? this.settings
     this.agents = (await kv.get<AgentDef[]>('agents')) ?? []
-    const relayOverride = new URLSearchParams(location.search).get('relay')
-    const relays = relayOverride ? [relayOverride] : this.settings.relays
-    this.client = new BeamhopClient({ sk: this.sk, kv, relays, deviceId: this.deviceId })
+    this.client = new BeamhopClient({ sk: this.sk, kv, relays: this.activeRelays(), deviceId: this.deviceId })
     for (const a of this.agents) if (!a.deleted) this.client.addIdentity(hexToBytes(a.sk))
     this.client.on('change', () => this.bump())
     this.client.on('error', (e) => this.toast(e, 'error'))
@@ -121,10 +119,16 @@ export class Store {
     this.bump()
   }
 
+  /** The relays to use: a ?relay= URL override (local dev and tests) wins over saved settings. */
+  private activeRelays() {
+    const override = new URLSearchParams(location.search).get('relay')
+    return override ? [override] : this.settings.relays
+  }
+
   async saveSettings(s: Partial<Settings>) {
     this.settings = { ...this.settings, ...s, updatedAt: Date.now() }
     await kv.set('settings', this.settings)
-    this.client.relays = this.settings.relays
+    this.client.relays = this.activeRelays()
     this.client.resubscribeInbox()
     this.scheduleSync()
     this.bump()
