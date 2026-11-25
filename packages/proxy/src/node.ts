@@ -448,7 +448,6 @@ export async function startProxy(config: ProxyConfig, options: ProxyOptions = {}
           path: plain.url.pathname + plain.url.search,
           headers: headers as unknown as http.OutgoingHttpHeaders,
           createConnection: () => sock as unknown as Duplex as net.Socket,
-          agent: false,
           setHost: false,
         })
       } catch (e) {
@@ -568,10 +567,13 @@ export async function startProxy(config: ProxyConfig, options: ProxyOptions = {}
         closing = true
         server.close(() => {
           clearTimeout(timer)
+          clearInterval(sweep)
           resolve()
         })
         for (const ws of tunnels) ws.close(CLOSE_GOING_AWAY, 'proxy shutting down')
+        // Keep-alive connections become idle one by one as their requests finish.
         server.closeIdleConnections()
+        const sweep = setInterval(() => server.closeIdleConnections(), 50)
         const timer = setTimeout(() => {
           for (const ws of tunnels) ws.terminate()
           server.closeAllConnections()

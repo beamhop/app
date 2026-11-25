@@ -1,0 +1,21 @@
+# Example configuration for running the Beamhop proxy on Cloudflare Workers.
+# UNTESTED: src/worker.ts is type-checked but has not been deployed. See README.md.
+#
+#   npx wrangler deploy
+#   npx wrangler secret put BH_PROXY_TOKENS     # comma-separated access tokens
+name = "beamhop-proxy"
+main = "src/worker.ts"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Same names as the Node proxy's environment variables (README.md, "Configuration").
+# Keep BH_PROXY_TOKENS out of this file: set it as a secret.
+BH_PROXY_MODES = "tcp,http"
+BH_PROXY_MAX_CONNECTIONS = "64"
+BH_PROXY_IDLE_TIMEOUT_MS = "300000"
+BH_PROXY_CONNECT_TIMEOUT_MS = "10000"
+# BH_PROXY_ALLOW = "*.anthropic.com,api.openai.com,github.com,*.github.com"
+# BH_PROXY_DENY = ""
+# BH_PROXY_ALLOW_PORTS = "443"
+# BH_PROXY_BYTES_PER_MINUTE = "500000000"
+# BH_PROXY_DOH_URL = "https://cloudflare-dns.com/dns-query"

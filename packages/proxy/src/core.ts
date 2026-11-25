@@ -570,7 +570,7 @@ export function encodeHeaders(pairs: Iterable<readonly [string, string]>): strin
 
 /** Inverse of `encodeHeaders`. Throws a plain Error when the blob is not a list of valid headers. */
 export function decodeHeaders(blob: string): HeaderPairs {
-  const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(base64urlDecode(blob.trim())))
+  const parsed: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(base64urlDecode(blob.trim())))
   if (!Array.isArray(parsed)) throw new Error('headers must be an array')
   const out: HeaderPairs = []
   for (const item of parsed) {

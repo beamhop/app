@@ -257,6 +257,12 @@ describe('certificate verification', () => {
     expect(['cert-invalid', 'cert-untrusted']).toContain(await outcome(await issue({ cn: HOST, issuer: fakeCa })))
   })
 
+  it('rejects server names that are not ASCII DNS names or IP literals (IDNs must be passed as A-labels)', async () => {
+    for (const serverName of ['bücher.example', 'has space.example', '']) {
+      expect(await outcome(leaf.ecdsa!, { serverName })).toBe('handshake-failed')
+    }
+  })
+
   it('rejects malformed custom roots', async () => {
     const s = await server(leaf.ecdsa!)
     const c = await s.connect('memory')
