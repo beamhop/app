@@ -74,6 +74,7 @@ export class Store {
     this.runner = new AgentRunner(this)
     this.runner.start()
     onCredsChange(() => {
+      this.runner.invalidateAll()
       this.runner.refreshCapabilities()
       this.bump()
     })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DEFAULT_CAPS, type AgentMode, type Instructors } from '@beamhop/shared'
+import { DEFAULT_CAPS, uniqueName, type AgentMode, type Instructors } from '@beamhop/shared'
 import { useStore, go } from './hooks'
 import { Avatar, Radio, Switch, TopBar } from './components'
 import { Icon } from './icons'
@@ -126,7 +126,12 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
         // keep room-visible metadata in sync
         for (const rid of s.client.rooms.keys()) {
           const st = s.client.state(rid)
-          if (st?.agents[existing.pk]) await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: patch.model }).catch(() => {})
+          const cur = st?.agents[existing.pk]
+          if (!cur) continue
+          // keep the room's name for the agent unique among the room's other people and agents
+          const others = { ...st!, agents: Object.fromEntries(Object.entries(st!.agents).filter(([pk]) => pk !== existing.pk)) }
+          const name = patch.name === cur.name ? undefined : uniqueName(others, patch.name)
+          await s.client.stateOp(rid, { op: 'agent-update', pubkey: existing.pk, emoji, model: patch.model, ...(name ? { name } : {}) }).catch(() => {})
         }
         s.toast('Saved')
         go(roomId ? `r/${roomId}/agent/${existing.pk}` : 'agents')

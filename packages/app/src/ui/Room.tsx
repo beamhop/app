@@ -226,6 +226,7 @@ function Chat({ roomId, st, onPeople, panelOpen }: { roomId: string; st: RoomSta
   const streams = [...(c.streams.get(roomId)?.values() ?? [])].filter((x) => !x.done && Date.now() - x.ts < 120_000)
   const typing = [...(c.typing.get(roomId) ?? [])].filter(([pk, t]) => pk !== s.pk && Date.now() - t < 6000).map(([pk]) => c.nameOf(roomId, pk))
   const online = c.onlineAgents(roomId)
+  const onlinePeople = c.onlinePeople(roomId)
   const names: MentionName[] = useMemo(
     () => [...Object.values(st.members).map((m) => ({ name: m.name, agent: false })), ...Object.values(st.agents).map((a) => ({ name: a.name, agent: true }))],
     [st],
@@ -311,7 +312,7 @@ function Chat({ roomId, st, onPeople, panelOpen }: { roomId: string; st: RoomSta
         onActions={onActionsCb}
         onReact={onReactCb}
         onImage={setLightbox}
-        online={online.has(item.ev.pubkey) || c.onlinePeople(roomId).has(item.ev.pubkey)}
+        online={online.has(item.ev.pubkey) || onlinePeople.has(item.ev.pubkey)}
       />,
     )
   }
@@ -817,7 +818,16 @@ function Composer({
       localStorage.removeItem(draftKey)
       onSent()
     } catch (e: any) {
-      s.toast(e?.message ?? String(e), 'error')
+      // If the message was kept locally as "Not sent · Retry", clear the composer so pressing
+      // Send again doesn't post a duplicate. Otherwise (e.g. not in the room) keep the text.
+      const kept = !editing && c.messages(roomId).some((m) => m.failed && m.pubkey === s.pk && (m.payload as any).text === t)
+      if (kept) {
+        setText('')
+        setFiles([])
+        localStorage.removeItem(draftKey)
+        onClearReply()
+        s.toast('Not sent. Tap Retry on the message when you’re back online.', 'error')
+      } else s.toast(e?.message ?? String(e), 'error')
     }
   }
 

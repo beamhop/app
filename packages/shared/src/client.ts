@@ -99,6 +99,8 @@ export interface StreamState {
 
 export interface DMItem {
   id: string
+  /** The sender's device, so exactly one of the owner's devices answers a DM to their agent. */
+  device?: string
   from: Hex
   to: Hex
   text: string
@@ -583,6 +585,8 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     const item: DMItem = { id: rumor.id, from: rumor.pubkey, to, text: rumor.content, ms: rumor.created_at * 1000 }
     const msTag = rumor.tags.find((t) => t[0] === 'ms')?.[1]
     if (msTag) item.ms = Number(msTag) || item.ms
+    const device = rumor.tags.find((t) => t[0] === 'device')?.[1]
+    if (device) item.device = device
     list.push(item)
     list.sort((a, b) => a.ms - b.ms)
     this.dms.set(key, list.slice(-1000))
@@ -982,7 +986,8 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     const r = this.rooms.get(roomId)
     if (!r) return
     const evs = [...(this.events.get(roomId)?.values() ?? [])].filter(
-      (e) => this.identities.has(e.pubkey) && e.outerId && (!ids || ids.includes(e.id)),
+      // State ops (admits, removals, renames, our own leave) stay: members who were offline need them.
+      (e) => this.identities.has(e.pubkey) && e.outerId && e.payload.t !== 'state' && (!ids || ids.includes(e.id)),
     )
     const dels = evs.slice(-200).map((e) =>
       finalizeEvent(
@@ -1022,7 +1027,7 @@ export class BeamhopClient extends Emitter<ClientEvents> {
   // ---------------------------------------------------------------- DMs (NIP-17)
   async sendDM(from: Hex, to: Hex, text: string) {
     const sk = this.signerFor(from)
-    const rumor = makeRumor(sk, KIND.DM, text, [['p', to], ['ms', String(Date.now())]])
+    const rumor = makeRumor(sk, KIND.DM, text, [['p', to], ['ms', String(Date.now())], ['device', this.deviceId]])
     this.onDM(from, rumor)
     const relays = this.allRelays()
     await Promise.all([this.publish(relays, giftWrap(rumor, sk, to)), this.publish(relays, giftWrap(rumor, sk, from))])

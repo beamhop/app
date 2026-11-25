@@ -41,26 +41,54 @@ self.onmessage = async (e) => {
     let out = ''
     py.setStdout({ batched: (s) => { out += s + '\\n' } })
     py.setStderr({ batched: (s) => { out += '[stderr] ' + s + '\\n' } })
-    try { py.FS.mkdir('/work') } catch {}
-    py.FS.chdir('/work')
+    // One worker serves every workspace, so each run starts from an empty /work holding only
+    // this workspace's files, and runs in fresh globals.
+    const FS = py.FS
+    const rmTree = (dir) => {
+      for (const n of FS.readdir(dir)) {
+        if (n === '.' || n === '..') continue
+        const p = dir + '/' + n
+        if (FS.isDir(FS.stat(p).mode)) { rmTree(p); FS.rmdir(p) } else FS.unlink(p)
+      }
+    }
+    FS.chdir('/')
+    try { FS.mkdir('/work') } catch {}
+    rmTree('/work')
+    FS.chdir('/work')
+    const mkdirs = (path) => {
+      let cur = '/work'
+      for (const part of path.split('/').slice(0, -1)) {
+        cur += '/' + part
+        try { FS.mkdir(cur) } catch {}
+      }
+    }
     const before = {}
-    for (const [p, d] of Object.entries(files)) { py.FS.writeFile('/work/' + p, d); before[p] = d }
+    for (const [p, d] of Object.entries(files)) { mkdirs(p); FS.writeFile('/work/' + p, d); before[p] = d }
     try { await py.loadPackagesFromImports(code) } catch {}
     let result
+    const globals = py.toPy({})
     try {
-      result = await py.runPythonAsync(code)
+      result = await py.runPythonAsync(code, { globals })
     } catch (err) {
+      globals.destroy && globals.destroy()
       self.postMessage({ id, ok: false, stdout: out, error: String(err), changed: {} })
       return
     }
     const changed = {}
-    for (const name of py.FS.readdir('/work')) {
-      if (name === '.' || name === '..') continue
-      const st = py.FS.stat('/work/' + name)
-      if (py.FS.isDir(st.mode)) continue
-      const d = py.FS.readFile('/work/' + name, { encoding: 'utf8' })
-      if (before[name] !== d) changed[name] = d
+    const walk = (dir, rel) => {
+      for (const n of FS.readdir(dir)) {
+        if (n === '.' || n === '..') continue
+        const p = dir + '/' + n
+        const r = rel ? rel + '/' + n : n
+        if (FS.isDir(FS.stat(p).mode)) { walk(p, r); continue }
+        let d
+        try { d = FS.readFile(p, { encoding: 'utf8' }) } catch { continue }
+        if (before[r] !== d) changed[r] = d
+      }
     }
+    walk('/work', '')
+    if (result && typeof result.toJs === 'function') result = String(result)
+    globals.destroy && globals.destroy()
     self.postMessage({ id, ok: true, stdout: out, result: result === undefined || result === null ? undefined : String(result), changed })
   } catch (err) {
     self.postMessage({ id, ok: false, stdout: '', error: 'Python failed to load: ' + String(err), changed: {} })

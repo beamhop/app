@@ -61,6 +61,14 @@ export class AgentRunner {
     return this.runnable.has(def.id)
   }
 
+  /** Credentials changed: drop every cached fx agent so the next turn reads the new ones. */
+  invalidateAll() {
+    for (const id of [...this.fx.keys()]) {
+      this.fx.get(id)?.agent.close?.().catch?.(() => {})
+      this.fx.delete(id)
+    }
+  }
+
   invalidate(id: string) {
     const h = this.fx.get(id)
     if (h) {
@@ -216,16 +224,31 @@ export class AgentRunner {
     }
   }
 
-  private async onDM(identity: string, peer: string, item: { from: string; text: string; id: string }) {
+  private async onDM(identity: string, peer: string, item: { from: string; text: string; id: string; ms: number; device?: string }) {
     const def = this.store.liveAgents().find((a) => a.pk === identity)
     if (!def || item.from !== this.store.pk || peer !== this.store.pk) return // owner-only
     if (!this.runnable.has(def.id)) return
-    // let one of my devices answer: the lowest device id seen running this agent anywhere
-    const devices = new Set<string>()
-    for (const roomId of this.store.client.rooms.keys())
-      this.store.client.agentRunnerDevices(roomId, def.pk, this.store.pk).forEach((d) => devices.add(d))
-    const first = [...devices].sort()[0]
-    if (first && first !== this.store.deviceId) return
+    // Exactly one of my devices answers. The device the message was typed on answers when it
+    // can run the agent; otherwise the lowest other device seen running it in a room.
+    const sentHere = item.device === this.store.deviceId
+    if (!sentHere) {
+      const devices = new Set<string>()
+      for (const roomId of this.store.client.rooms.keys())
+        this.store.client.agentRunnerDevices(roomId, def.pk, this.store.pk).forEach((d) => devices.add(d))
+      // the sending device announced it can run this agent: it answers
+      if (item.device && devices.has(item.device)) return
+      devices.delete(item.device ?? '')
+      const first = [...devices].sort()[0]
+      if (first !== undefined && first !== this.store.deviceId) return
+      if (first === undefined) {
+        // Nothing tells us which device answers: give the sending device time to reply, then
+        // answer only if nobody has (devices stagger by id so two don't both step in).
+        const jitter = parseInt(this.store.deviceId.slice(0, 4), 16) % 4000
+        await new Promise((r) => setTimeout(r, 8000 + jitter))
+        const replied = this.store.client.dmMessages(this.store.pk, def.pk).some((m) => m.from === def.pk && m.ms > item.ms)
+        if (replied) return
+      }
+    }
     this.enqueue(def, async () => {
       this.setStatus(def.pk, 'Thinking…')
       try {

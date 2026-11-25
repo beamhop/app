@@ -103,3 +103,21 @@ test('gemini (Google account) agent runs in the browser engine, with a tool call
   expect(r).toEqual({ text: 'The time is noon', stop: 'end_turn', err: null })
   expect(calls).toBe(2)
 })
+
+test('python sandbox: subfolders work and workspaces stay separate', async ({ page }) => {
+  await open(page)
+  const r = await page.evaluate(async () => {
+    const { sandboxFor } = await import(/* @vite-ignore */ '/src/agents/sandbox.ts' as any)
+    const a = sandboxFor('test-room-a-' + Date.now())
+    const b = sandboxFor('test-room-b-' + Date.now())
+    await a.write('notes/plan.md', 'step 1')
+    const r1 = await a.runPython("import os\nsecret = 'only-a'\nos.makedirs('out', exist_ok=True)\nopen('out/result.txt', 'w').write(open('notes/plan.md').read() + ' done')\nprint('ok')")
+    const r2 = await b.runPython("import os\nprint(sorted(os.listdir('.')))\nprint('secret' in globals())")
+    return { r1, r2, aFiles: (await a.list()).map((f: any) => f.path).sort(), bFiles: (await b.list()).map((f: any) => f.path) }
+  })
+  expect(r.r1.ok).toBe(true)
+  expect(r.r1.changed).toEqual({ 'out/result.txt': 'step 1 done' })
+  expect(r.aFiles).toEqual(['notes/plan.md', 'out/result.txt'])
+  expect(r.r2.stdout).toBe('[]\nFalse\n')
+  expect(r.bFiles).toEqual([])
+})

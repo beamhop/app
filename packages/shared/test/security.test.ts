@@ -71,6 +71,31 @@ describe('security fixes', () => {
     await bob.stop()
   }, 30000)
 
+  it('state ops survive a leave even when no admin is online to rotate', async () => {
+    const { alice, bob, roomId } = await roomWithBob()
+    const carolKv = new MemoryKV()
+    const carolSk = generateSecretKey()
+    let carol = new BeamhopClient({ sk: carolSk, kv: carolKv, relays: [RELAY] })
+    await carol.start()
+    await carol.knock(alice.humanInvite(roomId)! as any, 'Carol')
+    await until(() => alice.lobby(roomId).length === 1)
+    await alice.admit(roomId, carol.pk, 'Carol')
+    await until(() => !!carol.state(roomId) && carol.currentKey(roomId)!.epoch === alice.currentKey(roomId)!.epoch)
+    await alice.stateOp(roomId, { op: 'promote', pubkey: bob.pk })
+    await until(() => !!bob.state(roomId)!.admins.includes(bob.pk) && !!carol.state(roomId)!.admins.includes(bob.pk))
+    // Everyone but Bob goes offline. Bob renames the room, then leaves.
+    await carol.stop()
+    await alice.stop()
+    await bob.stateOp(roomId, { op: 'rename', name: 'Renamed by Bob' })
+    await bob.leave(roomId)
+    await new Promise((r) => setTimeout(r, 500))
+    carol = new BeamhopClient({ sk: carolSk, kv: carolKv, relays: [RELAY] })
+    await carol.start()
+    await until(() => carol.state(roomId)!.name === 'Renamed by Bob' && !carol.state(roomId)!.members[bob.pk], 10000)
+    await bob.stop()
+    await carol.stop()
+  }, 30000)
+
   it('marks a message whose publish failed, and retries it', async () => {
     const a = new BeamhopClient({ sk: generateSecretKey(), kv: new MemoryKV(), relays: ['ws://localhost:1'] })
     await a.start()
