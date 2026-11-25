@@ -86,6 +86,9 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
     const err = e as Error & { loc?: { line: number; column: number } }
     throw Object.assign(new SyntaxError(`${err.message.replace(/ \(\d+:\d+\)$/, '')} (${filename}${err.loc ? `:${err.loc.line}:${err.loc.column + 1}` : ''})`), { code: 'ERR_ESM_TRANSFORM' })
   }
+  // Insertion rule used throughout: text placed before a node is attached to the node (appendRight at its start),
+  // text placed after it is attached to the node too (appendLeft at its end). Attached to a neighbour instead, it
+  // would vanish when that neighbour is removed, which in minified code (`a=1;var b`) is the common case.
   const s = new MagicString(source)
   if (source.startsWith('#!')) s.remove(0, source.indexOf('\n') === -1 ? source.length : source.indexOf('\n'))
 
@@ -214,11 +217,11 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         const targets = liveTargets(node.left)
         if (targets.length > 0) {
           if (node.left.type === 'Identifier' && (exportsOf.get(targets[0]) ?? []).length === 1) {
-            s.appendLeft(node.start, `$__export(${q(exportsOf.get(targets[0])![0])}, `)
-            s.appendRight(node.end, ')')
+            s.appendRight(node.start, `$__export(${q(exportsOf.get(targets[0])![0])}, `)
+            s.appendLeft(node.end, ')')
           } else {
-            s.appendLeft(node.start, `((v) => (${targets.map(exportCalls).join('').replace(/;/g, ',')} v))(`)
-            s.appendRight(node.end, ')')
+            s.appendRight(node.start, `((v) => (${targets.map(exportCalls).join('').replace(/;/g, ',')} v))(`)
+            s.appendLeft(node.end, ')')
           }
         }
         break
@@ -226,8 +229,8 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
       case 'UpdateExpression': {
         const targets = liveTargets(node.argument)
         if (targets.length > 0) {
-          s.appendLeft(node.start, `((v) => (${targets.map(exportCalls).join('').replace(/;/g, ',')} v))(`)
-          s.appendRight(node.end, ')')
+          s.appendRight(node.start, `((v) => (${targets.map(exportCalls).join('').replace(/;/g, ',')} v))(`)
+          s.appendLeft(node.end, ')')
         }
         break
       }
@@ -251,8 +254,8 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
       if (!d.init) s.overwrite(d.start, d.end, 'void 0')
       else if (d.id.type !== 'Identifier') {
         // `void (` rather than a bare `(`: a statement starting with a parenthesis could continue the previous line.
-        s.appendLeft(d.start, 'void (')
-        s.appendRight(d.end, ')')
+        s.appendRight(d.start, 'void (')
+        s.appendLeft(d.end, ')')
       }
     }
   }
@@ -275,7 +278,7 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
       case 'VariableDeclaration':
         if (node.kind === 'using' || node.kind === 'await using') break
         rewriteDeclaration(node, ast)
-        s.appendRight(node.end, ';' + node.declarations.flatMap((d) => patternNames(d.id)).map(exportCalls).join(''))
+        s.appendLeft(node.end, ';' + node.declarations.flatMap((d) => patternNames(d.id)).map(exportCalls).join(''))
         break
       case 'FunctionDeclaration':
         functionNames.push(node.id.name)
@@ -283,8 +286,8 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         break
       case 'ClassDeclaration':
         hoistedVars.add(node.id.name)
-        s.appendLeft(node.start, `${node.id.name} = `)
-        s.appendRight(node.end, ';' + exportCalls(node.id.name))
+        s.appendRight(node.start, `${node.id.name} = `)
+        s.appendLeft(node.end, ';' + exportCalls(node.id.name))
         break
       case 'ExportNamedDeclaration': {
         const d = node.declaration
@@ -297,11 +300,11 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         } else if (d.type === 'ClassDeclaration') {
           hoistedVars.add(d.id.name)
           s.overwrite(node.start, d.start, `${d.id.name} = `)
-          s.appendRight(d.end, ';' + exportCalls(d.id.name))
+          s.appendLeft(d.end, ';' + exportCalls(d.id.name))
         } else {
           s.remove(node.start, d.start)
           if (d.kind !== 'using' && d.kind !== 'await using') rewriteDeclaration(d, node)
-          s.appendRight(d.end, ';' + d.declarations.flatMap((x) => patternNames(x.id)).map(exportCalls).join(''))
+          s.appendLeft(d.end, ';' + d.declarations.flatMap((x) => patternNames(x.id)).map(exportCalls).join(''))
         }
         break
       }
@@ -321,12 +324,12 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
         } else if (d.type === 'ClassDeclaration' && d.id) {
           hoistedVars.add(d.id.name)
           s.overwrite(node.start, d.start, `${d.id.name} = `)
-          s.appendRight(d.end, ';' + exportCalls(d.id.name))
+          s.appendLeft(d.end, ';' + exportCalls(d.id.name))
         } else {
           // An expression, or an anonymous class. Keep any parentheses: only the two keywords are replaced.
           const keywords = /^export\s+default\s*/.exec(source.slice(node.start))![0].length
           s.overwrite(node.start, node.start + keywords, '$__export("default", ')
-          s.appendRight(source[node.end - 1] === ';' ? node.end - 1 : node.end, ')')
+          s.appendLeft(source[node.end - 1] === ';' ? node.end - 1 : node.end, ')')
         }
         break
       }
@@ -360,3 +363,6 @@ export function transformEsm(source: string, filename = '<module>'): TransformRe
     ` return { setters: [${setters.join(', ')}], execute: ${usesAwait ? 'async ' : ''}function () {\n`
   return { code: header + s.toString() + '\n} }; });', deps, dynamicImports, async: usesAwait }
 }
+
+/** Changes whenever the transformer's code does; the image builder keys its on-disk transform cache with it. */
+export const TRANSFORM_FINGERPRINT: string = [transformEsm, patternNames, varNames, lexicalNames].map(String).join('\n')
