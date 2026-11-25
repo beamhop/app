@@ -32,3 +32,10 @@ pub extern "C" fn outer_via_js_susp(x: i32) -> i32 {
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
+
+// Two consecutive calls to the Suspending import in one activation (used to observe
+// whether a Suspending import that returns a plain value still yields to microtasks).
+#[no_mangle]
+pub extern "C" fn twice(x: i32) -> i32 {
+    unsafe { block(x) + block(x) }
+}

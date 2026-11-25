@@ -9,6 +9,7 @@ function boot() {
   const t0 = performance.now();
   return new Promise((resolve) => {
     worker = new Worker('./kernel-worker.js', { type: 'module' });
+    worker.onerror = (e) => console.log('worker error: ' + e.message);
     worker.onmessage = ({ data }) => {
       if (data.boot) return resolve(performance.now() - t0);
       if (data.pong !== undefined) return pongHandler && pongHandler(data.pong);

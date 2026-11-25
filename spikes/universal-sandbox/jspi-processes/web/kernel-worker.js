@@ -2,7 +2,7 @@
 // Protocol with the page: {id, cmd, args} -> {id, ok, result|error};  {ping} -> {pong}.
 import { Kernel } from './kernel.js';
 
-const PROGRAMS = ['producer', 'upper', 'count', 'spin', 'pingpong', 'hog', 'crash', 'parent', 'reentrant'];
+const PROGRAMS = ['shim', 'producer', 'upper', 'count', 'spin', 'pingpong', 'hog', 'crash', 'parent', 'reentrant'];
 let k = new Kernel();
 const enc = new TextEncoder();
 const now = () => performance.now();
@@ -26,7 +26,7 @@ function expected(lines) {
   return expectedCache.get(lines);
 }
 function resetStats() {
-  k.stats.syscalls = k.stats.suspends = k.stats.switches = k.stats.remoteSyscalls = 0;
+  k.stats.syscalls = k.stats.suspends = k.stats.switches = k.stats.remoteSyscalls = k.stats.suspendingCalls = 0;
   k.macrotaskYields = 0;
   k.lastPid = 0;
 }
@@ -72,8 +72,7 @@ const cmds = {
   },
 
   // producer | upper | count      (stages: 2 => producer | upper, output captured and compared exactly)
-  dbg() { const d = self.DBG; self.DBG = []; return d && d.slice(0, 50); },
-  async pipeline({ lines = 200000, sleepEvery = 0, sleepMs = 2, pipeCap = 4096, buf = false, sliceMs = 0, placement = 'a', stages = 3 } = {}) {
+  async pipeline({ lines = 200000, sleepEvery = 0, sleepMs = 2, pipeCap = 4096, buf = false, sliceMs = 0, placement = 'a', stages = 3, shim = true } = {}) {
     const want = stages === 3 ? expected(lines) : null;
     resetStats();
     k.sliceMs = sliceMs;
@@ -84,7 +83,7 @@ const cmds = {
     const err = k.memFile();
     const nul = k.nullFile();
     const env = buf ? ['SPIKE_BUF=1'] : [];
-    const sp = (name, args, fds) => (placement === 'a' ? k.spawn(name, args, { fds, env }) : k.spawnRemote(name, args, { fds, env }));
+    const sp = (name, args, fds) => (placement === 'a' ? k.spawn(name, args, { fds, env, shim }) : k.spawnRemote(name, args, { fds, env }));
     let countReadWhenProducerExited = null;
     let producerPid = 0;
     k.onExit = (p) => { if (p.pid === producerPid) countReadWhenProducerExited = p2.totalRead; };
@@ -117,7 +116,7 @@ const cmds = {
       ok = text === exp;
     }
     return {
-      placement, lines, pipeCap, buf, sliceMs, sleepEvery, stages,
+      placement, lines, pipeCap, buf, sliceMs, sleepEvery, stages, shim: placement === 'a' ? shim : null,
       ok,
       output: stages === 3 ? text.trim() : `${text.length} chars captured`,
       expected: stages === 3 ? want.trim() : 'exact text match',
@@ -127,9 +126,10 @@ const cmds = {
       bytesPerStage: bytes,
       throughputMBps: +(bytes / 1e6 / (ms / 1000)).toFixed(1),
       syscalls: placement === 'a' ? k.stats.syscalls : k.stats.remoteSyscalls,
-      suspends: k.stats.suspends,
+      kernelBlocks: k.stats.suspends,
+      jspiSuspendingCalls: k.stats.suspendingCalls,
       processSwitches: k.stats.switches,
-      suspendsPerProc: Object.fromEntries(procs.map((p) => [p.name, p.suspends])),
+      blocksPerProc: Object.fromEntries(procs.map((p) => [p.name, p.suspends])),
       macrotaskYields: k.macrotaskYields,
       // interleaving evidence: how much `count` had already consumed when `producer` exited
       countReadWhenProducerExited,
@@ -137,35 +137,36 @@ const cmds = {
     };
   },
 
-  async spin({ mode = 'clock', n = 1000000, placement = 'a' } = {}) {
+  async spin({ mode = 'clock', n = 1000000, placement = 'a', shim = true } = {}) {
     const out = k.memFile();
     const nul = k.nullFile();
     const fds = [nul, out, out, nul];
     const t0 = now();
-    const p = placement === 'a' ? k.spawn('spin', [mode, String(n)], { fds }) : k.spawnRemote('spin', [mode, String(n)], { fds });
+    const p = placement === 'a' ? k.spawn('spin', [mode, String(n)], { fds, shim }) : k.spawnRemote('spin', [mode, String(n)], { fds });
     const code = await p.exited;
     const wall = now() - t0;
     const [, , dt] = out.text().trim().split(' ');
-    return { mode, n, placement, exitCode: code, nsPerCall: +(Number(dt) / n).toFixed(2), guestMs: Number(dt) / 1e6, wallMs: +wall.toFixed(1) };
+    return { mode, n, placement, shim: placement === 'a' ? shim : null, exitCode: code, nsPerCall: +(Number(dt) / n).toFixed(2), guestMs: Number(dt) / 1e6, wallMs: +wall.toFixed(1) };
   },
 
   // two coroutine processes, two pipes, 1 byte back and forth: 2 suspend/resume per round
-  async pingpong({ rounds = 200000 } = {}) {
+  async pingpong({ rounds = 200000, shim = true } = {}) {
     resetStats();
     const ab = k.pipe(4096);
     const ba = k.pipe(4096);
     const err = k.memFile();
     const held = [ab.r.open(), ab.w.open(), ba.r.open(), ba.w.open()];
     const t0 = now();
-    const b = k.spawn('pingpong', ['echo'], { fds: [ab.r, ba.w, err] });
-    const a = k.spawn('pingpong', ['init', String(rounds)], { fds: [ba.r, ab.w, err] });
+    const b = k.spawn('pingpong', ['echo'], { fds: [ab.r, ba.w, err], shim });
+    const a = k.spawn('pingpong', ['init', String(rounds)], { fds: [ba.r, ab.w, err], shim });
     held.forEach(release);
     const codes = await Promise.all([a.exited, b.exited]);
     const ms = now() - t0;
     return {
-      rounds, exitCodes: codes, ms: +ms.toFixed(1), suspends: k.stats.suspends, switches: k.stats.switches, syscalls: k.stats.syscalls,
-      nsPerSuspendResume: +((ms * 1e6) / k.stats.suspends).toFixed(0),
-      note: 'ns per suspend/resume includes the 1-byte fd_read + fd_write around each switch',
+      rounds, shim, exitCodes: codes, ms: +ms.toFixed(1), kernelBlocks: k.stats.suspends, processSwitches: k.stats.switches, syscalls: k.stats.syscalls,
+      jspiSuspendingCalls: k.stats.suspendingCalls,
+      nsPerProcessSwitch: +((ms * 1e6) / k.stats.switches).toFixed(0),
+      note: 'ns per switch = wall time / process switches; includes the 1-byte fd_read + fd_write around each switch',
     };
   },
 
@@ -417,6 +418,7 @@ const cmds = {
       return { inst, imports };
     };
     const delay = (x) => new Promise((res) => setTimeout(() => res(x * 2), 1));
+    let m;
     const attempt = async (label, f) => {
       try {
         r[label] = { ok: true, value: await f() };
@@ -424,8 +426,15 @@ const cmds = {
         r[label] = { ok: false, error: `${e.constructor.name}: ${e.message}` };
       }
     };
+    // 0. does a Suspending import that returns a plain value still yield to the microtask queue?
+    {
+      const order = [];
+      m = make((x) => { order.push('import'); queueMicrotask(() => order.push('microtask')); return x; });
+      await WebAssembly.promising(m.inst.exports.twice)(1);
+      r.suspending_import_returning_plain_value = { order: order.join(','), yieldsToMicrotasks: order[1] === 'microtask' };
+    }
     // 1. baseline: promising(export) -> Suspending import returning a pending promise
-    let m = make(delay);
+    m = make(delay);
     await attempt('direct_wasm_to_suspending_import', () => WebAssembly.promising(m.inst.exports.outer_direct)(5)); // 5*2+100
     // 2. promising(outer) -> wasm -> sync JS frame -> raw wasm export -> Suspending import (pending promise)
     m = make(delay);

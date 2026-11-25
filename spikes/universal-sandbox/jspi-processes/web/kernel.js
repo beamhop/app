@@ -107,7 +107,7 @@ class PipeWriteEnd {
     const pipe = this.pipe;
     if (pipe.readers === 0) return EPIPE;
     const space = pipe.cap - pipe.len;
-    if (space === 0) { if (self.DBG) self.DBG.push("full"); return BLOCK; }
+    if (space === 0) return BLOCK;
     const n = l < space ? l : space;
     const wpos = (pipe.rpos + pipe.len) % pipe.cap;
     const first = Math.min(n, pipe.cap - wpos);
@@ -139,7 +139,13 @@ export class Kernel {
     this.modules = {}; // name -> WebAssembly.Module
     this.procs = new Map(); // pid -> proc (live)
     this.nextPid = 1;
-    this.stats = { syscalls: 0, suspends: 0, switches: 0, remoteSyscalls: 0 };
+    // suspends: kernel-level blocks (a Promise was returned). suspendingCalls: calls that
+    // went through a WebAssembly.Suspending import (each one suspends+resumes the stack in
+    // Chromium, whether or not the kernel blocked).
+    this.stats = { syscalls: 0, suspends: 0, switches: 0, remoteSyscalls: 0, suspendingCalls: 0 };
+    // true: fd_read/fd_write go through the wasm fast-path shim (guest-shim) so that only
+    // calls that really block touch a Suspending import. false: they are Suspending directly.
+    this.useShim = true;
     this.lastPid = 0;
     this.sliceMs = 0; // 0 = never yield to the event loop voluntarily
     this.lastYield = 0;
@@ -180,6 +186,7 @@ export class Kernel {
       cancelWait: null,
       dead: false,
       placement: 'a',
+      useShim: opts.shim ?? this.useShim,
       instance: null,
       memory: null,
       worker: null,
@@ -455,12 +462,33 @@ export class Kernel {
     };
     const impl = { wasi_snapshot_preview1: wasi, spike };
     const imports = {};
+    const useShim = proc.useShim;
+    let shim = null;
+    if (useShim) {
+      // One tiny shim instance per process; its exports are linked wasm-to-wasm.
+      let pend = null;
+      const tryOf = (fn) => (a, b, c, d) => {
+        const r = fn(a, b, c, d);
+        if (typeof r === 'number') return r;
+        pend = r; // the blocking path already started; hand its promise to the slow import
+        return -1;
+      };
+      const slow = new WebAssembly.Suspending(() => { stats.suspendingCalls++; return pend; });
+      shim = new WebAssembly.Instance(k.modules.shim, {
+        k: { try_fd_write: tryOf(wasi.fd_write), slow_fd_write: slow, try_fd_read: tryOf(wasi.fd_read), slow_fd_read: slow },
+      }).exports;
+    }
     for (const imp of WebAssembly.Module.imports(module)) {
       if (imp.kind !== 'function') continue;
       const ns = (imports[imp.module] ??= {});
+      const full = imp.module + '.' + imp.name;
       let fn = impl[imp.module]?.[imp.name];
       if (!fn) fn = () => E.NOSYS; // stub the rest
-      ns[imp.name] = SUSPENDING.has(imp.module + '.' + imp.name) ? new WebAssembly.Suspending(fn) : fn;
+      if (shim && imp.module === 'wasi_snapshot_preview1' && shim[imp.name]) ns[imp.name] = shim[imp.name];
+      else if (SUSPENDING.has(full)) {
+        const f = fn;
+        ns[imp.name] = new WebAssembly.Suspending(function () { stats.suspendingCalls++; return f.apply(null, arguments); });
+      } else ns[imp.name] = fn;
     }
     return imports;
   }
