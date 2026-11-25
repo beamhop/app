@@ -294,6 +294,9 @@ async function handlePlain(request: Request, st: State): Promise<Response> {
         flush() {
           onDone?.()
         },
+        cancel() {
+          onDone?.()
+        },
       })
 
     let res: Response

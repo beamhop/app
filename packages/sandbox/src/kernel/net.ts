@@ -52,21 +52,35 @@ export interface HttpExchange {
   abort(): void
 }
 
-/** A TLS client connection layered on a raw socket. Not implemented yet; see NetBroker.connectTls. */
-export interface TlsOptions {
-  servername: string
-  alpnProtocols?: string[]
-}
-
 export interface NetBroker {
   openSocket(host: string, port: number, events: SocketEvents): SocketChannel
   openHttp(request: HttpRequestInit, events: HttpResponseEvents): HttpExchange
-  /**
-   * TODO(tls): wrap a tunnel socket in TLS inside the machine. Until a broker provides this hook, `tls.connect`
-   * and `https:` requests fail in tunnel mode with ERR_TLS_NOT_AVAILABLE. In http mode the proxy terminates TLS.
-   */
-  connectTls?(channel: SocketChannel, options: TlsOptions, events: SocketEvents): SocketChannel
 }
+
+/**
+ * TLS hook. TLS for tunnel mode must run inside the machine (the proxy stays blind), and is built separately
+ * (`packages/tls`). These two interfaces are structural copies of that package's `TlsTransport` and `TlsSocket`,
+ * so its `connectTls` can be passed as a TlsConnector without this package depending on it.
+ *
+ * TODO(tls): the frame worker does not install a connector yet. Until it does, `tls.connect` and `https:` requests
+ * in tunnel mode fail with ERR_TLS_NOT_AVAILABLE. In http mode the proxy terminates TLS, so they work there.
+ */
+export interface ByteTransport {
+  readonly readable: ReadableStream<Uint8Array>
+  write(bytes: Uint8Array): void | Promise<void>
+  end(): void
+  close(): void
+}
+export interface SecureTransport {
+  readonly readable: ReadableStream<Uint8Array>
+  readonly alpn?: string | null
+  readonly protocolVersion?: string
+  readonly cipherSuite?: string
+  write(bytes: Uint8Array): Promise<void>
+  end(): Promise<void>
+  close(): void
+}
+export type TlsConnector = (transport: ByteTransport, options: { serverName: string; alpn?: string[] }) => Promise<SecureTransport>
 
 /** A broker for a machine that is not connected to anything. */
 export const noNetwork: NetBroker = {
