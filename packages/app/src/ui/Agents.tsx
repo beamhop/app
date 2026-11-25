@@ -11,6 +11,7 @@ import { extCaptureRedirect, extFetch } from '../core/extension'
 import { kv } from '../core/kv'
 import type { Usage } from '../core/types'
 import { ExtensionHelp } from './Settings'
+import { testLocalServer } from '../agents/localServer'
 import { AgentMachineCard, HarnessSetup } from './Machine'
 import { appBase, bridgeCommand } from './Invite'
 import { CopyBox } from './components'
@@ -270,7 +271,8 @@ export function AgentEditor({ id, roomId }: { id: string; roomId?: string }) {
               </div>
             </div>
           ))}
-          <ProviderConnect provider={provider} key={provider + credsTick} />
+          {/* Sign-in flows start over after their credentials change; local servers keep their test result. */}
+          <ProviderConnect provider={provider} key={provider === 'ollama' || provider === 'custom' ? provider : provider + credsTick} />
 
           <div className="field">
             <label>Model</label>
@@ -425,10 +427,18 @@ function ProviderConnect({ provider }: { provider: ProviderId }) {
   const [device, setDevice] = useState<CopilotDevice | null>(null)
   const [chatgptSignIn, setChatgptSignIn] = useState<any>(null)
 
+  const [note, setNote] = useState('')
+
   useEffect(() => {
-    getCreds(provider).then((c) => {
-      setC(c ?? null)
-      setBase((b) => b || ((c as any)?.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : '')))
+    const load = () =>
+      getCreds(provider).then((c) => {
+        setC(c ?? null)
+        setBase((b) => b || ((c as any)?.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : '')))
+      })
+    load()
+    // A sign-in finished elsewhere (a redirect, another tab): show the new state.
+    return onCredsChange((id) => {
+      if (id === provider) load()
     })
   }, [provider])
 
@@ -438,7 +448,7 @@ function ProviderConnect({ provider }: { provider: ProviderId }) {
     try {
       await f()
     } catch (e: any) {
-      setErr(e?.message ?? String(e))
+      setErr(e?.message || String(e) || 'Something went wrong')
     } finally {
       setBusy(false)
     }
@@ -505,13 +515,16 @@ function ProviderConnect({ provider }: { provider: ProviderId }) {
             onClick={() =>
               run(async () => {
                 const v = { baseUrl: base.trim(), ...(key.trim() ? { apiKey: key.trim() } : {}) }
+                setNote('')
                 await setCreds(provider, v)
                 setC(v)
-                s.toast('Saved')
+                // Check it now, so a blocked or unreachable server shows up here and not in the room.
+                const models = await testLocalServer(provider, v.baseUrl || 'http://localhost:11434', v.apiKey)
+                setNote(`Connected · ${models.length} model${models.length === 1 ? '' : 's'}`)
               })
             }
           >
-            Save
+            {busy ? 'Checking…' : 'Save & test'}
           </button>
         </div>
       )}
@@ -650,7 +663,12 @@ function ProviderConnect({ provider }: { provider: ProviderId }) {
       )}
 
       {busy && <div className="small muted" style={{ marginTop: 6 }}>Working…</div>}
-      {err && <div className="err" style={{ marginTop: 6 }}>{err}</div>}
+      {note && !err && (
+        <div className="row small ok" style={{ marginTop: 6 }}>
+          <Icon name="check" size={16} /> {note}
+        </div>
+      )}
+      {err && <div className="err" style={{ marginTop: 6, whiteSpace: 'pre-line' }}>{err}</div>}
       {connected && provider !== 'ollama' && (
         <button
           className="btn small ghost danger"
