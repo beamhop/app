@@ -46,12 +46,12 @@ test('a harness in the Linux machine in the tab answers in the room', async ({ b
 
   await page.getByPlaceholder('Message').fill('@Tux ping')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.msg.agent').getByText('machine pong from aarch64')).toBeVisible({ timeout: 120_000 })
+  await expect(page.locator('.msg.agent .bubble').getByText('machine pong from aarch64')).toBeVisible({ timeout: 120_000 })
 
   // A second turn reuses the running harness and its session.
   await page.getByPlaceholder('Message').fill('@Tux again')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.msg.agent').getByText('machine pong from aarch64')).toHaveCount(2, { timeout: 60_000 })
+  await expect(page.locator('.msg.agent .bubble').getByText('machine pong from aarch64')).toHaveCount(2, { timeout: 60_000 })
 
   // Its owner can open the agent's Linux machine from the room: a terminal in the agent's folder,
   // where the file it wrote during its turn is.

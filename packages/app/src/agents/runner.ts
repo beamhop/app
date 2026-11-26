@@ -1,6 +1,6 @@
 // Runs the user's in-browser agents in rooms and DMs: fx compiled to WebAssembly (runtime 'tab'),
 // or a coding-agent harness in the Linux machine in the tab (runtime 'machine', see ../machine).
-import { agentInstructions, displayName, formatTranscript, randomHex, shouldRespond, type Decoded, type FileRef } from '@beamhop/shared'
+import { agentInstructions, triggerLine, displayName, formatTranscript, randomHex, shouldRespond, type Decoded, type FileRef } from '@beamhop/shared'
 import type { Store } from '../core/store'
 import type { AgentDef, Usage } from '../core/types'
 import { kv } from '../core/kv'
@@ -209,7 +209,7 @@ export class AgentRunner {
     for (const def of this.store.liveAgents()) {
       if (!st.agents[def.pk] || st.agents[def.pk].owner !== this.store.pk) continue
       if (!this.runnable.has(def.id)) continue
-      const d = shouldRespond(st, def.pk, ev, def.caps, this.replies.get(def.pk) ?? [])
+      const d = shouldRespond(st, def.pk, ev, def.caps, this.replies.get(def.pk) ?? [], Date.now(), (id) => this.store.client.message(roomId, id))
       if (!d.respond) continue
       if (!this.elected(roomId, def)) continue
       this.enqueue(def, () => this.runRoomTurn(def, roomId, ev, d.hop, false))
@@ -230,7 +230,7 @@ export class AgentRunner {
         for (const m of msgs) {
           if (m.ms < dayAgo || m.payload.t !== 'msg' || n >= 3) continue
           if (m.ms < (st.agents[def.pk]?.addedAt ?? 0) * 1000) continue
-          const d = shouldRespond(st, def.pk, m, def.caps, this.replies.get(def.pk) ?? [])
+          const d = shouldRespond(st, def.pk, m, def.caps, this.replies.get(def.pk) ?? [], Date.now(), (id) => c.message(roomId, id))
           if (!d.respond || this.alreadyAnswered(roomId, def.pk, m.id)) continue
           // skip if the agent already spoke after this message
           if (msgs.some((x) => x.pubkey === def.pk && x.ms > m.ms && x.payload.t === 'msg')) continue
@@ -270,12 +270,11 @@ export class AgentRunner {
       const all = c.messages(roomId).filter((m) => m.payload.t === 'msg' && m.ms <= trigger.ms)
       const fresh = all.filter((m) => m.ms > since).slice(-40)
       this.lastIncluded.set(key, trigger.ms)
-      const who = displayName(st, trigger.pubkey)
       const prompt = [
         since ? 'New messages in the room since your last reply:' : 'Recent room transcript:',
-        formatTranscript(st, fresh, def.pk, 40) || '(none)',
+        formatTranscript(st, fresh, def.pk, 40, (id) => c.message(roomId, id)) || '(none)',
         '',
-        `${who} mentioned you in the last message. Write your reply to the room now.`,
+        `${triggerLine(st, trigger, def.pk)} Write your reply to the room now.`,
         catchUp ? '(This message arrived while you were offline. Reply only if it is still useful; otherwise briefly acknowledge it.)' : '',
       ].join('\n')
       const out = await this.turn(
@@ -304,14 +303,14 @@ export class AgentRunner {
       text = out.text || text
       const files = out.files
       const final = text.trim() || (files.length ? 'Here you go.' : '…')
-      await c.sendMessage(roomId, final, { as: def.pk, trigger: trigger.id, hop, sid, files })
+      await c.sendMessage(roomId, final, { as: def.pk, reply: trigger.id, trigger: trigger.id, hop, sid, files })
       const arr = (this.replies.get(def.pk) ?? []).filter((t) => t > Date.now() - 3600_000)
       arr.push(Date.now())
       this.replies.set(def.pk, arr)
     } catch (e: any) {
       console.error(e)
       const msg = e?.message ?? String(e)
-      await c.sendMessage(roomId, `⚠️ I couldn't answer: ${msg.slice(0, 400)}`, { as: def.pk, trigger: trigger.id, hop, sid }).catch(() => {})
+      await c.sendMessage(roomId, `⚠️ I couldn't answer: ${msg.slice(0, 400)}`, { as: def.pk, reply: trigger.id, trigger: trigger.id, hop, sid }).catch(() => {})
     } finally {
       pushStream(undefined, true)
       this.busy.delete(trigger.id)

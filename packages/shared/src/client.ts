@@ -630,6 +630,11 @@ export class BeamhopClient extends Emitter<ClientEvents> {
     return out
   }
 
+  /** One room event by id. */
+  message(roomId: string, id: string): Decoded | undefined {
+    return this.events.get(roomId)?.get(id)
+  }
+
   nameOf(roomId: string, pk: Hex) {
     const st = this.state(roomId)
     if (st && (st.members[pk] || st.agents[pk])) return displayName(st, pk)

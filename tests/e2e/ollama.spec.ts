@@ -84,7 +84,7 @@ test('Ollama: with the Companion extension, a server that refuses the page is re
     await expect(page.locator('.system-line').getByText('Llama joined as your agent')).toBeVisible({ timeout: 15_000 })
     await page.getByPlaceholder('Message').fill('@Llama hello through the extension')
     await page.keyboard.press('Enter')
-    await expect(page.locator('.msg.agent').getByText(/echo:/)).toBeVisible({ timeout: 60_000 })
+    await expect(page.locator('.msg.agent .bubble').getByText(/echo:/)).toBeVisible({ timeout: 60_000 })
   } finally {
     await ctx.close()
     server.close()

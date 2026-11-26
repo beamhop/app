@@ -51,6 +51,32 @@ export function isMentioned(state: RoomState, msg: Decoded, agentPk: Hex) {
   return resolveMentions(state, msg.payload.text).includes(agentPk)
 }
 
+/**
+ * Is `msg` addressed to agent `agentPk`? It is when it @mentions the agent, or when it is part of
+ * a reply chain that includes one of the agent's messages or a message that @mentions it. A reply
+ * that @mentions someone else but not the agent is addressed to them instead. Messages from agents
+ * count only as a direct reply to the agent's own message, so an agent's answer deep in a thread
+ * doesn't wake every other agent in it.
+ */
+export function isAddressed(state: RoomState, msg: Decoded, agentPk: Hex, getMsg?: (id: string) => Decoded | undefined) {
+  if (msg.payload.t !== 'msg') return false
+  const mentioned = resolveMentions(state, msg.payload.text)
+  if (mentioned.includes(agentPk)) return true
+  if (mentioned.length || !getMsg) return false
+  const fromAgent = isAgent(state, msg.pubkey)
+  const seen = new Set<string>()
+  let id = msg.payload.reply
+  for (let i = 0; id && i < 100 && !seen.has(id); i++) {
+    seen.add(id)
+    const m = getMsg(id)
+    if (!m || m.payload.t !== 'msg') return false
+    if (fromAgent) return m.pubkey === agentPk
+    if (m.pubkey === agentPk || resolveMentions(state, m.payload.text).includes(agentPk)) return true
+    id = m.payload.reply
+  }
+  return false
+}
+
 export type Decision = { respond: true; hop: number } | { respond: false; reason: string }
 
 /**
@@ -64,12 +90,14 @@ export function shouldRespond(
   caps: AgentCaps,
   recentReplies: number[],
   now = Date.now(),
+  /** Looks up a room message by id, to follow reply chains. Without it only @mentions count. */
+  getMsg?: (id: string) => Decoded | undefined,
 ): Decision {
   const agent = state.agents[agentPk]
   if (!agent) return { respond: false, reason: 'not an agent here' }
   if (msg.payload.t !== 'msg') return { respond: false, reason: 'not a message' }
   if (msg.pubkey === agentPk) return { respond: false, reason: 'own message' }
-  if (!isMentioned(state, msg, agentPk)) return { respond: false, reason: 'not mentioned' }
+  if (!isAddressed(state, msg, agentPk, getMsg)) return { respond: false, reason: 'not addressed' }
   const author = msg.pubkey
   const authorIsAgent = isAgent(state, author)
   const hop = authorIsAgent ? (msg.payload.hop ?? 1) + 1 : 0
@@ -99,8 +127,10 @@ export function mayInstruct(state: RoomState, agentPk: Hex, who: Hex) {
 }
 
 /** Format recent room messages as transcript context for an agent. */
-export function formatTranscript(state: RoomState, msgs: Decoded[], agentPk: Hex, limit = 40) {
+export function formatTranscript(state: RoomState, msgs: Decoded[], agentPk: Hex, limit = 40, getMsg?: (id: string) => Decoded | undefined) {
   const lines: string[] = []
+  const known = new Map(msgs.map((m) => [m.id, m]))
+  const byId = { get: (id: string) => known.get(id) ?? getMsg?.(id) }
   for (const m of msgs.slice(-limit)) {
     if (m.payload.t !== 'msg') continue
     const who = displayName(state, m.pubkey)
@@ -110,9 +140,23 @@ export function formatTranscript(state: RoomState, msgs: Decoded[], agentPk: Hex
         : `agent of ${displayName(state, state.agents[m.pubkey].owner)}`
       : 'person'
     const files = m.payload.files?.length ? ` [attached: ${m.payload.files.map((f) => f.name).join(', ')}]` : ''
-    lines.push(`[${new Date(m.ms).toISOString().slice(11, 16)}] ${who} (${role}): ${m.payload.text}${files}`)
+    // agents always reply to the message that triggered them, so only people's replies are worth noting
+    const to = m.payload.reply && !state.agents[m.pubkey] ? byId.get(m.payload.reply) : undefined
+    const re = to && to.payload.t === 'msg' ? ` (replying to ${to.pubkey === agentPk ? 'you' : displayName(state, to.pubkey)}: "${clip(to.payload.text, 80)}")` : ''
+    lines.push(`[${new Date(m.ms).toISOString().slice(11, 16)}] ${who} (${role})${re}: ${m.payload.text}${files}`)
   }
   return lines.join('\n')
+}
+
+const clip = (t: string, n: number) => {
+  const one = t.replace(/\s+/g, ' ').trim()
+  return one.length > n ? one.slice(0, n - 1) + '…' : one
+}
+
+/** The prompt's last line: why the agent is answering `msg`. */
+export function triggerLine(state: RoomState, msg: Decoded, agentPk: Hex) {
+  const who = displayName(state, msg.pubkey)
+  return isMentioned(state, msg, agentPk) ? `${who} mentioned you in the last message.` : `${who} replied in a thread you are part of, in the last message.`
 }
 
 export function agentInstructions(state: RoomState, agentPk: Hex, ownerInstructions: string) {

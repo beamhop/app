@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util'
 import { resolve } from 'node:path'
 import {
   agentInstructions,
+  triggerLine,
   DEFAULT_CAPS,
   displayName,
   formatTranscript,
@@ -119,9 +120,9 @@ export async function serve(j: Joined, backend: Backend, o: { caps: typeof DEFAU
       const prompt = [
         first ? agentInstructions(st, client.pk, '') : '',
         first ? 'Recent room transcript:' : 'New messages in the room since your last reply:',
-        formatTranscript(st, msgs, client.pk, 40) || '(none)',
+        formatTranscript(st, msgs, client.pk, 40, (id) => client.message(roomId, id)) || '(none)',
         '',
-        `${displayName(st, ev.pubkey)} mentioned you in the last message. Reply with the message to post in the room.`,
+        `${triggerLine(st, ev, client.pk)} Reply with the message to post in the room.`,
       ]
         .filter(Boolean)
         .join('\n')
@@ -139,12 +140,12 @@ export async function serve(j: Joined, backend: Backend, o: { caps: typeof DEFAU
         },
         onStatus: (s) => push(s),
       })
-      await client.sendMessage(roomId, (out || text).trim() || '…', { as: client.pk, trigger: ev.id, hop, sid })
+      await client.sendMessage(roomId, (out || text).trim() || '…', { as: client.pk, reply: ev.id, trigger: ev.id, hop, sid })
       replies.push(Date.now())
       log(`← replied (${(out || text).length} chars)`)
     } catch (e: any) {
       log('error:', e?.message ?? e)
-      await client.sendMessage(roomId, `⚠️ ${String(e?.message ?? e).slice(0, 400)}`, { as: client.pk, trigger: ev.id, hop, sid }).catch(() => {})
+      await client.sendMessage(roomId, `⚠️ ${String(e?.message ?? e).slice(0, 400)}`, { as: client.pk, reply: ev.id, trigger: ev.id, hop, sid }).catch(() => {})
     } finally {
       push(undefined, true)
     }
@@ -164,7 +165,7 @@ export async function serve(j: Joined, backend: Backend, o: { caps: typeof DEFAU
       shutdown(0)
       return
     }
-    const d = shouldRespond(st, client.pk, ev, o.caps, replies)
+    const d = shouldRespond(st, client.pk, ev, o.caps, replies, Date.now(), (id) => client.message(roomId, id))
     if (!d.respond) return
     queue = queue.then(() => runTurn(ev, d.hop))
   })

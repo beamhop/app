@@ -58,7 +58,7 @@ test('agent answers mentions it missed while offline, and runs Python', async ({
   // Python in the sandbox (Pyodide from the CDN)
   await bob.getByPlaceholder('Message').fill('@Helper use_tool:run_python {"code":"print(6*7)"}')
   await bob.keyboard.press('Enter')
-  await expect(bob.locator('.msg.agent').getByText(/tool said: ok/)).toBeVisible({ timeout: 90000 })
+  await expect(bob.locator('.msg.agent .bubble').getByText(/tool said: ok/)).toBeVisible({ timeout: 90000 })
   await expect(bob.locator('.msg.agent').filter({ hasText: 'tool said' }).getByText(/42/)).toBeVisible()
 
   // Alice goes offline; Bob mentions the agent; Alice comes back and the agent catches up

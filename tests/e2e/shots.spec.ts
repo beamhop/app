@@ -47,7 +47,7 @@ test('screens', async ({ browser }) => {
   await bob.getByRole('button', { name: 'Maybe later' }).click()
   await bob.getByPlaceholder('Message').fill('Hi all! @Claude can you write a hello world in python?')
   await bob.getByRole('button', { name: 'Send' }).click()
-  await expect(bob.locator('.msg.agent').getByText(/echo:/)).toBeVisible({ timeout: 60000 })
+  await expect(bob.locator('.msg.agent .bubble').getByText(/echo:/)).toBeVisible({ timeout: 60000 })
   await alice.getByPlaceholder('Message').fill('Here is code:\n```py:hello.py\nprint("hello")\n```')
   await alice.keyboard.press('Enter')
   await expect(bob.locator('.code').first()).toBeVisible({ timeout: 10000 })

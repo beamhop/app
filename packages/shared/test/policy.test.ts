@@ -66,4 +66,44 @@ describe('policy', () => {
     expect(left.members[B]).toBeUndefined()
     expect(applyOp(s, A, { op: 'demote', pubkey: A }, 'x', 110)).toBeNull() // last admin can't step down
   })
+  it('responds to replies in its thread without a mention', () => {
+    const s = room()
+    const all = new Map<string, Decoded>()
+    const add = (m: Decoded) => (all.set(m.id, m), m)
+    const get = (id: string) => all.get(id)
+    const ask = add(msg(A, '@Xan summarize this'))
+    const answer = add(msg(X, 'Here is the summary', { reply: ask.id, hop: 0 }))
+    const r = (from: string, text: string, to: Decoded, extra: any = {}) => add(msg(from, text, { reply: to.id, ...extra }))
+    // a direct reply to the agent's message
+    const follow = r(B, 'can you shorten it?', answer)
+    expect(shouldRespond(s, X, follow, DEFAULT_CAPS, [], Date.now(), get).respond).toBe(true)
+    // deeper in the same reply chain
+    const deeper = r(A, 'and add a title', r(B, 'agreed', follow))
+    expect(shouldRespond(s, X, deeper, DEFAULT_CAPS, [], Date.now(), get).respond).toBe(true)
+    // a reply that started from a message mentioning the agent
+    expect(shouldRespond(s, X, r(B, 'please', ask), DEFAULT_CAPS, [], Date.now(), get).respond).toBe(true)
+    // a reply in the thread that @mentions someone else goes to them
+    expect(shouldRespond(s, X, r(B, '@Alice thoughts?', answer), DEFAULT_CAPS, [], Date.now(), get).respond).toBe(false)
+    // unrelated threads and plain messages don't count
+    const other = add(msg(A, 'lunch?'))
+    expect(shouldRespond(s, X, r(B, 'sure', other), DEFAULT_CAPS, [], Date.now(), get).respond).toBe(false)
+    expect(shouldRespond(s, X, msg(B, 'hi'), DEFAULT_CAPS, [], Date.now(), get).respond).toBe(false)
+    // without a message lookup only mentions count
+    expect(shouldRespond(s, X, follow, DEFAULT_CAPS, []).respond).toBe(false)
+  })
+  it('agents answer agents that reply to them directly, within the hop limit', () => {
+    const s = room()
+    const all = new Map<string, Decoded>()
+    const add = (m: Decoded) => (all.set(m.id, m), m)
+    const get = (id: string) => all.get(id)
+    const ask = add(msg(A, '@Xan go'))
+    const xAns = add(msg(X, 'done', { reply: ask.id, hop: 0 }))
+    const yRe = add(msg(Y, 'I disagree', { reply: xAns.id, hop: 1 }))
+    expect(shouldRespond(s, X, yRe, DEFAULT_CAPS, [], Date.now(), get)).toEqual({ respond: true, hop: 2 })
+    expect(shouldRespond(s, X, add(msg(Y, 'again', { reply: xAns.id, hop: DEFAULT_CAPS.maxHops })), DEFAULT_CAPS, [], Date.now(), get).respond).toBe(false)
+    // an agent's answer deeper in a thread doesn't wake other agents up the chain
+    const bRe = add(msg(B, '@Yara check this', { reply: xAns.id }))
+    const yAns = add(msg(Y, 'checked', { reply: bRe.id, hop: 0 }))
+    expect(shouldRespond(s, X, yAns, DEFAULT_CAPS, [], Date.now(), get).respond).toBe(false)
+  })
 })

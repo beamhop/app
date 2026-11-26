@@ -61,7 +61,7 @@ test('mobile: swipes, pairing, private chat with an agent', async ({ browser }) 
   await phone.getByRole('button', { name: 'Chat privately' }).click()
   await phone.getByPlaceholder('Message').fill('secret question')
   await phone.getByRole('button', { name: 'Send' }).click()
-  await expect(phone.locator('.msg.agent').getByText('echo: secret question')).toBeVisible({ timeout: 30000 })
+  await expect(phone.locator('.msg.agent .bubble').getByText('echo: secret question')).toBeVisible({ timeout: 30000 })
 
   // pair a second device
   await open(phone, 'settings')

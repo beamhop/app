@@ -52,20 +52,35 @@ test('create room, invite, lobby, admit, chat, browser agent replies', async ({ 
   await expect(bob.locator('.system-line').getByText(/Echo joined/)).toBeVisible({ timeout: 15000 })
   await bob.getByPlaceholder('Message').fill('@Echo ping from bob')
   await bob.keyboard.press('Enter')
-  await expect(bob.locator('.msg.agent').getByText(/echo:/)).toBeVisible({ timeout: 60000 })
-  await expect(alice.locator('.msg.agent').getByText(/echo:/)).toBeVisible({ timeout: 10000 })
+  await expect(bob.locator('.msg.agent .bubble').getByText(/echo:/)).toBeVisible({ timeout: 60000 })
+  await expect(alice.locator('.msg.agent .bubble').getByText(/echo:/)).toBeVisible({ timeout: 10000 })
+
+  // replying to the agent's message (no @mention) continues the conversation, and so does a reply deeper in the thread
+  const agentMsgs = bob.locator('.msg.agent[id^="m-"]').filter({ hasText: /echo:/ })
+  await expect(agentMsgs).toHaveCount(1)
+  await agentMsgs.first().click({ button: 'right' })
+  await bob.locator('.action-sheet').getByRole('button', { name: 'Reply' }).click()
+  await bob.getByPlaceholder('Message').fill('thread follow-up')
+  await bob.keyboard.press('Enter')
+  await expect(bob.locator('.msg.agent .bubble').getByText(/echo:.*replied in a thread/)).toBeVisible({ timeout: 60000 })
+  await expect(agentMsgs).toHaveCount(2)
+  await bob.locator('.msg:not(.agent)').filter({ hasText: 'thread follow-up' }).last().click({ button: 'right' })
+  await bob.locator('.action-sheet').getByRole('button', { name: 'Reply' }).click()
+  await bob.getByPlaceholder('Message').fill('deeper in the thread')
+  await bob.keyboard.press('Enter')
+  await expect(agentMsgs).toHaveCount(3, { timeout: 60000 })
 
   // tool use: the agent runs JavaScript in its sandbox
   await bob.getByPlaceholder('Message').fill('@Echo use_tool:run_javascript {"code":"return 6*7"}')
   await bob.keyboard.press('Enter')
-  await expect(bob.locator('.msg.agent').getByText(/tool said: ok/)).toBeVisible({ timeout: 60000 })
-  await expect(bob.locator('.msg.agent').getByText(/42/)).toBeVisible()
+  await expect(bob.locator('.msg.agent .bubble').getByText(/tool said: ok/)).toBeVisible({ timeout: 60000 })
+  await expect(bob.locator('.msg.agent .bubble').getByText(/42/)).toBeVisible()
 
   // agent code is isolated from Beamhop's storage (keys, sign-ins)
   await bob.getByPlaceholder('Message').fill('@Echo use_tool:run_javascript {"code":"return await indexedDB.databases().then(d => \'dbs:\' + d.length, e => \'blocked:\' + e.name)"}')
   await bob.keyboard.press('Enter')
-  await expect(bob.locator('.msg.agent').getByText(/blocked:SecurityError|dbs:/)).toBeVisible({ timeout: 60000 })
-  await expect(bob.locator('.msg.agent').getByText(/blocked:SecurityError/)).toBeVisible()
+  await expect(bob.locator('.msg.agent .bubble').getByText(/blocked:SecurityError|dbs:/)).toBeVisible({ timeout: 60000 })
+  await expect(bob.locator('.msg.agent .bubble').getByText(/blocked:SecurityError/)).toBeVisible()
 
   // reactions & replies
   const msg = alice.locator('.msg').filter({ hasText: 'hello alice' }).first()
